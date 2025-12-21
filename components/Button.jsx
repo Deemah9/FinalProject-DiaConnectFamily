@@ -8,7 +8,7 @@ import {
 
 import { Colors } from "../constants/Colors";
 import { Spacing } from "../constants/Spacing";
-import { Typography } from "../constants/Typography";
+import { FontFamily, Typography } from "../constants/Typography";
 
 export default function Button({
   title,
@@ -19,6 +19,10 @@ export default function Button({
   fullWidth = true,
 }) {
   const isDisabled = disabled || loading;
+  const isOutline = variant === "outline";
+
+  const spinnerColor = isOutline ? Colors.primary : Colors.white;
+  const textColor = isOutline ? Colors.primary : Colors.white;
 
   return (
     <TouchableOpacity
@@ -34,15 +38,10 @@ export default function Button({
     >
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator
-            color={variant === "outline" ? Colors.primary : Colors.white}
-          />
+          <ActivityIndicator color={spinnerColor} />
         ) : (
           <Text
-            style={[
-              styles.text,
-              variant === "outline" && styles.textOutline,
-            ]}
+            style={[styles.text, { color: textColor }]}
             numberOfLines={1}
           >
             {title}
@@ -78,7 +77,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.xs, // RN Web يدعمه، وعلى الموبايل غالبًا تمام
   },
 
   primary: { backgroundColor: Colors.primary },
@@ -89,7 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.primary,
-    // ظل أخف للـ outline
     shadowOpacity: 0.08,
     elevation: 2,
   },
@@ -99,11 +96,7 @@ const styles = StyleSheet.create({
   },
 
   text: {
-    color: Colors.white,
-    ...Typography.bodyBold,
-  },
-
-  textOutline: {
-    color: Colors.primary,
+    ...Typography.button,
+    fontFamily: FontFamily,
   },
 });
