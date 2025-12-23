@@ -11,6 +11,7 @@ export const Colors = {
 
   danger: "#FF4D4D",
   disabled: "rgba(255,255,255,0.35)",
+  background:"#0F172A",
 };
 
 export default Colors;
