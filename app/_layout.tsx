@@ -1,9 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import RootNavigator from "../navigation"; // navigation/index.jsx
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -11,7 +11,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={theme}>
-      <RootNavigator />
+      <Stack screenOptions={{ headerShown: false }} />
       <StatusBar style="auto" />
     </ThemeProvider>
   );
