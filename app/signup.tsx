@@ -10,7 +10,9 @@ import { Typography } from "@/constants/Typography";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUp() {
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -22,16 +24,20 @@ export default function SignUp() {
     const e: Record<string, string> = {};
     const em = email.trim();
 
-    if (!fullName.trim()) e.fullName = "Full name is required";
+    if (!firstName.trim()) e.firstName = "First name is required";
+    if (!lastName.trim()) e.lastName = "Last name is required";
+
     if (!em) e.email = "Email is required";
     else if (!emailRegex.test(em)) e.email = "Invalid email";
+
     if (!password) e.password = "Password is required";
     else if (password.length < 6) e.password = "Min 6 characters";
+
     if (!confirmPassword) e.confirmPassword = "Confirm your password";
     else if (confirmPassword !== password) e.confirmPassword = "Passwords do not match";
 
     return e;
-  }, [fullName, email, password, confirmPassword]);
+  }, [firstName, lastName, email, password, confirmPassword]);
 
   const canSubmit = Object.keys(errors).length === 0 && !loading;
 
@@ -41,8 +47,10 @@ export default function SignUp() {
 
     try {
       setLoading(true);
+
       // TODO: اربط API حقيقي
       await new Promise((r) => setTimeout(r, 1000));
+
       router.replace("/(tabs)");
     } catch (e) {
       setGeneralError("Sign up failed. Please try again.");
@@ -77,15 +85,29 @@ export default function SignUp() {
         )}
 
         <View style={styles.form}>
-          <View>
-            <TextInput
-              style={[styles.input, errors.fullName && styles.inputErr]}
-              placeholder="Full name"
-              placeholderTextColor={Colors.textMuted}
-              value={fullName}
-              onChangeText={setFullName}
-            />
-            {!!errors.fullName && <Text style={styles.errText}>{errors.fullName}</Text>}
+          {/* ✅ First + Last name side-by-side */}
+          <View style={styles.nameRow}>
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={[styles.input, errors.firstName && styles.inputErr]}
+                placeholder="First name"
+                placeholderTextColor={Colors.textMuted}
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+              {!!errors.firstName && <Text style={styles.errText}>{errors.firstName}</Text>}
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <TextInput
+                style={[styles.input, errors.lastName && styles.inputErr]}
+                placeholder="Last name"
+                placeholderTextColor={Colors.textMuted}
+                value={lastName}
+                onChangeText={setLastName}
+              />
+              {!!errors.lastName && <Text style={styles.errText}>{errors.lastName}</Text>}
+            </View>
           </View>
 
           <View>
@@ -157,9 +179,19 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.primary },
 
   topRow: { paddingTop: Spacing.lg, paddingHorizontal: Spacing.lg },
-  backBtn: { width: 40, height: 40, borderRadius: 999, alignItems: "center", justifyContent: "center" },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  content: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl, alignItems: "center" },
+  content: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xl,
+    alignItems: "center",
+  },
 
   brand: { marginTop: Spacing.sm, flexDirection: "row", alignItems: "center" },
   brandTitle: { color: Colors.white, fontSize: 22, fontWeight: "700", lineHeight: 24 },
@@ -179,6 +211,12 @@ const styles = StyleSheet.create({
   errorBannerText: { color: Colors.white, fontSize: 13 },
 
   form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
+
+  // ✅ صف الاسم الأول + العائلة
+  nameRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
 
   input: {
     height: 54,
