@@ -179,7 +179,8 @@ async def register(request: RegisterRequest):
     user_id = doc_ref[1].id
 
     # Generate JWT token
-    access_token = create_access_token(data={"sub": user_id})
+    access_token = create_access_token(
+        data={"sub": user_id, "role": user.role})
 
     # Return response
     return AuthResponse(
