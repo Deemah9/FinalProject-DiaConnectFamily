@@ -16,7 +16,7 @@ SECRET_KEY = "f926236257f57ceab0e9449fc3e58ef84fd4e5659878c8083383adc18368cf4e"
 ALGORITHM = "HS256"
 
 # Token expiration time in minutes
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 # ==========================================
 # Password Hashing Configuration

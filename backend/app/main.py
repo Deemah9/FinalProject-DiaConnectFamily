@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.routes import auth
 from app.routes import user_routes
+from app.routes import glucose
 
 # ==========================================
 # FastAPI Application
@@ -20,6 +21,8 @@ app = FastAPI(
 # Include authentication routes
 app.include_router(auth.router)
 app.include_router(user_routes.router)
+app.include_router(glucose.router)
+
 
 # ==========================================
 # Root Endpoints
