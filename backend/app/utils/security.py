@@ -107,7 +107,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[str]:
+def verify_token(token: str) -> Optional[dict]:
     """
     Verify JWT token and extract userId.
 
@@ -133,7 +133,7 @@ def verify_token(token: str) -> Optional[str]:
         if user_id is None:
             return None
 
-        return user_id
+        return payload
 
     except JWTError:
         # Any JWT error (expired, invalid signature, etc.)
