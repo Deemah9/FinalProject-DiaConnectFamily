@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
@@ -10,6 +11,8 @@ import { Typography } from "@/constants/Typography";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
+  const { t } = useTranslation();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -20,14 +23,14 @@ export default function Login() {
     const e: Record<string, string> = {};
     const em = email.trim();
 
-    if (!em) e.email = "Email is required";
-    else if (!emailRegex.test(em)) e.email = "Invalid email";
+    if (!em) e.email = t("errors.emailRequired");
+    else if (!emailRegex.test(em)) e.email = t("errors.emailInvalid");
 
-    if (!password) e.password = "Password is required";
-    else if (password.length < 6) e.password = "Min 6 characters";
+    if (!password) e.password = t("errors.passwordRequired");
+    else if (password.length < 6) e.password = t("errors.passwordMin");
 
     return e;
-  }, [email, password]);
+  }, [email, password, t]);
 
   const canSubmit = Object.keys(errors).length === 0 && !loading;
 
@@ -41,7 +44,7 @@ export default function Login() {
       await new Promise((r) => setTimeout(r, 900));
       router.replace("/(tabs)");
     } catch (e) {
-      setGeneralError("Login failed. Please try again.");
+      setGeneralError(t("errors.loginFailed"));
     } finally {
       setLoading(false);
     }
@@ -59,12 +62,12 @@ export default function Login() {
         <View style={styles.brand} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
-            <Text style={styles.brandTitle}>DiaConnect</Text>
-            <Text style={styles.brandSub}>Family</Text>
+            <Text style={styles.brandTitle}>{t("appName1")}</Text>
+            <Text style={styles.brandSub}>{t("appName2")}</Text>
           </View>
         </View>
 
-        <Text style={styles.header}>Log in</Text>
+        <Text style={styles.header}>{t("login")}</Text>
 
         {!!generalError && (
           <View style={styles.errorBanner}>
@@ -74,31 +77,31 @@ export default function Login() {
 
         <View style={styles.form}>
           <View>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>{t("email")}</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder={t("email")}
               placeholderTextColor={Colors.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              style={[styles.input, errors.email && styles.inputErr]}
+              style={[styles.input, !!errors.email && styles.inputErr]}
             />
             {!!errors.email && <Text style={styles.errText}>{errors.email}</Text>}
           </View>
 
           <View>
-            <Text style={styles.inputLabel}>Password</Text>
+            <Text style={styles.inputLabel}>{t("password")}</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder={t("password")}
               placeholderTextColor={Colors.textMuted}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
-              style={[styles.input, errors.password && styles.inputErr]}
+              style={[styles.input, !!errors.password && styles.inputErr]}
             />
             {!!errors.password && <Text style={styles.errText}>{errors.password}</Text>}
           </View>
@@ -108,14 +111,16 @@ export default function Login() {
             disabled={!canSubmit}
             style={[styles.primaryBtn, (!canSubmit || loading) && styles.btnDisabled]}
           >
-            <Text style={styles.primaryText}>{loading ? "Loading..." : "Log in"}</Text>
+            <Text style={styles.primaryText}>
+              {loading ? t("loading") : t("login")}
+            </Text>
           </Pressable>
         </View>
 
         <Link href="/signup" asChild>
           <Pressable style={{ marginTop: Spacing.lg }}>
             <Text style={styles.link}>
-              Don’t have an account? <Text style={styles.linkBold}>Sign up</Text>
+              {t("dontHave")} <Text style={styles.linkBold}>{t("signup")}</Text>
             </Text>
           </Pressable>
         </Link>

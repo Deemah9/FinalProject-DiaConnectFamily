@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
@@ -10,6 +11,8 @@ import { Typography } from "@/constants/Typography";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUp() {
+  const { t } = useTranslation();
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
@@ -24,20 +27,20 @@ export default function SignUp() {
     const e: Record<string, string> = {};
     const em = email.trim();
 
-    if (!firstName.trim()) e.firstName = "First name is required";
-    if (!lastName.trim()) e.lastName = "Last name is required";
+    if (!firstName.trim()) e.firstName = t("errors.firstNameRequired");
+    if (!lastName.trim()) e.lastName = t("errors.lastNameRequired");
 
-    if (!em) e.email = "Email is required";
-    else if (!emailRegex.test(em)) e.email = "Invalid email";
+    if (!em) e.email = t("errors.emailRequired");
+    else if (!emailRegex.test(em)) e.email = t("errors.emailInvalid");
 
-    if (!password) e.password = "Password is required";
-    else if (password.length < 6) e.password = "Min 6 characters";
+    if (!password) e.password = t("errors.passwordRequired");
+    else if (password.length < 6) e.password = t("errors.passwordMin");
 
-    if (!confirmPassword) e.confirmPassword = "Confirm your password";
-    else if (confirmPassword !== password) e.confirmPassword = "Passwords do not match";
+    if (!confirmPassword) e.confirmPassword = t("errors.confirmRequired");
+    else if (confirmPassword !== password) e.confirmPassword = t("errors.passwordsMismatch");
 
     return e;
-  }, [firstName, lastName, email, password, confirmPassword]);
+  }, [firstName, lastName, email, password, confirmPassword, t]);
 
   const canSubmit = Object.keys(errors).length === 0 && !loading;
 
@@ -53,7 +56,7 @@ export default function SignUp() {
 
       router.replace("/(tabs)");
     } catch (e) {
-      setGeneralError("Sign up failed. Please try again.");
+      setGeneralError(t("errors.signupFailed"));
     } finally {
       setLoading(false);
     }
@@ -71,12 +74,12 @@ export default function SignUp() {
         <View style={styles.brand} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
-            <Text style={styles.brandTitle}>DiaConnect</Text>
-            <Text style={styles.brandSub}>Family</Text>
+            <Text style={styles.brandTitle}>{t("appName1")}</Text>
+            <Text style={styles.brandSub}>{t("appName2")}</Text>
           </View>
         </View>
 
-        <Text style={styles.header}>Sign up</Text>
+        <Text style={styles.header}>{t("signup")}</Text>
 
         {!!generalError && (
           <View style={styles.errorBanner}>
@@ -89,22 +92,26 @@ export default function SignUp() {
           <View style={styles.nameRow}>
             <View style={{ flex: 1 }}>
               <TextInput
-                style={[styles.input, errors.firstName && styles.inputErr]}
-                placeholder="First name"
+                style={[styles.input, !!errors.firstName && styles.inputErr]}
+                placeholder={t("firstName")}
                 placeholderTextColor={Colors.textMuted}
                 value={firstName}
                 onChangeText={setFirstName}
+                autoCapitalize="words"
+                autoCorrect={false}
               />
               {!!errors.firstName && <Text style={styles.errText}>{errors.firstName}</Text>}
             </View>
 
             <View style={{ flex: 1 }}>
               <TextInput
-                style={[styles.input, errors.lastName && styles.inputErr]}
-                placeholder="Last name"
+                style={[styles.input, !!errors.lastName && styles.inputErr]}
+                placeholder={t("lastName")}
                 placeholderTextColor={Colors.textMuted}
                 value={lastName}
                 onChangeText={setLastName}
+                autoCapitalize="words"
+                autoCorrect={false}
               />
               {!!errors.lastName && <Text style={styles.errText}>{errors.lastName}</Text>}
             </View>
@@ -112,8 +119,8 @@ export default function SignUp() {
 
           <View>
             <TextInput
-              style={[styles.input, errors.email && styles.inputErr]}
-              placeholder="Email"
+              style={[styles.input, !!errors.email && styles.inputErr]}
+              placeholder={t("email")}
               placeholderTextColor={Colors.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -126,8 +133,8 @@ export default function SignUp() {
 
           <View>
             <TextInput
-              style={[styles.input, errors.password && styles.inputErr]}
-              placeholder="Password"
+              style={[styles.input, !!errors.password && styles.inputErr]}
+              placeholder={t("password")}
               placeholderTextColor={Colors.textMuted}
               secureTextEntry
               autoCapitalize="none"
@@ -140,8 +147,8 @@ export default function SignUp() {
 
           <View>
             <TextInput
-              style={[styles.input, errors.confirmPassword && styles.inputErr]}
-              placeholder="Confirm password"
+              style={[styles.input, !!errors.confirmPassword && styles.inputErr]}
+              placeholder={t("confirmPassword")}
               placeholderTextColor={Colors.textMuted}
               secureTextEntry
               autoCapitalize="none"
@@ -159,14 +166,16 @@ export default function SignUp() {
             disabled={!canSubmit}
             style={[styles.primaryBtn, (!canSubmit || loading) && styles.btnDisabled]}
           >
-            <Text style={styles.primaryText}>{loading ? "Creating..." : "Create account"}</Text>
+            <Text style={styles.primaryText}>
+              {loading ? t("creating") : t("createAccount")}
+            </Text>
           </Pressable>
         </View>
 
         <Link href="/login" asChild>
           <Pressable style={{ marginTop: Spacing.lg }}>
             <Text style={styles.link}>
-              Already have an account? <Text style={styles.linkBold}>Log in</Text>
+              {t("alreadyHave")} <Text style={styles.linkBold}>{t("login")}</Text>
             </Text>
           </Pressable>
         </Link>
@@ -212,7 +221,6 @@ const styles = StyleSheet.create({
 
   form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
 
-  // ✅ صف الاسم الأول + العائلة
   nameRow: {
     flexDirection: "row",
     gap: Spacing.sm,
