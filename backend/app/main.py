@@ -3,7 +3,7 @@ from app.routes import auth
 from app.routes import user_routes
 from app.routes import glucose
 from app.routes import daily_logs
-
+from fastapi.middleware.cors import CORSMiddleware
 
 # ==========================================
 # FastAPI Application
@@ -15,7 +15,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8081",
+        "exp://localhost:8081",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ==========================================
 # Include Routers
 # ==========================================
