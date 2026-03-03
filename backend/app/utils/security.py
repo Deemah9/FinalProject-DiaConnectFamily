@@ -46,6 +46,8 @@ def hash_password(password: str) -> str:
         - bcrypt adds a random salt to each password
         - The same password will produce different hashes each time
     """
+    password = password[:72]  # bcrypt limit
+
     return pwd_context.hash(password)
 
 
@@ -65,6 +67,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         - Hashes the input password with the same salt
         - Compares the results
     """
+    plain_password = plain_password[:72]
+
     return pwd_context.verify(plain_password, hashed_password)
 
 
