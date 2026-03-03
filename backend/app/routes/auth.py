@@ -30,13 +30,15 @@ class RegisterRequest(BaseModel):
     Fields:
         email: User email address
         password: User password (min 6 characters)
-        fullName: User full name
+        firstName: User first name
+        lastName: User last name
         role: User role (patient or family_member)
         phone: Optional phone number
     """
     email: EmailStr
     password: str
-    fullName: str
+    first_name: str
+    last_name: str
     role: str  # "patient" or "family_member"
     phone: Optional[str] = None
 
@@ -45,7 +47,8 @@ class RegisterRequest(BaseModel):
             "example": {
                 "email": "user@example.com",
                 "password": "yourpassword123",
-                "fullName": "John Doe",
+                "first_name": "John",
+                "last_name": "Doe",
                 "role": "patient",
                 "phone": "+970599000000"
             }
@@ -168,7 +171,8 @@ async def register(request: RegisterRequest):
     user = User(
         email=request.email,
         password=hashed_password,
-        full_name=request.fullName,
+        first_name=request.first_name,
+        last_name=request.last_name,
         role=request.role,
         phone=request.phone
     )
@@ -179,7 +183,8 @@ async def register(request: RegisterRequest):
     user_id = doc_ref[1].id
 
     # Generate JWT token
-    access_token = create_access_token(data={"sub": user_id})
+    access_token = create_access_token(
+        data={"sub": user_id, "role": user.role})
 
     # Return response
     return AuthResponse(
@@ -224,7 +229,10 @@ async def login(request: LoginRequest):
         )
 
     # Generate JWT token
-    access_token = create_access_token(data={"sub": user_data['userId']})
+    access_token = create_access_token(data={
+        "sub": user_data['userId'],
+        "role": user_data['role']
+    })
 
     # Return response
     return AuthResponse(

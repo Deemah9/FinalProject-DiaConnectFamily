@@ -16,7 +16,7 @@ SECRET_KEY = "f926236257f57ceab0e9449fc3e58ef84fd4e5659878c8083383adc18368cf4e"
 ALGORITHM = "HS256"
 
 # Token expiration time in minutes
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 # ==========================================
 # Password Hashing Configuration
@@ -107,7 +107,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[str]:
+def verify_token(token: str) -> Optional[dict]:
     """
     Verify JWT token and extract userId.
 
@@ -133,7 +133,7 @@ def verify_token(token: str) -> Optional[str]:
         if user_id is None:
             return None
 
-        return user_id
+        return payload
 
     except JWTError:
         # Any JWT error (expired, invalid signature, etc.)
