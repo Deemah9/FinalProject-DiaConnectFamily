@@ -1,12 +1,16 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { setupI18n } from "@/src/i18n";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
-
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { setupI18n } from "@/src/i18n";
+import { AuthProvider } from "../context/AuthContext";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -23,7 +27,9 @@ export default function RootLayout() {
   if (!ready) {
     return (
       <ThemeProvider value={theme}>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <ActivityIndicator />
           <StatusBar style="auto" />
         </View>
@@ -32,9 +38,11 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={theme}>
-      <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider value={theme}>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

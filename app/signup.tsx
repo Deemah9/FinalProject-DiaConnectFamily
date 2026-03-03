@@ -2,16 +2,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
+import { useAuth } from "../context/AuthContext";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUp() {
   const { t } = useTranslation();
+  const { register } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -37,7 +46,8 @@ export default function SignUp() {
     else if (password.length < 6) e.password = t("errors.passwordMin");
 
     if (!confirmPassword) e.confirmPassword = t("errors.confirmRequired");
-    else if (confirmPassword !== password) e.confirmPassword = t("errors.passwordsMismatch");
+    else if (confirmPassword !== password)
+      e.confirmPassword = t("errors.passwordsMismatch");
 
     return e;
   }, [firstName, lastName, email, password, confirmPassword, t]);
@@ -50,13 +60,15 @@ export default function SignUp() {
 
     try {
       setLoading(true);
-
-      // TODO: اربط API حقيقي
-      await new Promise((r) => setTimeout(r, 1000));
-
-      router.replace("/(tabs)");
-    } catch (e) {
-      setGeneralError(t("errors.signupFailed"));
+      await register({
+        email: email.trim(),
+        password,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        role: "patient",
+      });
+    } catch (e: any) {
+      setGeneralError(e.message || t("errors.signupFailed"));
     } finally {
       setLoading(false);
     }
@@ -70,7 +82,10 @@ export default function SignUp() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.brand} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
@@ -100,7 +115,9 @@ export default function SignUp() {
                 autoCapitalize="words"
                 autoCorrect={false}
               />
-              {!!errors.firstName && <Text style={styles.errText}>{errors.firstName}</Text>}
+              {!!errors.firstName && (
+                <Text style={styles.errText}>{errors.firstName}</Text>
+              )}
             </View>
 
             <View style={{ flex: 1 }}>
@@ -113,7 +130,9 @@ export default function SignUp() {
                 autoCapitalize="words"
                 autoCorrect={false}
               />
-              {!!errors.lastName && <Text style={styles.errText}>{errors.lastName}</Text>}
+              {!!errors.lastName && (
+                <Text style={styles.errText}>{errors.lastName}</Text>
+              )}
             </View>
           </View>
 
@@ -128,7 +147,9 @@ export default function SignUp() {
               value={email}
               onChangeText={setEmail}
             />
-            {!!errors.email && <Text style={styles.errText}>{errors.email}</Text>}
+            {!!errors.email && (
+              <Text style={styles.errText}>{errors.email}</Text>
+            )}
           </View>
 
           <View>
@@ -142,12 +163,17 @@ export default function SignUp() {
               value={password}
               onChangeText={setPassword}
             />
-            {!!errors.password && <Text style={styles.errText}>{errors.password}</Text>}
+            {!!errors.password && (
+              <Text style={styles.errText}>{errors.password}</Text>
+            )}
           </View>
 
           <View>
             <TextInput
-              style={[styles.input, !!errors.confirmPassword && styles.inputErr]}
+              style={[
+                styles.input,
+                !!errors.confirmPassword && styles.inputErr,
+              ]}
               placeholder={t("confirmPassword")}
               placeholderTextColor={Colors.textMuted}
               secureTextEntry
@@ -164,7 +190,10 @@ export default function SignUp() {
           <Pressable
             onPress={onSignUp}
             disabled={!canSubmit}
-            style={[styles.primaryBtn, (!canSubmit || loading) && styles.btnDisabled]}
+            style={[
+              styles.primaryBtn,
+              (!canSubmit || loading) && styles.btnDisabled,
+            ]}
           >
             <Text style={styles.primaryText}>
               {loading ? t("creating") : t("createAccount")}
@@ -175,7 +204,8 @@ export default function SignUp() {
         <Link href="/login" asChild>
           <Pressable style={{ marginTop: Spacing.lg }}>
             <Text style={styles.link}>
-              {t("alreadyHave")} <Text style={styles.linkBold}>{t("login")}</Text>
+              {t("alreadyHave")}{" "}
+              <Text style={styles.linkBold}>{t("login")}</Text>
             </Text>
           </Pressable>
         </Link>
@@ -203,10 +233,25 @@ const styles = StyleSheet.create({
   },
 
   brand: { marginTop: Spacing.sm, flexDirection: "row", alignItems: "center" },
-  brandTitle: { color: Colors.white, fontSize: 22, fontWeight: "700", lineHeight: 24 },
-  brandSub: { color: Colors.white, fontSize: 22, fontWeight: "300", lineHeight: 24 },
+  brandTitle: {
+    color: Colors.white,
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 24,
+  },
+  brandSub: {
+    color: Colors.white,
+    fontSize: 22,
+    fontWeight: "300",
+    lineHeight: 24,
+  },
 
-  header: { marginTop: Spacing.lg, color: Colors.white, fontSize: 22, fontWeight: "600" },
+  header: {
+    marginTop: Spacing.lg,
+    color: Colors.white,
+    fontSize: 22,
+    fontWeight: "600",
+  },
 
   errorBanner: {
     marginTop: Spacing.md,
