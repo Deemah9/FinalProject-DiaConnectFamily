@@ -1,98 +1,449 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Colors } from "@/constants/Colors";
+import { Spacing } from "@/constants/Spacing";
+import { Typography } from "@/constants/Typography";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { t } = useTranslation();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const userName = "Wagdi";
+  const role: "patient" | "family" = "patient";
+
+  const latest = {
+    value: 135,
+    unit: "mg/dL",
+    time: "10:20 AM",
+    status: "Normal",
+  };
+
+  const alerts = [
+    { id: "1", title: "Reminder", body: "Measure glucose after lunch" },
+    { id: "2", title: "Tip", body: "Drink water and stay active" },
+  ];
+
+  const roleLabel =
+    role === "patient"
+      ? t("patient", { defaultValue: "Patient" })
+      : t("familyMember", { defaultValue: "Family" });
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Brand */}
+        <View style={styles.brand}>
+          <Ionicons name="heart-outline" size={34} color={Colors.gold} />
+          <View style={{ marginLeft: Spacing.sm }}>
+            <Text style={styles.brandTitle}>
+              {t("appName1", { defaultValue: "DiaConnect" })}
+            </Text>
+            <Text style={styles.brandSub}>
+              {t("appName2", { defaultValue: "Family" })}
+            </Text>
+          </View>
+        </View>
+
+        {/* Welcome */}
+        <View style={styles.welcomeRow}>
+          <View>
+            <Text style={styles.welcomeSmall}>
+              {t("welcomeBack", { defaultValue: "Welcome back" })}
+            </Text>
+            <Text style={styles.welcomeName}>{userName}</Text>
+          </View>
+
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{roleLabel}</Text>
+          </View>
+        </View>
+
+        {/* Latest reading */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons
+                name="pulse-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.cardTitle}>
+                {t("latestReading", { defaultValue: "Latest reading" })}
+              </Text>
+            </View>
+
+            <View style={styles.statusPill}>
+              <Text style={styles.statusText}>
+                {t(latest.status.toLowerCase(), { defaultValue: latest.status })}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.readingRow}>
+            <Text style={styles.readingValue}>{latest.value}</Text>
+            <Text style={styles.readingUnit}>{latest.unit}</Text>
+          </View>
+
+          <Text style={styles.muted}>
+            {t("lastUpdate", { defaultValue: "Last update" })}: {latest.time}
+          </Text>
+        </View>
+
+        {/* Quick actions */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons
+                name="flash-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.cardTitle}>
+                {t("quickActions", { defaultValue: "Quick actions" })}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.actionsGrid}>
+            <Pressable style={styles.actionBtn}>
+              <Ionicons
+                name="notifications-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.actionText}>
+                {t("alerts", { defaultValue: "Alerts" })}
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.actionBtn}>
+              <Ionicons
+                name="add-circle-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.actionText}>
+                {t("addReading", { defaultValue: "Add reading" })}
+              </Text>
+            </Pressable>
+
+            <Pressable style={[styles.actionBtn, styles.actionBtnWide]}>
+              <Ionicons
+                name="people-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.actionText}>
+                {t("family", { defaultValue: "Family" })}
+              </Text>
+            </Pressable>
+          </View>
+
+          <Pressable style={styles.primaryBtn}>
+            <Text style={styles.primaryText}>
+              {t("createNewEntry", { defaultValue: "Create new entry" })}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Profile navigation */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.cardTitle}>Profile Navigation</Text>
+            </View>
+          </View>
+
+          <View style={styles.profileButtonsColumn}>
+            <Pressable
+              style={styles.navBtn}
+              onPress={() => router.push("/profile")}
+            >
+              <Ionicons
+                name="person-circle-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.navBtnText}>Open Profile</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.navBtn}
+              onPress={() => router.push("/edit-profile" as any)}
+            >
+              <Ionicons
+                name="create-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.navBtnText}>Edit Profile</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Recent alerts */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons
+                name="time-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
+              <Text style={styles.cardTitle}>
+                {t("recentAlerts", { defaultValue: "Recent alerts" })}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ gap: Spacing.md }}>
+            {alerts.map((a) => (
+              <View key={a.id} style={styles.alertRow}>
+                <View style={styles.alertDot} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.alertTitle}>{a.title}</Text>
+                  <Text style={styles.alertBody}>{a.body}</Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={stylesVars.muted}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: Spacing.xl }} />
+      </ScrollView>
+    </View>
   );
 }
 
+const stylesVars = {
+  primary: Colors.primary,
+  bg: "#FFFFFF",
+  card: "#FFFFFF",
+  text: "#0F172A",
+  muted: "#64748B",
+  border: "#E5E7EB",
+};
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  container: { flex: 1, backgroundColor: stylesVars.bg },
+
+  content: {
+    paddingTop: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xl,
+  },
+
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  brandTitle: {
+    color: stylesVars.text,
+    fontSize: 20,
+    fontWeight: "800",
+    lineHeight: 22,
+  },
+
+  brandSub: {
+    color: stylesVars.text,
+    fontSize: 20,
+    fontWeight: "300",
+    lineHeight: 22,
+  },
+
+  welcomeRow: {
+    marginTop: Spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  welcomeSmall: { color: stylesVars.muted, fontSize: 12 },
+
+  welcomeName: {
+    color: stylesVars.text,
+    fontSize: 22,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+
+  roleBadge: {
+    borderWidth: 1,
+    borderColor: stylesVars.border,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+
+  roleText: { color: stylesVars.text, fontSize: 12, fontWeight: "700" },
+
+  card: {
+    marginTop: Spacing.lg,
+    borderRadius: 16,
+    backgroundColor: stylesVars.card,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: stylesVars.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.md,
+  },
+
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+
+  cardTitle: { color: stylesVars.text, fontSize: 14, fontWeight: "800" },
+
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: stylesVars.border,
+    backgroundColor: "#F8FAFC",
+  },
+
+  statusText: { color: stylesVars.text, fontSize: 12, fontWeight: "700" },
+
+  readingRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+
+  readingValue: {
+    color: stylesVars.text,
+    fontSize: 42,
+    fontWeight: "900",
+    lineHeight: 46,
+  },
+
+  readingUnit: {
+    color: stylesVars.muted,
+    fontSize: 14,
+    paddingBottom: 6,
+  },
+
+  muted: { marginTop: Spacing.sm, color: stylesVars.muted, fontSize: 12 },
+
+  actionsGrid: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    flexWrap: "wrap",
+  },
+
+  actionBtn: {
+    flexGrow: 1,
+    flexBasis: "48%",
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: stylesVars.border,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  actionBtnWide: { flexBasis: "100%" },
+
+  actionText: {
+    color: stylesVars.text,
+    fontSize: 12,
+    fontWeight: "700",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  primaryBtn: {
+    marginTop: Spacing.lg,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: stylesVars.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  primaryText: {
+    color: "#FFFFFF",
+    ...Typography.button,
+  },
+
+  profileButtonsColumn: {
+    gap: Spacing.md,
+  },
+
+  navBtn: {
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: stylesVars.border,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  navBtnText: {
+    color: stylesVars.text,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  alertRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    borderWidth: 1,
+    borderColor: stylesVars.border,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+
+  alertDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.gold,
+  },
+
+  alertTitle: {
+    color: stylesVars.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  alertBody: {
+    color: stylesVars.muted,
+    fontSize: 12,
+    marginTop: 2,
   },
 });

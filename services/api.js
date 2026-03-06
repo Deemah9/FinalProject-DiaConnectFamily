@@ -29,13 +29,28 @@ const request = async (method, endpoint, body = null) => {
   };
 
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
-  const data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(data.detail || "Something went wrong");
-  }
+const raw = await response.text(); // اقرأ كنص أولاً
+let data = null;
 
-  return data;
+try {
+  data = raw ? JSON.parse(raw) : null;
+} catch {
+  // ليس JSON
+  data = null;
+}
+
+if (!response.ok) {
+  // إذا السيرفر رجّع JSON وفيه detail
+  const msg =
+    (data && (data.detail || data.message)) ||
+    raw || // اعرض النص الخام (مثل Internal Server Error)
+    `HTTP ${response.status}`;
+
+  throw new Error(msg);
+}
+
+return data;
 };
 
 // ==========================================
