@@ -1,449 +1,527 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { Colors } from "@/constants/Colors";
-import { Spacing } from "@/constants/Spacing";
-import { Typography } from "@/constants/Typography";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
-
-  const userName = "Wagdi";
-  const role: "patient" | "family" = "patient";
-
-  const latest = {
-    value: 135,
-    unit: "mg/dL",
-    time: "10:20 AM",
-    status: "Normal",
-  };
-
-  const alerts = [
-    { id: "1", title: "Reminder", body: "Measure glucose after lunch" },
-    { id: "2", title: "Tip", body: "Drink water and stay active" },
-  ];
-
-  const roleLabel =
-    role === "patient"
-      ? t("patient", { defaultValue: "Patient" })
-      : t("familyMember", { defaultValue: "Family" });
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Brand */}
-        <View style={styles.brand}>
-          <Ionicons name="heart-outline" size={34} color={Colors.gold} />
-          <View style={{ marginLeft: Spacing.sm }}>
-            <Text style={styles.brandTitle}>
-              {t("appName1", { defaultValue: "DiaConnect" })}
-            </Text>
-            <Text style={styles.brandSub}>
-              {t("appName2", { defaultValue: "Family" })}
-            </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
+            <Ionicons name="menu-outline" size={24} color="#374151" />
+          </Pressable>
+
+          <View style={styles.logoWrap}>
+            <Ionicons name="heart-outline" size={28} color="#D4AF37" />
+            <View style={{ marginLeft: 8 }}>
+              <Text style={styles.logoTitle}>DiaConnect</Text>
+              <Text style={styles.logoSub}>Family</Text>
+            </View>
           </View>
+
+          <View style={styles.iconPlaceholder} />
         </View>
 
         {/* Welcome */}
-        <View style={styles.welcomeRow}>
-          <View>
-            <Text style={styles.welcomeSmall}>
-              {t("welcomeBack", { defaultValue: "Welcome back" })}
-            </Text>
-            <Text style={styles.welcomeName}>{userName}</Text>
-          </View>
-
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{roleLabel}</Text>
-          </View>
-        </View>
-
-        {/* Latest reading */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <Ionicons
-                name="pulse-outline"
-                size={18}
-                color={stylesVars.primary}
-              />
-              <Text style={styles.cardTitle}>
-                {t("latestReading", { defaultValue: "Latest reading" })}
-              </Text>
-            </View>
-
-            <View style={styles.statusPill}>
-              <Text style={styles.statusText}>
-                {t(latest.status.toLowerCase(), { defaultValue: latest.status })}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.readingRow}>
-            <Text style={styles.readingValue}>{latest.value}</Text>
-            <Text style={styles.readingUnit}>{latest.unit}</Text>
-          </View>
-
-          <Text style={styles.muted}>
-            {t("lastUpdate", { defaultValue: "Last update" })}: {latest.time}
+        <View style={styles.hero}>
+          <Text style={styles.welcomeTitle}>
+            {t("welcomeBack", { defaultValue: "Welcome Back!" })}
+          </Text>
+          <Text style={styles.welcomeSub}>
+            {t("homeSubtitle", {
+              defaultValue: "Manage your diabetes care with ease",
+            })}
           </Text>
         </View>
 
-        {/* Quick actions */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <Ionicons
-                name="flash-outline"
-                size={18}
-                color={stylesVars.primary}
-              />
-              <Text style={styles.cardTitle}>
-                {t("quickActions", { defaultValue: "Quick actions" })}
-              </Text>
-            </View>
-          </View>
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
 
-          <View style={styles.actionsGrid}>
-            <Pressable style={styles.actionBtn}>
-              <Ionicons
-                name="notifications-outline"
-                size={18}
-                color={stylesVars.primary}
-              />
-              <Text style={styles.actionText}>
-                {t("alerts", { defaultValue: "Alerts" })}
-              </Text>
+          <View style={styles.quickGrid}>
+            <Pressable style={styles.quickCard}>
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#EFF6FF" }]}
+              >
+                <Ionicons name="flash-outline" size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.quickTitle}>Quick Check</Text>
+              <Text style={styles.quickSub}>Fast glucose reading</Text>
             </Pressable>
 
-            <Pressable style={styles.actionBtn}>
-              <Ionicons
-                name="add-circle-outline"
-                size={18}
-                color={stylesVars.primary}
-              />
-              <Text style={styles.actionText}>
-                {t("addReading", { defaultValue: "Add reading" })}
-              </Text>
-            </Pressable>
-
-            <Pressable style={[styles.actionBtn, styles.actionBtnWide]}>
-              <Ionicons
-                name="people-outline"
-                size={18}
-                color={stylesVars.primary}
-              />
-              <Text style={styles.actionText}>
-                {t("family", { defaultValue: "Family" })}
-              </Text>
+            <Pressable style={styles.quickCard}>
+              <View
+                style={[styles.quickIconCircle, { backgroundColor: "#ECFDF5" }]}
+              >
+                <Ionicons name="add-outline" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.quickTitle}>New Entry</Text>
+              <Text style={styles.quickSub}>Add measurement</Text>
             </Pressable>
           </View>
-
-          <Pressable style={styles.primaryBtn}>
-            <Text style={styles.primaryText}>
-              {t("createNewEntry", { defaultValue: "Create new entry" })}
-            </Text>
-          </Pressable>
         </View>
 
-        {/* Profile navigation */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
+        {/* Alerts */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>ALERTS</Text>
+
+          <View style={styles.alertCard}>
+            <View
+              style={[styles.alertIconCircle, { backgroundColor: "#FFFBEB" }]}
+            >
               <Ionicons
-                name="person-outline"
-                size={18}
-                color={stylesVars.primary}
+                name="notifications-outline"
+                size={20}
+                color="#F59E0B"
               />
-              <Text style={styles.cardTitle}>Profile Navigation</Text>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertMainTitle}>Medication Reminder</Text>
+              <Text style={styles.alertMainSub}>
+                Time for your evening dose
+              </Text>
             </View>
           </View>
+        </View>
 
-          <View style={styles.profileButtonsColumn}>
+        {/* Today's Overview */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>TODAY&apos;S OVERVIEW</Text>
+
+          <View style={styles.overviewCard}>
+            <Text style={styles.overviewTitle}>Blood Glucose</Text>
+            <Text style={styles.overviewSub}>
+              Track your readings and stay healthy
+            </Text>
+
+            <View style={styles.overviewGrid}>
+              <View style={styles.overviewItem}>
+                <Text style={styles.overviewItemLabel}>Morning</Text>
+                <Text style={styles.overviewItemValue}>--</Text>
+              </View>
+
+              <View style={styles.overviewItem}>
+                <Text style={styles.overviewItemLabel}>Afternoon</Text>
+                <Text style={styles.overviewItemValue}>--</Text>
+              </View>
+
+              <View style={styles.overviewItem}>
+                <Text style={styles.overviewItemLabel}>Evening</Text>
+                <Text style={styles.overviewItemValue}>--</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Recent Alerts */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>RECENT ALERTS</Text>
+
+          <View style={styles.recentList}>
+            <View style={styles.recentItem}>
+              <View style={[styles.dot, { backgroundColor: "#FACC15" }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.recentTitle}>Reminder</Text>
+                <Text style={styles.recentSub}>Measure glucose after lunch</Text>
+                <Text style={styles.recentTime}>2 hours ago</Text>
+              </View>
+            </View>
+
+            <View style={styles.recentItem}>
+              <View style={[styles.dot, { backgroundColor: "#60A5FA" }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.recentTitle}>Tip</Text>
+                <Text style={styles.recentSub}>Drink water and stay active</Text>
+                <Text style={styles.recentTime}>5 hours ago</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 24 }} />
+      </ScrollView>
+
+      {/* Top Menu Drawer */}
+      <Modal visible={menuOpen} transparent animationType="fade">
+        <Pressable style={styles.overlay} onPress={() => setMenuOpen(false)}>
+          <Pressable style={styles.drawer} onPress={() => {}}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerTitle}>Menu</Text>
+              <Pressable onPress={() => setMenuOpen(false)}>
+                <Ionicons name="close-outline" size={22} color="#374151" />
+              </Pressable>
+            </View>
+
+            <Text style={styles.drawerSection}>PROFILE NAVIGATION</Text>
+
             <Pressable
-              style={styles.navBtn}
-              onPress={() => router.push("/profile")}
+              style={styles.drawerItem}
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/profile");
+              }}
             >
               <Ionicons
                 name="person-circle-outline"
                 size={18}
-                color={stylesVars.primary}
+                color={Colors.primary}
               />
-              <Text style={styles.navBtnText}>Open Profile</Text>
+              <Text style={styles.drawerItemText}>Open Profile</Text>
             </Pressable>
 
             <Pressable
-              style={styles.navBtn}
-              onPress={() => router.push("/edit-profile" as any)}
+              style={styles.drawerItem}
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/edit-profile" as any);
+              }}
             >
               <Ionicons
                 name="create-outline"
                 size={18}
-                color={stylesVars.primary}
+                color={Colors.primary}
               />
-              <Text style={styles.navBtnText}>Edit Profile</Text>
+              <Text style={styles.drawerItemText}>Edit Profile</Text>
             </Pressable>
-          </View>
-        </View>
-
-        {/* Recent alerts */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <Ionicons
-                name="time-outline"
-                size={18}
-                color={stylesVars.primary}
-              />
-              <Text style={styles.cardTitle}>
-                {t("recentAlerts", { defaultValue: "Recent alerts" })}
-              </Text>
-            </View>
-          </View>
-
-          <View style={{ gap: Spacing.md }}>
-            {alerts.map((a) => (
-              <View key={a.id} style={styles.alertRow}>
-                <View style={styles.alertDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.alertTitle}>{a.title}</Text>
-                  <Text style={styles.alertBody}>{a.body}</Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={stylesVars.muted}
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={{ height: Spacing.xl }} />
-      </ScrollView>
-    </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </LinearGradient>
   );
 }
 
-const stylesVars = {
-  primary: Colors.primary,
-  bg: "#FFFFFF",
-  card: "#FFFFFF",
-  text: "#0F172A",
-  muted: "#64748B",
-  border: "#E5E7EB",
-};
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: stylesVars.bg },
-
-  content: {
-    paddingTop: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xl,
+  container: {
+    flex: 1,
   },
 
-  brand: {
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
+
+  header: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  brandTitle: {
-    color: stylesVars.text,
-    fontSize: 20,
-    fontWeight: "800",
-    lineHeight: 22,
+  iconPlaceholder: {
+    width: 40,
   },
 
-  brandSub: {
-    color: stylesVars.text,
-    fontSize: 20,
-    fontWeight: "300",
-    lineHeight: 22,
-  },
-
-  welcomeRow: {
-    marginTop: Spacing.lg,
+  logoWrap: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
   },
 
-  welcomeSmall: { color: stylesVars.muted, fontSize: 12 },
-
-  welcomeName: {
-    color: stylesVars.text,
-    fontSize: 22,
-    fontWeight: "800",
-    marginTop: 2,
+  logoTitle: {
+    color: "#1F2937",
+    fontSize: 16,
+    lineHeight: 18,
+    fontWeight: "600",
   },
 
-  roleBadge: {
+  logoSub: {
+    color: "#6B7280",
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: "300",
+  },
+
+  hero: {
+    marginTop: 28,
+    marginBottom: 28,
+  },
+
+  welcomeTitle: {
+    color: "#1F2937",
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  welcomeSub: {
+    color: "#6B7280",
+    fontSize: 14,
+  },
+
+  section: {
+    marginBottom: 24,
+  },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+
+  quickGrid: {
+    flexDirection: "row",
+    gap: 14,
+  },
+
+  quickCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
     borderWidth: 1,
-    borderColor: stylesVars.border,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-
-  roleText: { color: stylesVars.text, fontSize: 12, fontWeight: "700" },
-
-  card: {
-    marginTop: Spacing.lg,
-    borderRadius: 16,
-    backgroundColor: stylesVars.card,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: stylesVars.border,
+    borderColor: "#F3F4F6",
     shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    alignItems: "center",
+  },
+
+  quickIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+
+  quickTitle: {
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+
+  quickSub: {
+    color: "#6B7280",
+    fontSize: 12,
+    textAlign: "center",
+  },
+
+  alertCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  alertIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  alertMainTitle: {
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+
+  alertMainSub: {
+    color: "#6B7280",
+    fontSize: 12,
+  },
+
+  overviewCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
 
-  cardHeader: {
+  overviewTitle: {
+    color: "#1F2937",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+
+  overviewSub: {
+    color: "#6B7280",
+    fontSize: 13,
+    marginBottom: 16,
+  },
+
+  overviewGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  overviewItem: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  overviewItemLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+
+  overviewItemValue: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+
+  recentList: {
+    gap: 12,
+  },
+
+  recentItem: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    marginTop: 6,
+  },
+
+  recentTitle: {
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+
+  recentSub: {
+    color: "#6B7280",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  recentTime: {
+    color: "#9CA3AF",
+    fontSize: 11,
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.12)",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+  },
+
+  drawer: {
+    marginTop: 78,
+    marginLeft: 16,
+    width: 240,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+
+  drawerHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: Spacing.md,
+    marginBottom: 14,
   },
 
-  cardHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-
-  cardTitle: { color: stylesVars.text, fontSize: 14, fontWeight: "800" },
-
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: stylesVars.border,
-    backgroundColor: "#F8FAFC",
-  },
-
-  statusText: { color: stylesVars.text, fontSize: 12, fontWeight: "700" },
-
-  readingRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
-
-  readingValue: {
-    color: stylesVars.text,
-    fontSize: 42,
-    fontWeight: "900",
-    lineHeight: 46,
-  },
-
-  readingUnit: {
-    color: stylesVars.muted,
-    fontSize: 14,
-    paddingBottom: 6,
-  },
-
-  muted: { marginTop: Spacing.sm, color: stylesVars.muted, fontSize: 12 },
-
-  actionsGrid: {
-    flexDirection: "row",
-    gap: Spacing.md,
-    flexWrap: "wrap",
-  },
-
-  actionBtn: {
-    flexGrow: 1,
-    flexBasis: "48%",
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: stylesVars.border,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-
-  actionBtnWide: { flexBasis: "100%" },
-
-  actionText: {
-    color: stylesVars.text,
-    fontSize: 12,
+  drawerTitle: {
+    fontSize: 16,
     fontWeight: "700",
+    color: "#1F2937",
   },
 
-  primaryBtn: {
-    marginTop: Spacing.lg,
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: stylesVars.primary,
+  drawerSection: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 10,
+    letterSpacing: 1,
+  },
+
+  drawerItem: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-  },
-
-  primaryText: {
-    color: "#FFFFFF",
-    ...Typography.button,
-  },
-
-  profileButtonsColumn: {
-    gap: Spacing.md,
-  },
-
-  navBtn: {
-    height: 52,
+    gap: 10,
+    backgroundColor: "#F9FAFB",
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: stylesVars.border,
-    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-
-  navBtnText: {
-    color: stylesVars.text,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  alertRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: stylesVars.border,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderColor: "#F3F4F6",
   },
 
-  alertDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: Colors.gold,
-  },
-
-  alertTitle: {
-    color: stylesVars.text,
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  alertBody: {
-    color: stylesVars.muted,
-    fontSize: 12,
-    marginTop: 2,
+  drawerItemText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
   },
 });
