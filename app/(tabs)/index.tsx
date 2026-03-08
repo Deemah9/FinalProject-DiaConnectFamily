@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Modal,
@@ -13,10 +13,40 @@ import {
 } from "react-native";
 
 import { Colors } from "@/constants/Colors";
+import { getProfile } from "@/services/api";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const [user, setUser] = useState<any>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [errorUser, setErrorUser] = useState("");
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      setLoadingUser(true);
+      setErrorUser("");
+
+      const data = await getProfile();
+      setUser(data);
+    } catch (error: any) {
+      setErrorUser(error?.message || "Failed to load profile");
+    } finally {
+      setLoadingUser(false);
+    }
+  };
+
+  const fullName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.firstName || "User";
+
+  const role = user?.role || "Patient";
 
   return (
     <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.container}>
@@ -41,13 +71,22 @@ export default function HomeScreen() {
         {/* Welcome */}
         <View style={styles.hero}>
           <Text style={styles.welcomeTitle}>
-            {t("welcomeBack", { defaultValue: "Welcome Back!" })}
+            {loadingUser
+              ? "Loading..."
+              : `${t("welcomeBack", { defaultValue: "Welcome Back" })}, ${fullName}!`}
           </Text>
           <Text style={styles.welcomeSub}>
-            {t("homeSubtitle", {
-              defaultValue: "Manage your diabetes care with ease",
-            })}
+            {errorUser
+              ? errorUser
+              : t("homeSubtitle", {
+                  defaultValue: "Manage your diabetes care with ease",
+                })}
           </Text>
+        </View>
+
+        {/* Role Badge */}
+        <View style={styles.roleBadge}>
+          <Text style={styles.roleBadgeText}>{role}</Text>
         </View>
 
         {/* Quick Actions */}
@@ -260,7 +299,7 @@ const styles = StyleSheet.create({
 
   hero: {
     marginTop: 28,
-    marginBottom: 28,
+    marginBottom: 16,
   },
 
   welcomeTitle: {
@@ -273,6 +312,23 @@ const styles = StyleSheet.create({
   welcomeSub: {
     color: "#6B7280",
     fontSize: 14,
+  },
+
+  roleBadge: {
+    alignSelf: "flex-start",
+    marginBottom: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+
+  roleBadgeText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: "600",
   },
 
   section: {

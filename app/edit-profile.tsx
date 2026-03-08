@@ -1,26 +1,52 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
+import { getProfile, updateProfile } from "@/services/api";
 
 export default function EditProfileScreen() {
   const [firstName, setFirstName] = useState("Wagdi");
   const [lastName, setLastName] = useState("Alfrawona");
   const [phone, setPhone] = useState("+972 50-123-4567");
 
-  const onSave = () => {
-    // UI only for now
-    router.back();
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const data = await getProfile();
+
+      setFirstName(data.firstName || "");
+      setLastName(data.lastName || "");
+      setPhone(data.phone || "");
+    } catch (error) {
+      console.log("Profile load error", error);
+    }
+  };
+
+  const onSave = async () => {
+    try {
+      await updateProfile({
+        firstName,
+        lastName,
+        phone,
+      });
+
+      router.back();
+    } catch (error) {
+      console.log("Update profile error", error);
+    }
   };
 
   return (

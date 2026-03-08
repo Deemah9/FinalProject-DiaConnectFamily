@@ -1,23 +1,46 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
+import { getProfile } from "@/services/api";
 
 export default function ProfileScreen() {
-  const user = {
-    firstName: "Wagdi",
-    lastName: "Alfrawona",
-    email: "wagdi1100@gmail.com",
-    phone: "+972 50-123-4567",
-    role: "Patient",
-    diagnosis_year: "2018",
-    medications: ["Insulin", "Metformin"],
-    activity_level: "Moderate",
-    sleep_hours: "7 hours",
+  const [user, setUser] = useState<any>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [errorUser, setErrorUser] = useState("");
+
+  useFocusEffect(
+  useCallback(() => {
+    loadUser();
+  }, [])
+);
+
+  const loadUser = async () => {
+    try {
+      setLoadingUser(true);
+      setErrorUser("");
+
+      const data = await getProfile();
+      setUser(data);
+    } catch (error: any) {
+      setErrorUser(error?.message || "Failed to load profile");
+    } finally {
+      setLoadingUser(false);
+    }
   };
+
+  const fullName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.firstName || "User";
+
+  const medicationsText = Array.isArray(user?.medications)
+    ? user.medications.join(", ")
+    : user?.medications || "--";
 
   return (
     <View style={styles.container}>
@@ -36,7 +59,11 @@ export default function ProfileScreen() {
         {/* Title */}
         <View style={styles.hero}>
           <Text style={styles.screenTitle}>My Profile</Text>
-          <Text style={styles.screenSub}>Manage your information</Text>
+          <Text style={styles.screenSub}>
+            {loadingUser
+              ? "Loading profile..."
+              : errorUser || "Manage your information"}
+          </Text>
         </View>
 
         {/* Main Card */}
@@ -44,47 +71,60 @@ export default function ProfileScreen() {
           {/* Profile Header */}
           <View style={styles.profileHeader}>
             <View style={styles.avatar}>
-              <Ionicons name="person-outline" size={40} color={stylesVars.primary} />
+              <Ionicons
+                name="person-outline"
+                size={40}
+                color={stylesVars.primary}
+              />
             </View>
 
-            <Text style={styles.nameText}>
-              {user.firstName} {user.lastName}
-            </Text>
-            <Text style={styles.emailText}>{user.email}</Text>
+            <Text style={styles.nameText}>{loadingUser ? "Loading..." : fullName}</Text>
+            <Text style={styles.emailText}>{user?.email || "--"}</Text>
 
             <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>{user.role}</Text>
+              <Text style={styles.roleBadgeText}>{user?.role || "Patient"}</Text>
             </View>
           </View>
 
           {/* Basic Info */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="person-circle-outline" size={18} color={stylesVars.primary} />
+              <Ionicons
+                name="person-circle-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
               <Text style={styles.sectionTitle}>Basic Info</Text>
             </View>
 
             <View style={styles.infoList}>
-              <InfoRow label="First Name" value={user.firstName} />
-              <InfoRow label="Last Name" value={user.lastName} />
-              <InfoRow label="Email" value={user.email} />
-              <InfoRow label="Phone" value={user.phone} />
-              <InfoRow label="Role" value={user.role} />
+              <InfoRow label="First Name" value={user?.firstName || "--"} />
+              <InfoRow label="Last Name" value={user?.lastName || "--"} />
+              <InfoRow label="Email" value={user?.email || "--"} />
+              <InfoRow label="Phone" value={user?.phone || "--"} />
+              <InfoRow label="Role" value={user?.role || "--"} />
             </View>
           </View>
 
           {/* Medical Info */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="pulse-outline" size={18} color={stylesVars.primary} />
+              <Ionicons
+                name="pulse-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
               <Text style={styles.sectionTitle}>Medical Info</Text>
             </View>
 
             <View style={styles.infoList}>
-              <InfoRow label="Diagnosis Year" value={user.diagnosis_year} />
+              <InfoRow
+                label="Diagnosis Year"
+                value={user?.diagnosis_year?.toString() || "--"}
+              />
               <InfoRow
                 label="Medications"
-                value={user.medications.join(", ")}
+                value={medicationsText}
                 isMultiLine
               />
             </View>
@@ -93,13 +133,23 @@ export default function ProfileScreen() {
           {/* Lifestyle */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="moon-outline" size={18} color={stylesVars.primary} />
+              <Ionicons
+                name="moon-outline"
+                size={18}
+                color={stylesVars.primary}
+              />
               <Text style={styles.sectionTitle}>Lifestyle</Text>
             </View>
 
             <View style={styles.infoList}>
-              <InfoRow label="Activity Level" value={user.activity_level} />
-              <InfoRow label="Sleep Hours" value={user.sleep_hours} />
+              <InfoRow
+                label="Activity Level"
+                value={user?.activity_level || "--"}
+              />
+              <InfoRow
+                label="Sleep Hours"
+                value={user?.sleep_hours?.toString() || "--"}
+              />
             </View>
           </View>
 
@@ -147,7 +197,6 @@ const stylesVars = {
   muted: "#6B7280",
   border: "#F3F4F6",
   soft: "#F9FAFB",
-  blueSoft: "#EFF6FF",
 };
 
 const styles = StyleSheet.create({

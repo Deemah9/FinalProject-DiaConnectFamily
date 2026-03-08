@@ -30,27 +30,27 @@ const request = async (method, endpoint, body = null) => {
 
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
-const raw = await response.text(); // اقرأ كنص أولاً
-let data = null;
+  const raw = await response.text(); // اقرأ كنص أولاً
+  let data = null;
 
-try {
-  data = raw ? JSON.parse(raw) : null;
-} catch {
-  // ليس JSON
-  data = null;
-}
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    // ليس JSON
+    data = null;
+  }
 
-if (!response.ok) {
-  // إذا السيرفر رجّع JSON وفيه detail
-  const msg =
-    (data && (data.detail || data.message)) ||
-    raw || // اعرض النص الخام (مثل Internal Server Error)
-    `HTTP ${response.status}`;
+  if (!response.ok) {
+    // إذا السيرفر رجّع JSON وفيه detail
+    const msg =
+      (data && (data.detail || data.message)) ||
+      raw || // اعرض النص الخام (مثل Internal Server Error)
+      `HTTP ${response.status}`;
 
-  throw new Error(msg);
-}
+    throw new Error(msg);
+  }
 
-return data;
+  return data;
 };
 
 // ==========================================
@@ -62,7 +62,10 @@ export const register = (userData) =>
 
 export const login = async (email, password) => {
   const data = await request("POST", "/auth/login", { email, password });
-  await AsyncStorage.setItem("token", data.accessToken); // ← accessToken
+  const token = data?.accessToken || data?.access_token || data?.token;
+  if (token) {
+    await AsyncStorage.setItem("token", token);
+  }
   await AsyncStorage.setItem("role", data.role);
   return data;
 };
@@ -77,7 +80,7 @@ export const logout = async () => {
 // ==========================================
 
 export const getProfile = () => request("GET", "/users/me");
-
+export const getMe = () => request("GET", "/users/me");
 export const updateProfile = (data) => request("PUT", "/users/me", data);
 
 export const updateMedical = (data) =>
