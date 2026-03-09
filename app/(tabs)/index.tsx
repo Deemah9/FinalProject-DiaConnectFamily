@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Modal,
@@ -23,9 +24,12 @@ export default function HomeScreen() {
   const [loadingUser, setLoadingUser] = useState(true);
   const [errorUser, setErrorUser] = useState("");
 
-  useEffect(() => {
-    loadUser();
-  }, []);
+
+
+   useFocusEffect(
+    useCallback(() => {
+      loadUser();
+    }, []));
 
   const loadUser = async () => {
     try {
@@ -79,8 +83,8 @@ export default function HomeScreen() {
             {errorUser
               ? errorUser
               : t("homeSubtitle", {
-                  defaultValue: "Manage your diabetes care with ease",
-                })}
+                defaultValue: "Manage your diabetes care with ease",
+              })}
           </Text>
         </View>
 
@@ -198,9 +202,10 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Top Menu Drawer */}
+      {/* Top Menu Drawer */}
       <Modal visible={menuOpen} transparent animationType="fade">
         <Pressable style={styles.overlay} onPress={() => setMenuOpen(false)}>
-          <Pressable style={styles.drawer} onPress={() => {}}>
+          <Pressable style={styles.drawer} onPress={() => { }}>
             <View style={styles.drawerHeader}>
               <Text style={styles.drawerTitle}>Menu</Text>
               <Pressable onPress={() => setMenuOpen(false)}>
@@ -238,6 +243,21 @@ export default function HomeScreen() {
                 color={Colors.primary}
               />
               <Text style={styles.drawerItemText}>Edit Profile</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.drawerItem}
+              onPress={() => {
+                setMenuOpen(false);
+                router.push("/medical-info" as any);
+              }}
+            >
+              <Ionicons
+                name="pulse-outline"
+                size={18}
+                color={Colors.primary}
+              />
+              <Text style={styles.drawerItemText}>Medical Info</Text>
             </Pressable>
           </Pressable>
         </Pressable>
