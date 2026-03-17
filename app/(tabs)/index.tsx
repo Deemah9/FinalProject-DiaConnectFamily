@@ -175,6 +175,19 @@ style={[styles.quickIconCircle, { backgroundColor: "#ECFDF5" }]}
 <Text style={styles.quickTitle}>New Entry</Text>
 <Text style={styles.quickSub}>Add measurement</Text>
 </Pressable>
+
+<Pressable
+style={styles.quickCard}
+onPress={() => router.push("/daily-log" as any)}
+>
+<View
+style={[styles.quickIconCircle, { backgroundColor: "#EEF2FF" }]}
+>
+<Ionicons name="calendar-outline" size={24} color="#4A7DC9" />
+</View>
+<Text style={styles.quickTitle}>Daily Log</Text>
+<Text style={styles.quickSub}>Meals • Activity • Sleep</Text>
+</Pressable>
 </View>
 </View>
 
@@ -393,6 +406,68 @@ color={Colors.primary}
 />
 <Text style={styles.drawerItemText}>Add Glucose</Text>
 </Pressable>
+
+<Text style={styles.drawerSection}>DAILY LOGS</Text>
+
+<Pressable
+style={styles.drawerItem}
+onPress={() => {
+setMenuOpen(false);
+router.push("/daily-log" as any);
+}}
+>
+<Ionicons
+name="calendar-outline"
+size={18}
+color={Colors.primary}
+/>
+<Text style={styles.drawerItemText}>Daily Log</Text>
+</Pressable>
+
+<Pressable
+style={styles.drawerItem}
+onPress={() => {
+setMenuOpen(false);
+router.push("/add-meal" as any);
+}}
+>
+<Ionicons
+name="restaurant-outline"
+size={18}
+color={Colors.primary}
+/>
+<Text style={styles.drawerItemText}>Add Meal</Text>
+</Pressable>
+
+<Pressable
+style={styles.drawerItem}
+onPress={() => {
+setMenuOpen(false);
+router.push("/add-activity" as any);
+}}
+>
+<Ionicons
+name="walk-outline"
+size={18}
+color={Colors.primary}
+/>
+<Text style={styles.drawerItemText}>Add Activity</Text>
+</Pressable>
+
+<Pressable
+style={styles.drawerItem}
+onPress={() => {
+setMenuOpen(false);
+router.push("/add-sleep" as any);
+}}
+>
+<Ionicons
+name="moon-outline"
+size={18}
+color={Colors.primary}
+/>
+<Text style={styles.drawerItemText}>Add Sleep</Text>
+</Pressable>
 </Pressable>
 </Pressable>
 </Modal>
@@ -500,10 +575,12 @@ letterSpacing: 1,
 quickGrid: {
 flexDirection: "row",
 gap: 14,
+flexWrap: "wrap",
 },
 
 quickCard: {
 flex: 1,
+minWidth: "47%",
 backgroundColor: "#FFFFFF",
 borderRadius: 20,
 padding: 20,
