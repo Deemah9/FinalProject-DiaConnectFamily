@@ -30,14 +30,16 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files — .env.example is committed; .env files with real secrets are not
+.env
+.env.local
+.env.*.local
 
 # typescript
 *.tsbuildinfo
 
 app-example
 
-# generated native folders
-/ios
-/android
+# generated native folders (Expo prebuild generates these inside frontend/)
+ios/
+android/

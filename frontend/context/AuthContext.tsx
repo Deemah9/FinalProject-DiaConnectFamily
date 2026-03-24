@@ -16,11 +16,19 @@ interface User {
   role: string;
 }
 
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role: "patient" | "family_member";
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: any) => Promise<void>;
+  register: (userData: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -52,21 +60,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const data = await apiLogin(email, password);
-    setUser({ token: data.accessToken, role: data.role }); // ← accessToken
-    // @ts-ignore
+    const token: string = data.accessToken;
+    const role: string = data.role;
+    await AsyncStorage.setItem("token", token);
+    await AsyncStorage.setItem("role", role);
+    setUser({ token, role });
     router.replace("/(tabs)");
   };
 
-  const register = async (userData: any) => {
+  const register = async (userData: RegisterPayload) => {
     await apiRegister(userData);
     await login(userData.email, userData.password);
   };
 
   const logout = async () => {
-    await apiLogout();
-    setUser(null);
-    // @ts-ignore
-    router.replace("/welcome");
+    try {
+      await apiLogout();
+    } finally {
+      setUser(null);
+      router.replace("/welcome");
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE_URL = "http://10.0.2.2:8000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:8000";
 
 // ==========================================
 // Helper — get token from storage
@@ -30,21 +30,19 @@ const request = async (method, endpoint, body = null) => {
 
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
-  const raw = await response.text(); // اقرأ كنص أولاً
+  const raw = await response.text();
   let data = null;
 
   try {
     data = raw ? JSON.parse(raw) : null;
   } catch {
-    // ليس JSON
     data = null;
   }
 
   if (!response.ok) {
-    // إذا السيرفر رجّع JSON وفيه detail
     const msg =
       (data && (data.detail || data.message)) ||
-      raw || // اعرض النص الخام (مثل Internal Server Error)
+      raw ||
       `HTTP ${response.status}`;
 
     throw new Error(msg);
@@ -62,7 +60,7 @@ export const register = (userData) =>
 
 export const login = async (email, password) => {
   const data = await request("POST", "/auth/login", { email, password });
-  const token = data?.accessToken || data?.access_token || data?.token;
+  const token = data?.accessToken;
   if (token) {
     await AsyncStorage.setItem("token", token);
   }

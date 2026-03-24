@@ -133,7 +133,6 @@ export default function Login() {
             </Text>
           </Pressable>
         </View>
-        {/* @ts-ignore */}
         <Link href="/signup" asChild>
           <Pressable style={{ marginTop: Spacing.lg }}>
             <Text style={styles.link}>

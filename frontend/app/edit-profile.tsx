@@ -15,9 +15,9 @@ import { Typography } from "@/constants/Typography";
 import { getProfile, updateProfile } from "@/services/api";
 
 export default function EditProfileScreen() {
-  const [firstName, setFirstName] = useState("Wagdi");
-  const [lastName, setLastName] = useState("Alfrawona");
-  const [phone, setPhone] = useState("+972 50-123-4567");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     loadProfile();
@@ -27,8 +27,8 @@ export default function EditProfileScreen() {
     try {
       const data = await getProfile();
 
-      setFirstName(data.firstName || "");
-      setLastName(data.lastName || "");
+      setFirstName(data.firstName || data.first_name || "");
+      setLastName(data.lastName || data.last_name || "");
       setPhone(data.phone || "");
     } catch (error) {
       console.log("Profile load error", error);
