@@ -13,8 +13,10 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { getProfile, updateProfile } from "@/services/api";
+import { useTranslation } from "react-i18next";
 
 export default function EditProfileScreen() {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -64,8 +66,8 @@ export default function EditProfileScreen() {
           <View style={styles.logoWrap}>
             <Ionicons name="heart-outline" size={28} color={Colors.gold} />
             <View style={{ marginLeft: 8 }}>
-              <Text style={styles.logoTitle}>DiaConnect</Text>
-              <Text style={styles.logoSub}>Family</Text>
+              <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+              <Text style={styles.logoSub}>{t("family")}</Text>
             </View>
           </View>
 
@@ -74,40 +76,40 @@ export default function EditProfileScreen() {
 
         {/* Title */}
         <View style={styles.hero}>
-          <Text style={styles.screenTitle}>Edit Profile</Text>
-          <Text style={styles.screenSub}>Update your information</Text>
+          <Text style={styles.screenTitle}>{t("editProfile")}</Text>
+          <Text style={styles.screenSub}>{t("updateInfo")}</Text>
         </View>
 
         {/* Form Card */}
         <View style={styles.formCard}>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>First Name</Text>
+            <Text style={styles.label}>{t("firstName")}</Text>
             <TextInput
               value={firstName}
               onChangeText={setFirstName}
-              placeholder="First Name"
+              placeholder={t("firstName")}
               placeholderTextColor={stylesVars.muted}
               style={styles.input}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Last Name</Text>
+            <Text style={styles.label}>{t("lastName")}</Text>
             <TextInput
               value={lastName}
               onChangeText={setLastName}
-              placeholder="Last Name"
+              placeholder={t("lastName")}
               placeholderTextColor={stylesVars.muted}
               style={styles.input}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Phone</Text>
+            <Text style={styles.label}>{t("phone")}</Text>
             <TextInput
               value={phone}
               onChangeText={setPhone}
-              placeholder="Phone"
+              placeholder={t("phone")}
               placeholderTextColor={stylesVars.muted}
               keyboardType="phone-pad"
               style={styles.input}
@@ -115,7 +117,7 @@ export default function EditProfileScreen() {
           </View>
 
           <Pressable style={styles.saveBtn} onPress={onSave}>
-            <Text style={styles.saveBtnText}>Save Changes</Text>
+            <Text style={styles.saveBtnText}>{t("saveChanges")}</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -14,8 +14,10 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { getProfile, updateLifestyle } from "@/services/api";
+import { useTranslation } from "react-i18next";
 
 export default function LifestyleHabitsScreen() {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
 
   const [activityLevel, setActivityLevel] = useState("");
@@ -95,8 +97,8 @@ export default function LifestyleHabitsScreen() {
           <View style={styles.logoWrap}>
             <Ionicons name="heart-outline" size={28} color={Colors.gold} />
             <View style={{ marginLeft: 8 }}>
-              <Text style={styles.logoTitle}>DiaConnect</Text>
-              <Text style={styles.logoSub}>Family</Text>
+              <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+              <Text style={styles.logoSub}>{t("family")}</Text>
             </View>
           </View>
 
@@ -106,8 +108,8 @@ export default function LifestyleHabitsScreen() {
         {/* Title */}
         <View style={styles.heroRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.screenTitle}>Lifestyle Habits</Text>
-            <Text style={styles.screenSub}>Manage your daily habits</Text>
+            <Text style={styles.screenTitle}>{t("lifestyleHabits")}</Text>
+            <Text style={styles.screenSub}>{t("manageDailyHabits")}</Text>
           </View>
 
           {!loading && (
@@ -120,7 +122,7 @@ export default function LifestyleHabitsScreen() {
                 size={16}
                 color={stylesVars.primary}
               />
-              <Text style={styles.editBtnText}>{isEditing ? "Close" : "Edit"}</Text>
+              <Text style={styles.editBtnText}>{isEditing ? t("close") : t("edit")}</Text>
             </Pressable>
           )}
         </View>
@@ -139,16 +141,16 @@ export default function LifestyleHabitsScreen() {
               size={18}
               color={stylesVars.primary}
             />
-            <Text style={styles.cardTitle}>Lifestyle Details</Text>
+            <Text style={styles.cardTitle}>{t("lifestyleDetails")}</Text>
           </View>
 
           {loading ? (
-            <Text style={styles.loadingText}>Loading lifestyle info...</Text>
+            <Text style={styles.loadingText}>{t("loadingLifestyle")}</Text>
           ) : (
             <>
               {/* Activity Level */}
               <View style={styles.itemBlock}>
-                <Text style={styles.itemLabel}>Activity Level</Text>
+                <Text style={styles.itemLabel}>{t("activityLevel")}</Text>
 
                 {isEditing ? (
                   <View style={styles.optionsWrap}>
@@ -169,7 +171,7 @@ export default function LifestyleHabitsScreen() {
                               selected && styles.optionChipTextSelected,
                             ]}
                           >
-                            {option}
+                            {t(`activity${option.charAt(0).toUpperCase() + option.slice(1)}`)}
                           </Text>
                         </Pressable>
                       );
@@ -184,13 +186,13 @@ export default function LifestyleHabitsScreen() {
 
               {/* Sleep Hours */}
               <View style={styles.itemBlock}>
-                <Text style={styles.itemLabel}>Sleep Hours</Text>
+                <Text style={styles.itemLabel}>{t("sleepHours")}</Text>
 
                 {isEditing ? (
                   <TextInput
                     value={sleepHours}
                     onChangeText={setSleepHours}
-                    placeholder="7"
+                    placeholder={t("sleepHoursPlaceholder")}
                     placeholderTextColor={stylesVars.muted}
                     keyboardType="numeric"
                     style={styles.input}
@@ -213,7 +215,7 @@ export default function LifestyleHabitsScreen() {
               onPress={onCancel}
               disabled={saving}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
             </Pressable>
 
             <Pressable
@@ -222,7 +224,7 @@ export default function LifestyleHabitsScreen() {
               disabled={saving}
             >
               <Text style={styles.saveBtnText}>
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? t("saving") : t("saveChanges")}
               </Text>
             </Pressable>
           </View>

@@ -14,8 +14,10 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { getProfile, updateMedical } from "@/services/api";
+import { useTranslation } from "react-i18next";
 
 export default function MedicalInfoScreen() {
+const { t } = useTranslation();
 const [isEditing, setIsEditing] = useState(false);
 
 const [diagnosisYear, setDiagnosisYear] = useState("");
@@ -106,8 +108,8 @@ keyboardShouldPersistTaps="handled"
 <View style={styles.logoWrap}>
 <Ionicons name="heart-outline" size={28} color={Colors.gold} />
 <View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>DiaConnect</Text>
-<Text style={styles.logoSub}>Family</Text>
+<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+<Text style={styles.logoSub}>{t("family")}</Text>
 </View>
 </View>
 
@@ -116,8 +118,8 @@ keyboardShouldPersistTaps="handled"
 
 <View style={styles.heroRow}>
 <View style={{ flex: 1 }}>
-<Text style={styles.screenTitle}>Medical Information</Text>
-<Text style={styles.screenSub}>Manage your medical details</Text>
+<Text style={styles.screenTitle}>{t("medicalInformation")}</Text>
+<Text style={styles.screenSub}>{t("manageMedical")}</Text>
 </View>
 
 {!loading && (
@@ -130,7 +132,7 @@ name="create-outline"
 size={16}
 color={stylesVars.primary}
 />
-<Text style={styles.editBtnText}>{isEditing ? "Close" : "Edit"}</Text>
+<Text style={styles.editBtnText}>{isEditing ? t("close") : t("edit")}</Text>
 </Pressable>
 )}
 </View>
@@ -148,21 +150,21 @@ name="pulse-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.cardTitle}>Medical Details</Text>
+<Text style={styles.cardTitle}>{t("medicalDetails")}</Text>
 </View>
 
 {loading ? (
-<Text style={styles.loadingText}>Loading medical info...</Text>
+<Text style={styles.loadingText}>{t("loadingMedical")}</Text>
 ) : (
 <>
 <View style={styles.itemBlock}>
-<Text style={styles.itemLabel}>Diagnosis Year</Text>
+<Text style={styles.itemLabel}>{t("diagnosisYear")}</Text>
 
 {isEditing ? (
 <TextInput
 value={diagnosisYear}
 onChangeText={setDiagnosisYear}
-placeholder="2020"
+placeholder={t("diagnosisYearPlaceholder")}
 placeholderTextColor={stylesVars.muted}
 keyboardType="number-pad"
 style={styles.input}
@@ -175,13 +177,13 @@ style={styles.input}
 </View>
 
 <View style={styles.itemBlock}>
-<Text style={styles.itemLabel}>Medications</Text>
+<Text style={styles.itemLabel}>{t("medications")}</Text>
 
 {isEditing ? (
 <TextInput
 value={medications}
 onChangeText={setMedications}
-placeholder="Insulin, Metformin"
+placeholder={t("medicationsPlaceholder")}
 placeholderTextColor={stylesVars.muted}
 style={styles.input}
 />
@@ -202,7 +204,7 @@ style={styles.cancelBtn}
 onPress={onCancel}
 disabled={saving}
 >
-<Text style={styles.cancelBtnText}>Cancel</Text>
+<Text style={styles.cancelBtnText}>{t("cancel")}</Text>
 </Pressable>
 
 <Pressable
@@ -211,7 +213,7 @@ onPress={onSave}
 disabled={saving}
 >
 <Text style={styles.saveBtnText}>
-{saving ? "Saving..." : "Save Changes"}
+{saving ? t("saving") : t("saveChanges")}
 </Text>
 </Pressable>
 </View>

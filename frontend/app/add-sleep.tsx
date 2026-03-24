@@ -9,12 +9,14 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { addSleep } from "@/services/api";
 
 export default function AddSleepScreen() {
+const { t } = useTranslation();
 const [sleepHours, setSleepHours] = useState("");
 const [notes, setNotes] = useState("");
 const [timestamp, setTimestamp] = useState("");
@@ -28,7 +30,7 @@ setErrorMsg("");
 
 const hoursValue = Number(sleepHours);
 if (!sleepHours || Number.isNaN(hoursValue) || hoursValue <= 0) {
-setErrorMsg("Please enter valid sleep hours");
+setErrorMsg(t("invalidSleepHours"));
 return;
 }
 
@@ -65,8 +67,8 @@ keyboardShouldPersistTaps="handled"
 <View style={styles.logoWrap}>
 <Ionicons name="heart-outline" size={28} color={Colors.gold} />
 <View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>DiaConnect</Text>
-<Text style={styles.logoSub}>Family</Text>
+<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+<Text style={styles.logoSub}>{t("family")}</Text>
 </View>
 </View>
 
@@ -74,8 +76,8 @@ keyboardShouldPersistTaps="handled"
 </View>
 
 <View style={styles.hero}>
-<Text style={styles.screenTitle}>Add Sleep</Text>
-<Text style={styles.screenSub}>Track your sleep hours</Text>
+<Text style={styles.screenTitle}>{t("addSleep")}</Text>
+<Text style={styles.screenSub}>{t("trackSleepHours")}</Text>
 </View>
 
 {!!errorMsg && (
@@ -86,11 +88,11 @@ keyboardShouldPersistTaps="handled"
 
 <View style={styles.formCard}>
 <View style={styles.formGroup}>
-<Text style={styles.label}>Sleep Hours</Text>
+<Text style={styles.label}>{t("sleepHours")}</Text>
 <TextInput
 value={sleepHours}
 onChangeText={setSleepHours}
-placeholder="e.g. 7"
+placeholder={t("sleepHoursPlaceholder")}
 placeholderTextColor={stylesVars.muted}
 keyboardType="numeric"
 style={styles.input}
@@ -98,11 +100,11 @@ style={styles.input}
 </View>
 
 <View style={styles.formGroup}>
-<Text style={styles.label}>Notes</Text>
+<Text style={styles.label}>{t("notes")}</Text>
 <TextInput
 value={notes}
 onChangeText={setNotes}
-placeholder="Optional notes"
+placeholder={t("optionalNotes")}
 placeholderTextColor={stylesVars.muted}
 style={[styles.input, styles.textArea]}
 multiline
@@ -110,16 +112,16 @@ multiline
 </View>
 
 <View style={styles.formGroup}>
-<Text style={styles.label}>Time</Text>
+<Text style={styles.label}>{t("time")}</Text>
 <TextInput
 value={timestamp}
 onChangeText={setTimestamp}
-placeholder="Optional - leave empty for now"
+placeholder={t("optional")}
 placeholderTextColor={stylesVars.muted}
 style={styles.input}
 />
 <Text style={styles.helperText}>
-Leave empty to use the current time.
+{t("leaveEmptyTime")}
 </Text>
 </View>
 
@@ -129,7 +131,7 @@ onPress={onSave}
 disabled={saving}
 >
 <Text style={styles.saveBtnText}>
-{saving ? "Saving..." : "Save Sleep"}
+{saving ? t("saving") : t("saveSleep")}
 </Text>
 </Pressable>
 </View>

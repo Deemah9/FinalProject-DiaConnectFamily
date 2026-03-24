@@ -11,11 +11,13 @@ import {
     View,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
+import { useTranslation } from "react-i18next";
 
 import { Colors } from "@/constants/Colors";
 import { getGlucoseReadings } from "@/services/api";
 
 export default function GlucoseHistoryScreen() {
+const { t } = useTranslation();
 const [readings, setReadings] = useState<any[]>([]);
 const [loading, setLoading] = useState(true);
 const [errorMsg, setErrorMsg] = useState("");
@@ -68,9 +70,9 @@ loadReadings();
 );
 
 const getStatus = (value: number) => {
-if (value < 70) return "Low";
-if (value > 180) return "High";
-return "Normal";
+if (value < 70) return t("low");
+if (value > 180) return t("high");
+return t("normal");
 };
 
 const getStatusColor = (value: number) => {
@@ -150,8 +152,8 @@ return (
 <View style={styles.logoWrap}>
 <Ionicons name="heart-outline" size={28} color={Colors.gold} />
 <View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>DiaConnect</Text>
-<Text style={styles.logoSub}>Family</Text>
+<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+<Text style={styles.logoSub}>{t("family")}</Text>
 </View>
 </View>
 
@@ -161,9 +163,9 @@ return (
 {/* Title */}
 <View style={styles.heroRow}>
 <View style={{ flex: 1 }}>
-<Text style={styles.screenTitle}>Glucose History</Text>
+<Text style={styles.screenTitle}>{t("glucoseHistory")}</Text>
 <Text style={styles.screenSub}>
-Track your glucose readings over time
+{t("trackReadingsTime")}
 </Text>
 </View>
 
@@ -172,7 +174,7 @@ style={styles.addBtn}
 onPress={() => router.push("/add-glucose" as any)}
 >
 <Ionicons name="add-outline" size={16} color="#FFFFFF" />
-<Text style={styles.addBtnText}>Add</Text>
+<Text style={styles.addBtnText}>{t("add")}</Text>
 </Pressable>
 </View>
 
@@ -185,17 +187,17 @@ onPress={() => router.push("/add-glucose" as any)}
 {/* Stats */}
 <View style={styles.statsRow}>
 <View style={styles.statCard}>
-<Text style={styles.statLabel}>Average</Text>
+<Text style={styles.statLabel}>{t("average")}</Text>
 <Text style={styles.statValue}>{avg || "--"}</Text>
 </View>
 
 <View style={styles.statCard}>
-<Text style={styles.statLabel}>Min</Text>
+<Text style={styles.statLabel}>{t("min")}</Text>
 <Text style={styles.statValue}>{min || "--"}</Text>
 </View>
 
 <View style={styles.statCard}>
-<Text style={styles.statLabel}>Max</Text>
+<Text style={styles.statLabel}>{t("max")}</Text>
 <Text style={styles.statValue}>{max || "--"}</Text>
 </View>
 </View>
@@ -208,17 +210,17 @@ name="analytics-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.cardTitle}>Glucose Trend</Text>
+<Text style={styles.cardTitle}>{t("glucoseTrend")}</Text>
 </View>
 
 {loading ? (
-<Text style={styles.loadingText}>Loading chart...</Text>
+<Text style={styles.loadingText}>{t("loadingChart")}</Text>
 ) : readings.length === 0 ? (
 <View style={styles.chartPlaceholder}>
 <Ionicons name="pulse-outline" size={34} color="#94A3B8" />
-<Text style={styles.chartPlaceholderTitle}>No chart data yet</Text>
+<Text style={styles.chartPlaceholderTitle}>{t("noChartData")}</Text>
 <Text style={styles.chartPlaceholderSub}>
-Add glucose readings to view the trend
+{t("addReadingsForTrend")}
 </Text>
 </View>
 ) : (
@@ -268,11 +270,11 @@ name="time-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.cardTitle}>Reading History</Text>
+<Text style={styles.cardTitle}>{t("readingHistory")}</Text>
 </View>
 
 {loading ? (
-<Text style={styles.loadingText}>Loading glucose readings...</Text>
+<Text style={styles.loadingText}>{t("loadingReadings")}</Text>
 ) : readings.length === 0 ? (
 <View style={styles.emptyState}>
 <Ionicons
@@ -280,8 +282,8 @@ name="document-text-outline"
 size={30}
 color="#94A3B8"
 />
-<Text style={styles.emptyTitle}>No readings yet</Text>
-<Text style={styles.emptySub}>Add your first glucose reading</Text>
+<Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
+<Text style={styles.emptySub}>{t("addFirstReading")}</Text>
 </View>
 ) : (
 <View style={styles.listWrap}>
@@ -297,7 +299,7 @@ style={styles.readingRow}
 >
 <View style={{ flex: 1 }}>
 <Text style={styles.readingValue}>
-{value} <Text style={styles.readingUnit}>mg/dL</Text>
+{value} <Text style={styles.readingUnit}>{t("mgdL")}</Text>
 </Text>
 <Text style={styles.readingDate}>
 {formatDate(

@@ -9,12 +9,14 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { addGlucose } from "@/services/api";
 
 export default function AddGlucoseScreen() {
+  const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [measuredAt, setMeasuredAt] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -27,12 +29,12 @@ export default function AddGlucoseScreen() {
       const numericValue = Number(value);
 
       if (!value || Number.isNaN(numericValue)) {
-        setErrorMsg("Please enter a valid glucose value");
+        setErrorMsg(t("invalidGlucose"));
         return;
       }
 
       if (numericValue < 40 || numericValue > 600) {
-        setErrorMsg("Glucose value must be between 40 and 600 mg/dL");
+        setErrorMsg(t("glucoseRange"));
         return;
       }
 
@@ -68,8 +70,8 @@ export default function AddGlucoseScreen() {
           <View style={styles.logoWrap}>
             <Ionicons name="heart-outline" size={28} color={Colors.gold} />
             <View style={{ marginLeft: 8 }}>
-              <Text style={styles.logoTitle}>DiaConnect</Text>
-              <Text style={styles.logoSub}>Family</Text>
+              <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+              <Text style={styles.logoSub}>{t("family")}</Text>
             </View>
           </View>
 
@@ -78,8 +80,8 @@ export default function AddGlucoseScreen() {
 
         {/* Title */}
         <View style={styles.hero}>
-          <Text style={styles.screenTitle}>Add Glucose</Text>
-          <Text style={styles.screenSub}>Add a new glucose reading manually</Text>
+          <Text style={styles.screenTitle}>{t("addGlucose")}</Text>
+          <Text style={styles.screenSub}>{t("addGlucoseDesc")}</Text>
         </View>
 
         {!!errorMsg && (
@@ -91,11 +93,11 @@ export default function AddGlucoseScreen() {
         {/* Form Card */}
         <View style={styles.formCard}>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Glucose Value (mg/dL)</Text>
+            <Text style={styles.label}>{t("glucoseValue")}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
-              placeholder="e.g. 120"
+              placeholder={t("glucosePlaceholder")}
               placeholderTextColor={stylesVars.muted}
               keyboardType="number-pad"
               style={styles.input}
@@ -103,16 +105,16 @@ export default function AddGlucoseScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Measured At</Text>
+            <Text style={styles.label}>{t("measuredAt")}</Text>
             <TextInput
               value={measuredAt}
               onChangeText={setMeasuredAt}
-              placeholder="Optional - leave empty for now"
+              placeholder={t("optional")}
               placeholderTextColor={stylesVars.muted}
               style={styles.input}
             />
             <Text style={styles.helperText}>
-              You can leave this empty and the current time will be used.
+              {t("leaveEmptyCurrentTime")}
             </Text>
           </View>
 
@@ -122,7 +124,7 @@ export default function AddGlucoseScreen() {
             disabled={saving}
           >
             <Text style={styles.saveBtnText}>
-              {saving ? "Saving..." : "Save Reading"}
+              {saving ? t("saving") : t("saveReading")}
             </Text>
           </Pressable>
         </View>

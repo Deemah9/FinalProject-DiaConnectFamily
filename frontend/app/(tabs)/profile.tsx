@@ -7,8 +7,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { getProfile } from "@/services/api";
+import { useTranslation } from "react-i18next";
 
 export default function ProfileScreen() {
+const { t } = useTranslation();
 const [user, setUser] = useState<any>(null);
 const [loadingUser, setLoadingUser] = useState(true);
 const [errorUser, setErrorUser] = useState("");
@@ -36,7 +38,7 @@ loadUser();
 const fullName =
 user?.firstName && user?.lastName
 ? `${user.firstName} ${user.lastName}`
-: user?.firstName || "User";
+: user?.firstName || t("user");
 
 const medical = user?.medical || {};
 const lifestyle = user?.lifestyle || {};
@@ -53,19 +55,19 @@ return (
 <View style={styles.logoWrap}>
 <Ionicons name="heart-outline" size={28} color={Colors.gold} />
 <View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>DiaConnect</Text>
-<Text style={styles.logoSub}>Family</Text>
+<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+<Text style={styles.logoSub}>{t("family")}</Text>
 </View>
 </View>
 </View>
 
 {/* Title */}
 <View style={styles.hero}>
-<Text style={styles.screenTitle}>My Profile</Text>
+<Text style={styles.screenTitle}>{t("myProfile")}</Text>
 <Text style={styles.screenSub}>
 {loadingUser
-? "Loading profile..."
-: errorUser || "Manage your information"}
+? t("loadingProfile")
+: errorUser || t("manageInfo")}
 </Text>
 </View>
 
@@ -82,12 +84,12 @@ color={stylesVars.primary}
 </View>
 
 <Text style={styles.nameText}>
-{loadingUser ? "Loading..." : fullName}
+{loadingUser ? t("loading") : fullName}
 </Text>
 <Text style={styles.emailText}>{user?.email || "--"}</Text>
 
 <View style={styles.roleBadge}>
-<Text style={styles.roleBadgeText}>{user?.role || "Patient"}</Text>
+<Text style={styles.roleBadgeText}>{user?.role || t("patient")}</Text>
 </View>
 </View>
 
@@ -99,15 +101,15 @@ name="person-circle-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.sectionTitle}>Basic Info</Text>
+<Text style={styles.sectionTitle}>{t("basicInfo")}</Text>
 </View>
 
 <View style={styles.infoList}>
-<InfoRow label="First Name" value={user?.firstName || "--"} />
-<InfoRow label="Last Name" value={user?.lastName || "--"} />
-<InfoRow label="Email" value={user?.email || "--"} />
-<InfoRow label="Phone" value={user?.phone || "--"} />
-<InfoRow label="Role" value={user?.role || "--"} />
+<InfoRow label={t("firstName")} value={user?.firstName || "--"} />
+<InfoRow label={t("lastName")} value={user?.lastName || "--"} />
+<InfoRow label={t("email")} value={user?.email || "--"} />
+<InfoRow label={t("phone")} value={user?.phone || "--"} />
+<InfoRow label={t("role")} value={user?.role || "--"} />
 </View>
 </View>
 
@@ -119,16 +121,16 @@ name="pulse-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.sectionTitle}>Medical Info</Text>
+<Text style={styles.sectionTitle}>{t("medicalInfo")}</Text>
 </View>
 
 <View style={styles.infoList}>
 <InfoRow
-label="Diagnosis Year"
+label={t("diagnosisYear")}
 value={medical?.diagnosis_year?.toString() || "--"}
 />
 <InfoRow
-label="Medications"
+label={t("medications")}
 value={medicationsText}
 isMultiLine
 />
@@ -143,12 +145,12 @@ name="moon-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.sectionTitle}>Lifestyle</Text>
+<Text style={styles.sectionTitle}>{t("lifestyle")}</Text>
 </View>
 
 <View style={styles.infoList}>
 <InfoRow
-label="Activity Level"
+label={t("activityLevel")}
 value={
 user?.activity_level ||
 lifestyle?.activity_level ||
@@ -156,7 +158,7 @@ lifestyle?.activity_level ||
 }
 />
 <InfoRow
-label="Sleep Hours"
+label={t("sleepHours")}
 value={
 user?.sleep_hours?.toString() ||
 lifestyle?.sleep_hours?.toString() ||
@@ -172,7 +174,7 @@ lifestyle?.sleep_hours?.toString() ||
 style={styles.primaryBtn}
 onPress={() => router.push("/edit-profile" as any)}
 >
-<Text style={styles.primaryText}>Edit Profile</Text>
+<Text style={styles.primaryText}>{t("editProfile")}</Text>
 </Pressable>
 </View>
 </View>

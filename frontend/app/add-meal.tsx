@@ -9,12 +9,14 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { addMeal } from "@/services/api";
 
 export default function AddMealScreen() {
+const { t } = useTranslation();
 const [carbs, setCarbs] = useState("");
 const [foods, setFoods] = useState("");
 const [notes, setNotes] = useState("");
@@ -28,13 +30,13 @@ try {
 setErrorMsg("");
 
 if (!foods.trim()) {
-setErrorMsg("Please enter meal foods");
+setErrorMsg(t("enterMealFoods"));
 return;
 }
 
 const carbsValue = Number(carbs);
 if (!carbs || Number.isNaN(carbsValue) || carbsValue < 0) {
-setErrorMsg("Please enter a valid carbs value");
+setErrorMsg(t("invalidCarbs"));
 return;
 }
 
@@ -72,8 +74,8 @@ keyboardShouldPersistTaps="handled"
 <View style={styles.logoWrap}>
 <Ionicons name="heart-outline" size={28} color={Colors.gold} />
 <View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>DiaConnect</Text>
-<Text style={styles.logoSub}>Family</Text>
+<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+<Text style={styles.logoSub}>{t("family")}</Text>
 </View>
 </View>
 
@@ -81,8 +83,8 @@ keyboardShouldPersistTaps="handled"
 </View>
 
 <View style={styles.hero}>
-<Text style={styles.screenTitle}>Add Meal</Text>
-<Text style={styles.screenSub}>Log your meal and carbs</Text>
+<Text style={styles.screenTitle}>{t("addMeal")}</Text>
+<Text style={styles.screenSub}>{t("logMealCarbs")}</Text>
 </View>
 
 {!!errorMsg && (
@@ -93,22 +95,22 @@ keyboardShouldPersistTaps="handled"
 
 <View style={styles.formCard}>
 <View style={styles.formGroup}>
-<Text style={styles.label}>Foods</Text>
+<Text style={styles.label}>{t("foods")}</Text>
 <TextInput
 value={foods}
 onChangeText={setFoods}
-placeholder="e.g. rice, chicken, salad"
+placeholder={t("foodsPlaceholder")}
 placeholderTextColor={stylesVars.muted}
 style={styles.input}
 />
 </View>
 
 <View style={styles.formGroup}>
-<Text style={styles.label}>Carbs (g)</Text>
+<Text style={styles.label}>{t("carbsG")}</Text>
 <TextInput
 value={carbs}
 onChangeText={setCarbs}
-placeholder="e.g. 45"
+placeholder={t("carbsPlaceholder")}
 placeholderTextColor={stylesVars.muted}
 keyboardType="number-pad"
 style={styles.input}
@@ -116,11 +118,11 @@ style={styles.input}
 </View>
 
 <View style={styles.formGroup}>
-<Text style={styles.label}>Notes</Text>
+<Text style={styles.label}>{t("notes")}</Text>
 <TextInput
 value={notes}
 onChangeText={setNotes}
-placeholder="Optional notes"
+placeholder={t("optionalNotes")}
 placeholderTextColor={stylesVars.muted}
 style={[styles.input, styles.textArea]}
 multiline
@@ -128,16 +130,16 @@ multiline
 </View>
 
 <View style={styles.formGroup}>
-<Text style={styles.label}>Time</Text>
+<Text style={styles.label}>{t("time")}</Text>
 <TextInput
 value={timestamp}
 onChangeText={setTimestamp}
-placeholder="Optional - leave empty for now"
+placeholder={t("optional")}
 placeholderTextColor={stylesVars.muted}
 style={styles.input}
 />
 <Text style={styles.helperText}>
-Leave empty to use the current time.
+{t("leaveEmptyTime")}
 </Text>
 </View>
 
@@ -147,7 +149,7 @@ onPress={onSave}
 disabled={saving}
 >
 <Text style={styles.saveBtnText}>
-{saving ? "Saving..." : "Save Meal"}
+{saving ? t("saving") : t("saveMeal")}
 </Text>
 </Pressable>
 </View>

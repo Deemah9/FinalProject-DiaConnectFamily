@@ -9,11 +9,13 @@ import {
     Text,
     View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Colors } from "@/constants/Colors";
 import { getTodayLogs } from "@/services/api";
 
 export default function DailyLogScreen() {
+const { t } = useTranslation();
 const [logs, setLogs] = useState<any>(null);
 const [loading, setLoading] = useState(true);
 const [errorMsg, setErrorMsg] = useState("");
@@ -86,8 +88,8 @@ return (
 <View style={styles.logoWrap}>
 <Ionicons name="heart-outline" size={28} color={Colors.gold} />
 <View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>DiaConnect</Text>
-<Text style={styles.logoSub}>Family</Text>
+<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+<Text style={styles.logoSub}>{t("family")}</Text>
 </View>
 </View>
 
@@ -96,9 +98,9 @@ return (
 
 {/* Title */}
 <View style={styles.hero}>
-<Text style={styles.screenTitle}>Daily Log</Text>
+<Text style={styles.screenTitle}>{t("dailyLog")}</Text>
 <Text style={styles.screenSub}>
-Track your meals, activity, and sleep for today
+{t("trackDailyLog")}
 </Text>
 </View>
 
@@ -110,7 +112,7 @@ Track your meals, activity, and sleep for today
 
 {/* Quick Add Buttons */}
 <View style={styles.section}>
-<Text style={styles.sectionLabel}>QUICK ADD</Text>
+<Text style={styles.sectionLabel}>{t("quickAdd")}</Text>
 
 <View style={styles.quickGrid}>
 <Pressable
@@ -122,8 +124,8 @@ style={[styles.quickIconCircle, { backgroundColor: "#FFF7ED" }]}
 >
 <Ionicons name="restaurant-outline" size={24} color="#EA580C" />
 </View>
-<Text style={styles.quickTitle}>Add Meal</Text>
-<Text style={styles.quickSub}>Log food and carbs</Text>
+<Text style={styles.quickTitle}>{t("addMeal")}</Text>
+<Text style={styles.quickSub}>{t("logFoodCarbs")}</Text>
 </Pressable>
 
 <Pressable
@@ -135,8 +137,8 @@ style={[styles.quickIconCircle, { backgroundColor: "#ECFDF5" }]}
 >
 <Ionicons name="walk-outline" size={24} color="#16A34A" />
 </View>
-<Text style={styles.quickTitle}>Add Activity</Text>
-<Text style={styles.quickSub}>Track movement</Text>
+<Text style={styles.quickTitle}>{t("addActivity")}</Text>
+<Text style={styles.quickSub}>{t("trackMovement")}</Text>
 </Pressable>
 </View>
 
@@ -146,32 +148,32 @@ style={styles.sleepQuickBtn}
 onPress={() => router.push("/add-sleep" as any)}
 >
 <Ionicons name="moon-outline" size={20} color={stylesVars.primary} />
-<Text style={styles.sleepQuickBtnText}>Add Sleep</Text>
+<Text style={styles.sleepQuickBtnText}>{t("addSleep")}</Text>
 </Pressable>
 </View>
 </View>
 
 {/* Summary */}
 <View style={styles.section}>
-<Text style={styles.sectionLabel}>TODAY&apos;S SUMMARY</Text>
+<Text style={styles.sectionLabel}>{t("todaysSummary")}</Text>
 
 <View style={styles.statsRow}>
 <View style={styles.statCard}>
-<Text style={styles.statLabel}>Meals</Text>
+<Text style={styles.statLabel}>{t("meals")}</Text>
 <Text style={styles.statValue}>
 {loading ? "--" : totalMeals}
 </Text>
 </View>
 
 <View style={styles.statCard}>
-<Text style={styles.statLabel}>Carbs</Text>
+<Text style={styles.statLabel}>{t("carbs")}</Text>
 <Text style={styles.statValue}>
 {loading ? "--" : totalCarbs}
 </Text>
 </View>
 
 <View style={styles.statCard}>
-<Text style={styles.statLabel}>Activity</Text>
+<Text style={styles.statLabel}>{t("activity")}</Text>
 <Text style={styles.statValue}>
 {loading ? "--" : totalActivityMinutes}
 </Text>
@@ -180,14 +182,14 @@ onPress={() => router.push("/add-sleep" as any)}
 
 <View style={[styles.statsRow, { marginTop: 10 }]}>
 <View style={styles.statCardWide}>
-<Text style={styles.statLabel}>Sleep Hours</Text>
+<Text style={styles.statLabel}>{t("sleepHours")}</Text>
 <Text style={styles.statValue}>
 {loading ? "--" : latestSleepHours || "--"}
 </Text>
 </View>
 
 <View style={styles.statCardWide}>
-<Text style={styles.statLabel}>Sleep Entries</Text>
+<Text style={styles.statLabel}>{t("sleepEntries")}</Text>
 <Text style={styles.statValue}>
 {loading ? "--" : totalSleepEntries}
 </Text>
@@ -197,7 +199,7 @@ onPress={() => router.push("/add-sleep" as any)}
 
 {/* Meals */}
 <View style={styles.section}>
-<Text style={styles.sectionLabel}>MEALS</Text>
+<Text style={styles.sectionLabel}>{t("mealsSection")}</Text>
 
 <View style={styles.card}>
 <View style={styles.cardHeader}>
@@ -206,16 +208,16 @@ name="restaurant-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.cardTitle}>Meal Logs</Text>
+<Text style={styles.cardTitle}>{t("mealLogs")}</Text>
 </View>
 
 {loading ? (
-<Text style={styles.loadingText}>Loading meals...</Text>
+<Text style={styles.loadingText}>{t("loadingMeals")}</Text>
 ) : meals.length === 0 ? (
 <View style={styles.emptyState}>
 <Ionicons name="restaurant-outline" size={30} color="#94A3B8" />
-<Text style={styles.emptyTitle}>No meals logged today</Text>
-<Text style={styles.emptySub}>Add your first meal</Text>
+<Text style={styles.emptyTitle}>{t("noMealsToday")}</Text>
+<Text style={styles.emptySub}>{t("addFirstMeal")}</Text>
 </View>
 ) : (
 <View style={styles.listWrap}>
@@ -223,10 +225,10 @@ color={stylesVars.primary}
 <View key={meal?.id || meal?._id || index} style={styles.logRow}>
 <View style={{ flex: 1 }}>
 <Text style={styles.logMainText}>
-{meal?.foods || meal?.name || "Meal"}
+{meal?.foods || meal?.name || t("meal")}
 </Text>
 <Text style={styles.logSubText}>
-Carbs: {meal?.carbs || 0} g
+{`${t("carbs")}: ${meal?.carbs || 0} ${t("carbsUnit")}`}
 </Text>
 <Text style={styles.logDateText}>
 {formatDate(meal?.timestamp || meal?.createdAt)}
@@ -234,7 +236,7 @@ Carbs: {meal?.carbs || 0} g
 </View>
 
 <View style={styles.badge}>
-<Text style={styles.badgeText}>Meal</Text>
+<Text style={styles.badgeText}>{t("meal")}</Text>
 </View>
 </View>
 ))}
@@ -245,7 +247,7 @@ Carbs: {meal?.carbs || 0} g
 
 {/* Activities */}
 <View style={styles.section}>
-<Text style={styles.sectionLabel}>ACTIVITIES</Text>
+<Text style={styles.sectionLabel}>{t("activitiesSection")}</Text>
 
 <View style={styles.card}>
 <View style={styles.cardHeader}>
@@ -254,16 +256,16 @@ name="walk-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.cardTitle}>Activity Logs</Text>
+<Text style={styles.cardTitle}>{t("activityLogs")}</Text>
 </View>
 
 {loading ? (
-<Text style={styles.loadingText}>Loading activities...</Text>
+<Text style={styles.loadingText}>{t("loadingActivities")}</Text>
 ) : activities.length === 0 ? (
 <View style={styles.emptyState}>
 <Ionicons name="walk-outline" size={30} color="#94A3B8" />
-<Text style={styles.emptyTitle}>No activities logged today</Text>
-<Text style={styles.emptySub}>Add your first activity</Text>
+<Text style={styles.emptyTitle}>{t("noActivitiesToday")}</Text>
+<Text style={styles.emptySub}>{t("addFirstActivity")}</Text>
 </View>
 ) : (
 <View style={styles.listWrap}>
@@ -274,10 +276,10 @@ style={styles.logRow}
 >
 <View style={{ flex: 1 }}>
 <Text style={styles.logMainText}>
-{activity?.type || "Activity"}
+{activity?.type || t("activity")}
 </Text>
 <Text style={styles.logSubText}>
-Duration: {activity?.duration_minutes || 0} min
+{`${activity?.duration_minutes || 0} ${t("minUnit")}`}
 </Text>
 <Text style={styles.logDateText}>
 {formatDate(activity?.timestamp || activity?.createdAt)}
@@ -285,7 +287,7 @@ Duration: {activity?.duration_minutes || 0} min
 </View>
 
 <View style={styles.badge}>
-<Text style={styles.badgeText}>Activity</Text>
+<Text style={styles.badgeText}>{t("activity")}</Text>
 </View>
 </View>
 ))}
@@ -296,7 +298,7 @@ Duration: {activity?.duration_minutes || 0} min
 
 {/* Sleep */}
 <View style={styles.section}>
-<Text style={styles.sectionLabel}>SLEEP</Text>
+<Text style={styles.sectionLabel}>{t("sleepSection")}</Text>
 
 <View style={styles.card}>
 <View style={styles.cardHeader}>
@@ -305,16 +307,16 @@ name="moon-outline"
 size={18}
 color={stylesVars.primary}
 />
-<Text style={styles.cardTitle}>Sleep Logs</Text>
+<Text style={styles.cardTitle}>{t("sleepLogs")}</Text>
 </View>
 
 {loading ? (
-<Text style={styles.loadingText}>Loading sleep logs...</Text>
+<Text style={styles.loadingText}>{t("loadingSleep")}</Text>
 ) : sleepLogs.length === 0 ? (
 <View style={styles.emptyState}>
 <Ionicons name="moon-outline" size={30} color="#94A3B8" />
-<Text style={styles.emptyTitle}>No sleep logged today</Text>
-<Text style={styles.emptySub}>Add your sleep entry</Text>
+<Text style={styles.emptyTitle}>{t("noSleepToday")}</Text>
+<Text style={styles.emptySub}>{t("addSleepEntry")}</Text>
 </View>
 ) : (
 <View style={styles.listWrap}>
@@ -322,10 +324,10 @@ color={stylesVars.primary}
 <View key={sleep?.id || sleep?._id || index} style={styles.logRow}>
 <View style={{ flex: 1 }}>
 <Text style={styles.logMainText}>
-{sleep?.sleep_hours || 0} hours
+{`${sleep?.sleep_hours || 0} ${t("hoursUnit")}`}
 </Text>
 <Text style={styles.logSubText}>
-{sleep?.notes || "No notes"}
+{sleep?.notes || t("noNotes")}
 </Text>
 <Text style={styles.logDateText}>
 {formatDate(sleep?.timestamp || sleep?.createdAt)}
@@ -333,7 +335,7 @@ color={stylesVars.primary}
 </View>
 
 <View style={styles.badge}>
-<Text style={styles.badgeText}>Sleep</Text>
+<Text style={styles.badgeText}>{t("sleep")}</Text>
 </View>
 </View>
 ))}
