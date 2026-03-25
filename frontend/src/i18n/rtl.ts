@@ -14,11 +14,10 @@ export async function applyRtlIfNeeded(lng: "en" | "ar" | "he") {
     I18nManager.allowRTL(shouldRTL);
     I18nManager.forceRTL(shouldRTL);
 
-    // Reload آمن على Expo Go أثناء التطوير
     setTimeout(() => {
       try {
         DevSettings.reload();
       } catch {}
-    }, 50);
+    }, 400);
   }
 }

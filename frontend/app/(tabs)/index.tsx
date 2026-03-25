@@ -15,13 +15,17 @@ import {
 
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { setAppLanguage } from "@/src/i18n";
 import { getGlucoseReadings, getProfile } from "@/services/api";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navigateTo = (path: string) => {
+    setMenuOpen(false);
+    setTimeout(() => router.push(path as any), 200);
+  };
 
   const [user, setUser] = useState<any>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -313,10 +317,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/profile");
-                }}
+                onPress={() => navigateTo("/profile")}
               >
                 <Ionicons
                   name="person-circle-outline"
@@ -328,10 +329,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/edit-profile" as any);
-                }}
+                onPress={() => navigateTo("/edit-profile")}
               >
                 <Ionicons
                   name="create-outline"
@@ -343,10 +341,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/medical-info" as any);
-                }}
+                onPress={() => navigateTo("/medical-info")}
               >
                 <Ionicons
                   name="pulse-outline"
@@ -358,10 +353,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/lifestyle-habits" as any);
-                }}
+                onPress={() => navigateTo("/lifestyle-habits")}
               >
                 <Ionicons
                   name="moon-outline"
@@ -375,10 +367,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/glucose-history" as any);
-                }}
+                onPress={() => navigateTo("/glucose-history")}
               >
                 <Ionicons
                   name="time-outline"
@@ -390,10 +379,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/add-glucose" as any);
-                }}
+                onPress={() => navigateTo("/add-glucose")}
               >
                 <Ionicons
                   name="add-circle-outline"
@@ -407,10 +393,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/daily-log" as any);
-                }}
+                onPress={() => navigateTo("/daily-log")}
               >
                 <Ionicons
                   name="calendar-outline"
@@ -422,10 +405,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/add-meal" as any);
-                }}
+                onPress={() => navigateTo("/add-meal")}
               >
                 <Ionicons
                   name="restaurant-outline"
@@ -437,10 +417,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/add-activity" as any);
-                }}
+                onPress={() => navigateTo("/add-activity")}
               >
                 <Ionicons
                   name="walk-outline"
@@ -452,10 +429,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => {
-                  setMenuOpen(false);
-                  router.push("/add-sleep" as any);
-                }}
+                onPress={() => navigateTo("/add-sleep")}
               >
                 <Ionicons
                   name="moon-outline"
@@ -465,25 +439,13 @@ export default function HomeScreen() {
                 <Text style={styles.drawerItemText}>{t("addSleep")}</Text>
               </Pressable>
 
-              <Text style={styles.drawerSection}>{t("languageSection")}</Text>
-
-              {[
-                { code: "en", label: "English" },
-                { code: "ar", label: "العربية" },
-                { code: "he", label: "עברית" },
-              ].map(({ code, label }) => (
-                <Pressable
-                  key={code}
-                  style={styles.drawerItem}
-                  onPress={() => {
-                    setMenuOpen(false);
-                    setAppLanguage(code as "en" | "ar" | "he");
-                  }}
-                >
-                  <Ionicons name="language-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => navigateTo("/settings")}
+              >
+                <Ionicons name="settings-outline" size={18} color={Colors.primary} />
+                <Text style={styles.drawerItemText}>{t("settings")}</Text>
+              </Pressable>
 
               <Pressable
                 style={[

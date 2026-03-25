@@ -80,6 +80,11 @@ const resources = {
       addActivity: "Add Activity",
       addSleep: "Add Sleep",
       languageSection: "LANGUAGE",
+      settings: "Settings",
+      settingsTitle: "Settings",
+      settingsSubtitle: "Manage your app preferences",
+      appLanguage: "App Language",
+      selectLanguage: "Select your preferred language",
       logout: "Logout",
 
       // Onboarding
@@ -315,6 +320,11 @@ const resources = {
       addActivity: "إضافة نشاط",
       addSleep: "إضافة نوم",
       languageSection: "اللغة",
+      settings: "الإعدادات",
+      settingsTitle: "الإعدادات",
+      settingsSubtitle: "إدارة تفضيلات التطبيق",
+      appLanguage: "لغة التطبيق",
+      selectLanguage: "اختر لغتك المفضلة",
       logout: "تسجيل الخروج",
 
       // Onboarding
@@ -550,6 +560,11 @@ const resources = {
       addActivity: "הוסף פעילות",
       addSleep: "הוסף שינה",
       languageSection: "שפה",
+      settings: "הגדרות",
+      settingsTitle: "הגדרות",
+      settingsSubtitle: "נהל את העדפות האפליקציה",
+      appLanguage: "שפת האפליקציה",
+      selectLanguage: "בחר את השפה המועדפת עליך",
       logout: "התנתק",
 
       // Onboarding
