@@ -14,13 +14,15 @@ import { useTranslation } from "react-i18next";
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { addMeal } from "@/services/api";
+import TimePicker, { buildTimestamp, initTime } from "@/components/TimePicker";
 
 export default function AddMealScreen() {
 const { t } = useTranslation();
 const [carbs, setCarbs] = useState("");
 const [foods, setFoods] = useState("");
 const [notes, setNotes] = useState("");
-const [timestamp, setTimestamp] = useState("");
+const [timeState, setTime] = useState(initTime);
+const { hours, minutes, isPM } = timeState;
 
 const [saving, setSaving] = useState(false);
 const [errorMsg, setErrorMsg] = useState("");
@@ -46,9 +48,7 @@ await addMeal({
 carbs: carbsValue,
 foods: foods.trim(),
 notes: notes.trim(),
-timestamp: timestamp?.trim()
-? new Date(timestamp).toISOString()
-: new Date().toISOString(),
+timestamp: buildTimestamp(hours, minutes, isPM),
 });
 
 router.back();
@@ -130,17 +130,15 @@ multiline
 </View>
 
 <View style={styles.formGroup}>
-<Text style={styles.label}>{t("time")}</Text>
-<TextInput
-value={timestamp}
-onChangeText={setTimestamp}
-placeholder={t("optional")}
-placeholderTextColor={stylesVars.muted}
-style={styles.input}
+<TimePicker
+label={t("time")}
+hours={hours}
+minutes={minutes}
+isPM={isPM}
+onHoursChange={(v) => setTime((prev) => ({ ...prev, hours: v }))}
+onMinutesChange={(v) => setTime((prev) => ({ ...prev, minutes: v }))}
+onTogglePeriod={(v) => setTime((prev) => ({ ...prev, isPM: v }))}
 />
-<Text style={styles.helperText}>
-{t("leaveEmptyTime")}
-</Text>
 </View>
 
 <Pressable

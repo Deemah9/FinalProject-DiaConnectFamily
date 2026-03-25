@@ -14,13 +14,15 @@ import { useTranslation } from "react-i18next";
 import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
 import { addGlucose } from "@/services/api";
+import TimePicker, { buildTimestamp, initTime } from "@/components/TimePicker";
 
 export default function AddGlucoseScreen() {
   const { t } = useTranslation();
   const [value, setValue] = useState("");
-  const [measuredAt, setMeasuredAt] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [timeState, setTime] = useState(initTime);
+  const { hours, minutes, isPM } = timeState;
 
   const onSave = async () => {
     try {
@@ -40,11 +42,7 @@ export default function AddGlucoseScreen() {
 
       setSaving(true);
 
-      const finalMeasuredAt = measuredAt?.trim()
-        ? new Date(measuredAt).toISOString()
-        : new Date().toISOString();
-
-      await addGlucose(numericValue, finalMeasuredAt);
+      await addGlucose(numericValue, buildTimestamp(hours, minutes, isPM));
 
       router.back();
     } catch (error: any) {
@@ -105,17 +103,15 @@ export default function AddGlucoseScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>{t("measuredAt")}</Text>
-            <TextInput
-              value={measuredAt}
-              onChangeText={setMeasuredAt}
-              placeholder={t("optional")}
-              placeholderTextColor={stylesVars.muted}
-              style={styles.input}
+            <TimePicker
+              label={t("measuredAt")}
+              hours={hours}
+              minutes={minutes}
+              isPM={isPM}
+              onHoursChange={(v) => setTime((prev) => ({ ...prev, hours: v }))}
+              onMinutesChange={(v) => setTime((prev) => ({ ...prev, minutes: v }))}
+              onTogglePeriod={(v) => setTime((prev) => ({ ...prev, isPM: v }))}
             />
-            <Text style={styles.helperText}>
-              {t("leaveEmptyCurrentTime")}
-            </Text>
           </View>
 
           <Pressable

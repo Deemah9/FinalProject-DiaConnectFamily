@@ -40,11 +40,13 @@ const request = async (method, endpoint, body = null) => {
   }
 
   if (!response.ok) {
-    const msg =
-      (data && (data.detail || data.message)) ||
-      raw ||
-      `HTTP ${response.status}`;
-
+    let detail = data && (data.detail || data.message);
+    if (Array.isArray(detail)) {
+      detail = detail.map((e) => e?.msg || JSON.stringify(e)).join(", ");
+    } else if (detail && typeof detail !== "string") {
+      detail = JSON.stringify(detail);
+    }
+    const msg = detail || raw || `HTTP ${response.status}`;
     throw new Error(msg);
   }
 

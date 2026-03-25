@@ -20,25 +20,32 @@ export default function EditProfileScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    loadProfile();
+    let active = true;
+    const run = async () => {
+      try {
+        const data = await getProfile();
+        if (!active) return;
+        setFirstName(data.firstName || data.first_name || "");
+        setLastName(data.lastName || data.last_name || "");
+        setPhone(data.phone || "");
+      } catch (error: any) {
+        if (!active) return;
+        setErrorMsg(error?.message || "Failed to load profile");
+      }
+    };
+    run();
+    return () => { active = false; };
   }, []);
 
-  const loadProfile = async () => {
-    try {
-      const data = await getProfile();
-
-      setFirstName(data.firstName || data.first_name || "");
-      setLastName(data.lastName || data.last_name || "");
-      setPhone(data.phone || "");
-    } catch (error) {
-      console.log("Profile load error", error);
-    }
-  };
-
   const onSave = async () => {
+    if (saving) return;
     try {
+      setSaving(true);
+      setErrorMsg("");
       await updateProfile({
         firstName,
         lastName,
@@ -46,8 +53,10 @@ export default function EditProfileScreen() {
       });
 
       router.back();
-    } catch (error) {
-      console.log("Update profile error", error);
+    } catch (error: any) {
+      setErrorMsg(error?.message || "Failed to save profile");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -79,6 +88,12 @@ export default function EditProfileScreen() {
           <Text style={styles.screenTitle}>{t("editProfile")}</Text>
           <Text style={styles.screenSub}>{t("updateInfo")}</Text>
         </View>
+
+        {!!errorMsg && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        )}
 
         {/* Form Card */}
         <View style={styles.formCard}>
@@ -116,8 +131,8 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          <Pressable style={styles.saveBtn} onPress={onSave}>
-            <Text style={styles.saveBtnText}>{t("saveChanges")}</Text>
+          <Pressable style={[styles.saveBtn, saving && { opacity: 0.7 }]} onPress={onSave} disabled={saving}>
+            <Text style={styles.saveBtnText}>{saving ? t("saving") : t("saveChanges")}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -201,6 +216,21 @@ const styles = StyleSheet.create({
   screenSub: {
     color: stylesVars.muted,
     fontSize: 14,
+  },
+
+  errorBox: {
+    marginBottom: 16,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 14,
+    padding: 12,
+  },
+
+  errorText: {
+    color: "#B91C1C",
+    fontSize: 13,
+    fontWeight: "500",
   },
 
   formCard: {

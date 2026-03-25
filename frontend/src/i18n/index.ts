@@ -31,6 +31,8 @@ const resources = {
       notes: "Notes",
       optionalNotes: "Optional notes",
       time: "Time",
+      am: "AM",
+      pm: "PM",
       mgdL: "mg/dL",
       status: "Status:",
       low: "Low",
@@ -79,6 +81,19 @@ const resources = {
       addSleep: "Add Sleep",
       languageSection: "LANGUAGE",
       logout: "Logout",
+
+      // Onboarding
+      onboardingTitle: "Let's set up your profile",
+      onboardingSubtitle: "This helps us personalize your monitoring and filter out expected fluctuations.",
+      onboardingDietLabel: "Dietary Pattern",
+      onboardingDietBalanced: "Balanced",
+      onboardingDietLowCarb: "Low Carb",
+      onboardingDietVegetarian: "Vegetarian",
+      onboardingDietOther: "Other",
+      onboardingSleepLabel: "Average Sleep Hours per Night",
+      onboardingActivityLabel: "Physical Activity Level",
+      onboardingComplete: "Complete Setup",
+      onboardingSkip: "Skip for now",
 
       // Home screen
       welcomeBack: "Welcome Back",
@@ -184,6 +199,7 @@ const resources = {
       saveReading: "Save Reading",
       invalidGlucose: "Please enter a valid glucose value",
       glucoseRange: "Glucose value must be between 40 and 600 mg/dL",
+      invalidDate: "Invalid date format. Use YYYY-MM-DD or leave empty.",
 
       // Add Meal
       logMealCarbs: "Log your meal and carbs",
@@ -250,6 +266,8 @@ const resources = {
       notes: "ملاحظات",
       optionalNotes: "ملاحظات اختيارية",
       time: "الوقت",
+      am: "ص",
+      pm: "م",
       mgdL: "ملغ/ديسيلتر",
       status: "الحالة:",
       low: "منخفض",
@@ -298,6 +316,19 @@ const resources = {
       addSleep: "إضافة نوم",
       languageSection: "اللغة",
       logout: "تسجيل الخروج",
+
+      // Onboarding
+      onboardingTitle: "لنقم بإعداد ملفك الشخصي",
+      onboardingSubtitle: "يساعدنا ذلك في تخصيص المراقبة وتصفية التقلبات المتوقعة.",
+      onboardingDietLabel: "النمط الغذائي",
+      onboardingDietBalanced: "متوازن",
+      onboardingDietLowCarb: "قليل الكربوهيدرات",
+      onboardingDietVegetarian: "نباتي",
+      onboardingDietOther: "أخرى",
+      onboardingSleepLabel: "متوسط ساعات النوم في الليلة",
+      onboardingActivityLabel: "مستوى النشاط البدني",
+      onboardingComplete: "إكمال الإعداد",
+      onboardingSkip: "تخطي الآن",
 
       // Home screen
       welcomeBack: "مرحباً بعودتك",
@@ -403,6 +434,7 @@ const resources = {
       saveReading: "حفظ القراءة",
       invalidGlucose: "يرجى إدخال قيمة سكر صحيحة",
       glucoseRange: "يجب أن تكون قيمة السكر بين 40 و 600 ملغ/ديسيلتر",
+      invalidDate: "صيغة التاريخ غير صحيحة. استخدم YYYY-MM-DD أو اتركه فارغاً.",
 
       // Add Meal
       logMealCarbs: "تسجيل وجبتك وكربوهيدراتها",
@@ -469,6 +501,8 @@ const resources = {
       notes: "הערות",
       optionalNotes: "הערות אופציונליות",
       time: "זמן",
+      am: "לפנה\"צ",
+      pm: "אחה\"צ",
       mgdL: "מ\"ג/ד\"ל",
       status: "סטטוס:",
       low: "נמוך",
@@ -517,6 +551,19 @@ const resources = {
       addSleep: "הוסף שינה",
       languageSection: "שפה",
       logout: "התנתק",
+
+      // Onboarding
+      onboardingTitle: "בואו נגדיר את הפרופיל שלך",
+      onboardingSubtitle: "זה עוזר לנו להתאים את המעקב ולסנן תנודות צפויות.",
+      onboardingDietLabel: "דפוס תזונה",
+      onboardingDietBalanced: "מאוזן",
+      onboardingDietLowCarb: "דל פחמימות",
+      onboardingDietVegetarian: "צמחוני",
+      onboardingDietOther: "אחר",
+      onboardingSleepLabel: "ממוצע שעות שינה בלילה",
+      onboardingActivityLabel: "רמת פעילות גופנית",
+      onboardingComplete: "השלם הגדרה",
+      onboardingSkip: "דלג כעת",
 
       // Home screen
       welcomeBack: "ברוך שובך",
@@ -622,6 +669,7 @@ const resources = {
       saveReading: "שמור קריאה",
       invalidGlucose: "אנא הזן ערך גלוקוז תקין",
       glucoseRange: "ערך הגלוקוז חייב להיות בין 40 ל-600 מ\"ג/ד\"ל",
+      invalidDate: "פורמט תאריך לא חוקי. השתמש ב-YYYY-MM-DD או השאר ריק.",
 
       // Add Meal
       logMealCarbs: "רשום את הארוחה והפחמימות שלך",

@@ -5,6 +5,7 @@ import {
   login as apiLogin,
   logout as apiLogout,
   register as apiRegister,
+  getProfile,
 } from "../services/api";
 
 // ==========================================
@@ -65,7 +66,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem("token", token);
     await AsyncStorage.setItem("role", role);
     setUser({ token, role });
-    router.replace("/(tabs)");
+
+    let profileComplete = false;
+    try {
+      const profile = await getProfile();
+      const lifestyle = profile?.lifestyle || {};
+      profileComplete = !!(lifestyle.activity_level && lifestyle.sleep_hours != null);
+    } catch {
+      // if profile fetch fails, send to onboarding to be safe
+    }
+
+    router.replace(profileComplete ? "/(tabs)" : "/onboarding");
   };
 
   const register = async (userData: RegisterPayload) => {

@@ -25,6 +25,14 @@ const [errorMsg, setErrorMsg] = useState("");
 const screenWidth = Dimensions.get("window").width;
 const chartWidth = screenWidth - 48 - 48;
 
+const parseDate = (item: any) => {
+const raw = item?.measuredAt || item?.timestamp || item?.createdAt;
+if (!raw) return 0;
+const d = new Date(raw);
+if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return 0;
+return d.getTime();
+};
+
 const loadReadings = async () => {
 try {
 setLoading(true);
@@ -44,15 +52,7 @@ result = data.readings;
 result = [];
 }
 
-const sorted = [...result].sort((a, b) => {
-const dateA = new Date(
-a?.measuredAt || a?.timestamp || a?.createdAt || 0
-).getTime();
-const dateB = new Date(
-b?.measuredAt || b?.timestamp || b?.createdAt || 0
-).getTime();
-return dateB - dateA;
-});
+const sorted = [...result].sort((a, b) => parseDate(b) - parseDate(a));
 
 setReadings(sorted);
 } catch (error: any) {
@@ -84,7 +84,8 @@ return "#16A34A";
 const formatDate = (dateString: string) => {
 if (!dateString) return "--";
 const date = new Date(dateString);
-if (Number.isNaN(date.getTime())) return dateString;
+if (Number.isNaN(date.getTime())) return "--";
+if (date.getFullYear() < 2000) return "--";
 return date.toLocaleString();
 };
 
