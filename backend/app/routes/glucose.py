@@ -33,14 +33,17 @@ async def add_glucose_reading(
 
 @router.get("/", response_model=list[GlucoseResponse])
 async def get_glucose_readings(
+    limit: int = 50,
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Retrieve all glucose readings for the current user.
+    Retrieve glucose readings for the current user.
     Available to both patients and family members.
     Results are ordered by measuredAt descending.
+    limit: number of readings to return (default 50, max 200).
     """
-    return glucose_service.get_readings(user_id=current_user["sub"])
+    limit = max(1, min(limit, 200))
+    return glucose_service.get_readings(user_id=current_user["sub"], limit=limit)
 
 
 # ==========================================

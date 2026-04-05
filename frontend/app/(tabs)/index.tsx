@@ -16,7 +16,7 @@ import {
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import { setAppLanguage } from "@/src/i18n";
-import { getGlucoseReadings, getProfile } from "@/services/api";
+import { getGlucoseReadings, getProfile, updateProfile } from "@/services/api";
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -477,7 +477,10 @@ export default function HomeScreen() {
                   style={styles.drawerItem}
                   onPress={() => {
                     setMenuOpen(false);
-                    setAppLanguage(code as "en" | "ar" | "he");
+                    setAppLanguage(
+                      code as "en" | "ar" | "he",
+                      () => updateProfile({ language: code })
+                    );
                   }}
                 >
                   <Ionicons name="language-outline" size={18} color={Colors.primary} />

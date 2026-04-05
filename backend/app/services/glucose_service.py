@@ -49,15 +49,17 @@ class GlucoseService:
     # Get All Readings
     # ==========================================
 
-    def get_readings(self, user_id: str) -> list:
+    def get_readings(self, user_id: str, limit: int = 50) -> list:
         """
-        Retrieve all glucose readings for a specific user.
+        Retrieve glucose readings for a specific user.
         Returns a list of reading documents ordered by measuredAt descending.
+        limit: caps the number of documents fetched from Firestore.
         Note: Requires a Firestore composite index on userId + measuredAt.
         """
         docs = self.db.collection(self.collection) \
             .where("userId", "==", user_id) \
             .order_by("measuredAt", direction=firestore.Query.DESCENDING) \
+            .limit(limit) \
             .stream()
 
         readings = []

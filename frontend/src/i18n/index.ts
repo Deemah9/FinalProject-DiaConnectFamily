@@ -738,12 +738,16 @@ export async function setupI18n() {
   return lng;
 }
 
-export async function setAppLanguage(lng: "en" | "ar" | "he") {
+export async function setAppLanguage(lng: "en" | "ar" | "he", syncToServer?: () => Promise<void>) {
   if (i18n.language === lng) return;
 
   await AsyncStorage.setItem(LANG_KEY, lng);
   await i18n.changeLanguage(lng);
   await applyRtlIfNeeded(lng);
+
+  if (syncToServer) {
+    try { await syncToServer(); } catch { /* non-critical */ }
+  }
 }
 
 export default i18n;

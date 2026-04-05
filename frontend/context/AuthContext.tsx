@@ -7,6 +7,7 @@ import {
   register as apiRegister,
   getProfile,
 } from "../services/api";
+import { setAppLanguage } from "../src/i18n";
 
 // ==========================================
 // Types
@@ -72,6 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await getProfile();
       const lifestyle = profile?.lifestyle || {};
       profileComplete = !!(lifestyle.activity_level && lifestyle.sleep_hours != null);
+      const lang = profile?.language;
+      if (lang === "en" || lang === "ar" || lang === "he") {
+        await setAppLanguage(lang);
+      }
     } catch {
       // if profile fetch fails, send to onboarding to be safe
     }

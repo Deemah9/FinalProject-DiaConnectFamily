@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, validator
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Literal
 
 
@@ -26,7 +26,9 @@ class GlucoseCreate(BaseModel):
         """
         if v.tzinfo is None:
             v = v.replace(tzinfo=timezone.utc)
-        if v > datetime.now(timezone.utc):
+        else:
+            v = v.astimezone(timezone.utc)
+        if v > datetime.now(timezone.utc) + timedelta(minutes=2):
             raise ValueError("measuredAt cannot be in the future")
         return v
 
