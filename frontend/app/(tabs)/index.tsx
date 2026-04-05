@@ -231,7 +231,29 @@ export default function HomeScreen() {
 
             <View style={styles.latestStatusWrap}>
               <Text style={styles.latestStatusLabel}>{t("status")}</Text>
-              <Text style={styles.latestStatusValue}>{latestStatus}</Text>
+              <View
+                style={[
+                  styles.statusPill,
+                  latestStatus === t("low")
+                    ? { backgroundColor: "#FEF9C3" }
+                    : latestStatus === t("high")
+                    ? { backgroundColor: "#FEE2E2" }
+                    : { backgroundColor: "#DCFCE7" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    latestStatus === t("low")
+                      ? { color: "#CA8A04" }
+                      : latestStatus === t("high")
+                      ? { color: "#DC2626" }
+                      : { color: "#16A34A" },
+                  ]}
+                >
+                  {latestStatus}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.overviewGrid}>
@@ -608,6 +630,7 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginBottom: 12,
     letterSpacing: 1,
+    textTransform: "uppercase",
   },
 
   quickGrid: {
@@ -753,6 +776,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: "#1F2937",
+  },
+
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   overviewGrid: {
