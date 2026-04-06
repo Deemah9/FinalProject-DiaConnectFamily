@@ -5,16 +5,22 @@ export function isRtlLanguage(lng: string) {
 }
 
 export async function applyRtlIfNeeded(lng: "en" | "ar" | "he") {
-  if (Platform.OS === "web") return;
-
   const shouldRTL = isRtlLanguage(lng);
+
+  if (Platform.OS === "web") {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("dir", shouldRTL ? "rtl" : "ltr");
+      document.documentElement.setAttribute("lang", lng);
+    }
+    return;
+  }
+
   const currentRTL = I18nManager.isRTL;
 
   if (currentRTL !== shouldRTL) {
     I18nManager.allowRTL(shouldRTL);
     I18nManager.forceRTL(shouldRTL);
 
-    // Reload آمن على Expo Go أثناء التطوير
     setTimeout(() => {
       try {
         DevSettings.reload();

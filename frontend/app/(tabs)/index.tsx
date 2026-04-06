@@ -22,6 +22,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const { logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
 
   const [user, setUser] = useState<any>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -112,9 +113,41 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
-            <Ionicons name="menu-outline" size={24} color="#374151" />
-          </Pressable>
+          {/* Left: menu + globe */}
+          <View style={styles.headerLeft}>
+            <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
+              <Ionicons name="menu-outline" size={24} color="#374151" />
+            </Pressable>
+
+            <View>
+              <Pressable style={styles.globeBtn} onPress={() => setLangOpen((v) => !v)}>
+                <Ionicons name="earth" size={28} color="#FFFFFF" />
+              </Pressable>
+              {langOpen && (
+                <View style={styles.langDropdown}>
+                  {[
+                    { code: "en", label: "English" },
+                    { code: "ar", label: "العربية" },
+                    { code: "he", label: "עברית" },
+                  ].map(({ code, label }) => (
+                    <Pressable
+                      key={code}
+                      style={styles.langOption}
+                      onPress={() => {
+                        setLangOpen(false);
+                        setAppLanguage(
+                          code as "en" | "ar" | "he",
+                          () => updateProfile({ language: code })
+                        );
+                      }}
+                    >
+                      <Text style={styles.langOptionText}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
 
           <View style={styles.logoWrap}>
             <Ionicons name="heart-outline" size={28} color="#D4AF37" />
@@ -124,7 +157,7 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.iconPlaceholder} />
+          <View style={{ width: 80 }} />
         </View>
 
         {/* Welcome */}
@@ -465,28 +498,6 @@ export default function HomeScreen() {
                 <Text style={styles.drawerItemText}>{t("addSleep")}</Text>
               </Pressable>
 
-              <Text style={styles.drawerSection}>{t("languageSection")}</Text>
-
-              {[
-                { code: "en", label: "English" },
-                { code: "ar", label: "العربية" },
-                { code: "he", label: "עברית" },
-              ].map(({ code, label }) => (
-                <Pressable
-                  key={code}
-                  style={styles.drawerItem}
-                  onPress={() => {
-                    setMenuOpen(false);
-                    setAppLanguage(
-                      code as "en" | "ar" | "he",
-                      () => updateProfile({ language: code })
-                    );
-                  }}
-                >
-                  <Ionicons name="language-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
 
               <Pressable
                 style={[
@@ -542,10 +553,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  iconPlaceholder: {
-    width: 40,
   },
 
   logoWrap: {
@@ -925,6 +932,57 @@ const styles = StyleSheet.create({
   },
 
   drawerItemText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  globeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#4A7DC9",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4A7DC9",
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+
+  langDropdown: {
+    position: "absolute",
+    top: 44,
+    left: 0,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    zIndex: 999,
+    minWidth: 130,
+    overflow: "hidden",
+  },
+
+  langOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+
+  langOptionText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#1F2937",
