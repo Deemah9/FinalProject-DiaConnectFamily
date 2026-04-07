@@ -205,13 +205,13 @@ return (
 }
 
 const stylesVars = {
-primary: "#4A7DC9",
+primary: "#1A6FA8",
 bg: "#FFFFFF",
 card: "#FFFFFF",
-text: "#1F2937",
-muted: "#6B7280",
-border: "#F3F4F6",
-soft: "#F9FAFB",
+text: "#0B1A2E",
+muted: "#4A6480",
+border: "#D6E8F5",
+soft: "#E8F1F8",
 };
 
 const styles = StyleSheet.create({
@@ -229,7 +229,7 @@ paddingBottom: 110,
 topHeader: {
 paddingBottom: 16,
 borderBottomWidth: 1,
-borderBottomColor: "#F3F4F6",
+borderBottomColor: "#D6E8F5",
 alignItems: "center",
 },
 
@@ -239,14 +239,14 @@ alignItems: "center",
 },
 
 logoTitle: {
-color: "#1F2937",
+color: "#0B1A2E",
 fontSize: 16,
 lineHeight: 18,
 fontWeight: "600",
 },
 
 logoSub: {
-color: "#6B7280",
+color: "#4A6480",
 fontSize: 14,
 lineHeight: 16,
 fontWeight: "300",

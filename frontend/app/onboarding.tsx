@@ -187,8 +187,8 @@ export default function OnboardingScreen() {
   );
 }
 
-const PRIMARY = "#4A7DC9";
-const MUTED = "#6B7280";
+const PRIMARY = "#1A6FA8";
+const MUTED = "#4A6480";
 
 const styles = StyleSheet.create({
   container: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
 
   logoTitle: {
-    color: "#1F2937",
+    color: "#0B1A2E",
     fontSize: 20,
     fontWeight: "700",
     lineHeight: 22,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#1F2937",
+    color: "#0B1A2E",
     marginBottom: 8,
   },
 
@@ -241,10 +241,10 @@ const styles = StyleSheet.create({
 
   errorBox: {
     marginBottom: 16,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#FDEDED",
     borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 14,
+    borderColor: "#F5C2C2",
+    borderRadius: 16,
     padding: 12,
   },
 
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: "#D6E8F5",
     padding: 20,
     marginBottom: 16,
     shadowColor: "#000",
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1F2937",
+    color: "#0B1A2E",
   },
 
   optionsWrap: {
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D1D5DB",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#E8F1F8",
   },
 
   chipSelected: {
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
 
   chipText: {
     fontSize: 13,
-    color: "#374151",
+    color: "#1E3A52",
     fontWeight: "500",
   },
 
@@ -313,20 +313,20 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    height: 52,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    borderColor: "#B8D0E8",
+    backgroundColor: "#E8F1F8",
     paddingHorizontal: 14,
-    color: "#1F2937",
+    color: "#0B1A2E",
     ...Typography.button,
   },
 
   completeBtn: {
     marginTop: 8,
-    height: 54,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",

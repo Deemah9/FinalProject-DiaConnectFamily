@@ -170,5 +170,5 @@ const styles = StyleSheet.create({
   },
   outlineText: { color: Colors.white, ...Typography.button },
 
-  footer: { marginTop: Spacing.sm, color: Colors.textMuted, ...Typography.footer },
+  footer: { marginTop: Spacing.sm, color: Colors.textMutedOnDark, ...Typography.footer },
 });

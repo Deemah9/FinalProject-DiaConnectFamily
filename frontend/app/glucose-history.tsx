@@ -3,615 +3,366 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-    Dimensions,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { LineChart } from "react-native-chart-kit";
 import { useTranslation } from "react-i18next";
 
 import { Colors } from "@/constants/Colors";
 import { getGlucoseReadings } from "@/services/api";
 
 export default function GlucoseHistoryScreen() {
-const { t } = useTranslation();
-const [readings, setReadings] = useState<any[]>([]);
-const [loading, setLoading] = useState(true);
-const [errorMsg, setErrorMsg] = useState("");
+  const { t } = useTranslation();
+  const [readings, setReadings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-const screenWidth = Dimensions.get("window").width;
-const chartWidth = screenWidth - 48 - 48;
+  const parseDate = (item: any) => {
+    const raw = item?.measuredAt || item?.timestamp || item?.createdAt;
+    if (!raw) return 0;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return 0;
+    return d.getTime();
+  };
 
-const parseDate = (item: any) => {
-const raw = item?.measuredAt || item?.timestamp || item?.createdAt;
-if (!raw) return 0;
-const d = new Date(raw);
-if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return 0;
-return d.getTime();
-};
+  const loadReadings = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const data = await getGlucoseReadings();
+      let result: any[] = [];
+      if (Array.isArray(data)) result = data;
+      else if (Array.isArray(data?.items)) result = data.items;
+      else if (Array.isArray(data?.readings)) result = data.readings;
+      const sorted = [...result]
+        .filter((g) => Number(g?.value) > 0 && parseDate(g) > 0)
+        .sort((a, b) => parseDate(b) - parseDate(a));
+      setReadings(sorted);
+    } catch (error: any) {
+      setErrorMsg(error?.message || "Failed to load glucose history");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const loadReadings = async () => {
-try {
-setLoading(true);
-setErrorMsg("");
+  useFocusEffect(useCallback(() => { loadReadings(); }, []));
 
-const data = await getGlucoseReadings();
+  const getStatus = (value: number) => {
+    if (value < 70) return t("low");
+    if (value > 180) return t("high");
+    return t("normal");
+  };
 
-let result = [];
+  const getStatusColor = (value: number) => {
+    if (value < 70) return "#E07B00";
+    if (value > 180) return "#D32F2F";
+    return "#0D9E6E";
+  };
 
-if (Array.isArray(data)) {
-result = data;
-} else if (Array.isArray(data?.items)) {
-result = data.items;
-} else if (Array.isArray(data?.readings)) {
-result = data.readings;
-} else {
-result = [];
+  const getStatusBg = (value: number) => {
+    if (value < 70) return "#FEF3E2";
+    if (value > 180) return "#FDEDED";
+    return "#E6F7F2";
+  };
+
+  const formatTime = (raw: string) => {
+    if (!raw) return "--";
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return "--";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const dayStats = (items: any[]) => {
+    const vals = items.map((r) => Number(r?.value || 0)).filter(Boolean);
+    if (vals.length === 0) return null;
+    return {
+      avg: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length),
+      min: Math.min(...vals),
+      max: Math.max(...vals),
+    };
+  };
+
+  // Group readings by calendar day
+  const grouped = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const item of readings) {
+      const raw = item?.measuredAt || item?.timestamp || item?.createdAt || "";
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = d.toDateString(); // "Mon Apr 07 2026"
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+
+    const todayStr = new Date().toDateString();
+    const yesterdayStr = new Date(Date.now() - 86_400_000).toDateString();
+
+    return Array.from(map.entries())
+      .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+      .map(([key, items]) => {
+        let label: string;
+        if (key === todayStr) label = t("today");
+        else if (key === yesterdayStr) label = t("yesterday");
+        else {
+          const d = new Date(key);
+          label = d.toLocaleDateString(undefined, {
+            weekday: "long",
+            month: "short",
+            day: "numeric",
+          });
+        }
+        return { label, items };
+      });
+  }, [readings, t]);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+
+        {/* Header */}
+        <View style={styles.topHeader}>
+          <Pressable onPress={() => router.back()} style={styles.menuBtn}>
+            <Ionicons name="arrow-back" size={22} color="#1E3A52" />
+          </Pressable>
+          <View style={styles.logoWrap}>
+            <Ionicons name="heart-outline" size={28} color={Colors.gold} />
+            <View style={{ marginLeft: 8 }}>
+              <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+              <Text style={styles.logoSub}>{t("family")}</Text>
+            </View>
+          </View>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Title row */}
+        <View style={styles.heroRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.screenTitle}>{t("glucoseHistory")}</Text>
+            <Text style={styles.screenSub}>{t("trackReadingsTime")}</Text>
+          </View>
+          <Pressable style={styles.addBtn} onPress={() => router.push("/add-glucose" as any)}>
+            <Ionicons name="add-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.addBtnText}>{t("add")}</Text>
+          </Pressable>
+        </View>
+
+        {!!errorMsg && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        )}
+
+        {/* History grouped by date */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="time-outline" size={18} color="#1A6FA8" />
+            <Text style={styles.cardTitle}>{t("readingHistory")}</Text>
+          </View>
+
+          {loading ? (
+            <Text style={styles.loadingText}>{t("loadingReadings")}</Text>
+          ) : grouped.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="document-text-outline" size={30} color="#94A3B8" />
+              <Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
+              <Text style={styles.emptySub}>{t("addFirstReading")}</Text>
+            </View>
+          ) : (
+            grouped.map(({ label, items }) => {
+              const stats = dayStats(items);
+              return (
+              <View key={label} style={styles.dateGroup}>
+                {/* Date header */}
+                <View style={styles.dateLabelRow}>
+                  <View style={styles.dateLabelLine} />
+                  <Text style={styles.dateLabelText}>{label}</Text>
+                  <View style={styles.dateLabelLine} />
+                  <View style={styles.dateCountBadge}>
+                    <Text style={styles.dateCountText}>{items.length}</Text>
+                  </View>
+                </View>
+
+                {/* Per-day stats */}
+                {stats && (
+                  <View style={styles.dayStatsRow}>
+                    <View style={styles.dayStatItem}>
+                      <Text style={styles.dayStatLabel}>{t("average")}</Text>
+                      <Text style={styles.dayStatValue}>{stats.avg}</Text>
+                    </View>
+                    <View style={styles.dayStatDivider} />
+                    <View style={styles.dayStatItem}>
+                      <Text style={styles.dayStatLabel}>{t("min")}</Text>
+                      <Text style={[styles.dayStatValue, { color: stats.min < 70 ? "#E07B00" : stats.min <= 180 ? "#0D9E6E" : "#D32F2F" }]}>{stats.min}</Text>
+                    </View>
+                    <View style={styles.dayStatDivider} />
+                    <View style={styles.dayStatItem}>
+                      <Text style={styles.dayStatLabel}>{t("max")}</Text>
+                      <Text style={[styles.dayStatValue, { color: "#D32F2F" }]}>{stats.max}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Readings for that day */}
+                {items.map((item, idx) => {
+                  const value = Number(item?.value || 0);
+                  const status = getStatus(value);
+                  const color = getStatusColor(value);
+                  const bg = getStatusBg(value);
+                  const raw = item?.measuredAt || item?.timestamp || item?.createdAt || "";
+                  return (
+                    <View key={item?.id || item?._id || idx} style={styles.readingRow}>
+                      <View style={[styles.readingIndicator, { backgroundColor: color }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.readingValue}>
+                          {value}{" "}
+                          <Text style={styles.readingUnit}>{t("mgdL")}</Text>
+                        </Text>
+                        <Text style={styles.readingTime}>{formatTime(raw)}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+                        <Text style={[styles.statusText, { color }]}>{status}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );})
+          )}
+        </View>
+
+        <View style={{ height: 24 }} />
+      </ScrollView>
+    </View>
+  );
 }
-
-const sorted = [...result].sort((a, b) => parseDate(b) - parseDate(a));
-
-setReadings(sorted);
-} catch (error: any) {
-console.log("glucose history error:", error);
-setErrorMsg(error?.message || "Failed to load glucose history");
-} finally {
-setLoading(false);
-}
-};
-
-useFocusEffect(
-useCallback(() => {
-loadReadings();
-}, [])
-);
-
-const getStatus = (value: number) => {
-if (value < 70) return t("low");
-if (value > 180) return t("high");
-return t("normal");
-};
-
-const getStatusColor = (value: number) => {
-if (value < 70) return "#DC2626";
-if (value > 180) return "#D97706";
-return "#16A34A";
-};
-
-const formatDate = (dateString: string) => {
-if (!dateString) return "--";
-const date = new Date(dateString);
-if (Number.isNaN(date.getTime())) return "--";
-if (date.getFullYear() < 2000) return "--";
-return date.toLocaleString();
-};
-
-const avg =
-readings.length > 0
-? Math.round(
-readings.reduce((sum, item) => sum + Number(item?.value || 0), 0) /
-readings.length
-)
-: 0;
-
-const min =
-readings.length > 0
-? Math.min(...readings.map((item) => Number(item?.value || 0)))
-: 0;
-
-const max =
-readings.length > 0
-? Math.max(...readings.map((item) => Number(item?.value || 0)))
-: 0;
-
-const chartData = useMemo(() => {
-const latestReadings = [...readings].slice(0, 6).reverse();
-
-const labels =
-latestReadings.length > 0
-? latestReadings.map((item) => {
-const rawDate =
-item?.measuredAt || item?.timestamp || item?.createdAt || "";
-const date = new Date(rawDate);
-
-if (Number.isNaN(date.getTime())) return "--";
-
-const hours = date.getHours().toString().padStart(2, "0");
-const minutes = date.getMinutes().toString().padStart(2, "0");
-return `${hours}:${minutes}`;
-})
-: ["--"];
-
-const values =
-latestReadings.length > 0
-? latestReadings.map((item) => Number(item?.value || 0))
-: [0];
-
-return {
-labels,
-datasets: [
-{
-data: values,
-strokeWidth: 2,
-},
-],
-};
-}, [readings]);
-
-return (
-<View style={styles.container}>
-<ScrollView contentContainerStyle={styles.content}>
-{/* Header */}
-<View style={styles.topHeader}>
-<Pressable onPress={() => router.back()} style={styles.menuBtn}>
-<Ionicons name="arrow-back" size={22} color="#374151" />
-</Pressable>
-
-<View style={styles.logoWrap}>
-<Ionicons name="heart-outline" size={28} color={Colors.gold} />
-<View style={{ marginLeft: 8 }}>
-<Text style={styles.logoTitle}>{t("diaConnect")}</Text>
-<Text style={styles.logoSub}>{t("family")}</Text>
-</View>
-</View>
-
-<View style={styles.placeholder} />
-</View>
-
-{/* Title */}
-<View style={styles.heroRow}>
-<View style={{ flex: 1 }}>
-<Text style={styles.screenTitle}>{t("glucoseHistory")}</Text>
-<Text style={styles.screenSub}>
-{t("trackReadingsTime")}
-</Text>
-</View>
-
-<Pressable
-style={styles.addBtn}
-onPress={() => router.push("/add-glucose" as any)}
->
-<Ionicons name="add-outline" size={16} color="#FFFFFF" />
-<Text style={styles.addBtnText}>{t("add")}</Text>
-</Pressable>
-</View>
-
-{!!errorMsg && (
-<View style={styles.errorBox}>
-<Text style={styles.errorText}>{errorMsg}</Text>
-</View>
-)}
-
-{/* Stats */}
-<View style={styles.statsRow}>
-<View style={styles.statCard}>
-<Text style={styles.statLabel}>{t("average")}</Text>
-<Text style={styles.statValue}>{avg || "--"}</Text>
-</View>
-
-<View style={styles.statCard}>
-<Text style={styles.statLabel}>{t("min")}</Text>
-<Text style={styles.statValue}>{min || "--"}</Text>
-</View>
-
-<View style={styles.statCard}>
-<Text style={styles.statLabel}>{t("max")}</Text>
-<Text style={styles.statValue}>{max || "--"}</Text>
-</View>
-</View>
-
-{/* Chart Card */}
-<View style={styles.card}>
-<View style={styles.cardHeader}>
-<Ionicons
-name="analytics-outline"
-size={18}
-color={stylesVars.primary}
-/>
-<Text style={styles.cardTitle}>{t("glucoseTrend")}</Text>
-</View>
-
-{loading ? (
-<Text style={styles.loadingText}>{t("loadingChart")}</Text>
-) : readings.length === 0 ? (
-<View style={styles.chartPlaceholder}>
-<Ionicons name="pulse-outline" size={34} color="#94A3B8" />
-<Text style={styles.chartPlaceholderTitle}>{t("noChartData")}</Text>
-<Text style={styles.chartPlaceholderSub}>
-{t("addReadingsForTrend")}
-</Text>
-</View>
-) : (
-<View style={styles.chartWrap}>
-<LineChart
-data={chartData}
-width={chartWidth}
-height={220}
-fromZero={false}
-yAxisSuffix=""
-withInnerLines
-withOuterLines={false}
-withVerticalLines={false}
-withHorizontalLabels
-withVerticalLabels
-segments={4}
-bezier
-chartConfig={{
-backgroundColor: "#FFFFFF",
-backgroundGradientFrom: "#FFFFFF",
-backgroundGradientTo: "#FFFFFF",
-decimalPlaces: 0,
-color: (opacity = 1) => `rgba(74, 125, 201, ${opacity})`,
-labelColor: (opacity = 1) =>
-`rgba(107, 114, 128, ${opacity})`,
-propsForDots: {
-r: "4",
-strokeWidth: "2",
-stroke: "#4A7DC9",
-},
-propsForBackgroundLines: {
-stroke: "#E5E7EB",
-strokeDasharray: "",
-},
-}}
-style={styles.chart}
-/>
-</View>
-)}
-</View>
-
-{/* History List */}
-<View style={styles.card}>
-<View style={styles.cardHeader}>
-<Ionicons
-name="time-outline"
-size={18}
-color={stylesVars.primary}
-/>
-<Text style={styles.cardTitle}>{t("readingHistory")}</Text>
-</View>
-
-{loading ? (
-<Text style={styles.loadingText}>{t("loadingReadings")}</Text>
-) : readings.length === 0 ? (
-<View style={styles.emptyState}>
-<Ionicons
-name="document-text-outline"
-size={30}
-color="#94A3B8"
-/>
-<Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
-<Text style={styles.emptySub}>{t("addFirstReading")}</Text>
-</View>
-) : (
-<View style={styles.listWrap}>
-{readings.map((item, index) => {
-const value = Number(item?.value || 0);
-const status = getStatus(value);
-const statusColor = getStatusColor(value);
-
-return (
-<View
-key={item?.id || item?._id || index}
-style={styles.readingRow}
->
-<View style={{ flex: 1 }}>
-<Text style={styles.readingValue}>
-{value} <Text style={styles.readingUnit}>{t("mgdL")}</Text>
-</Text>
-<Text style={styles.readingDate}>
-{formatDate(
-item?.measuredAt || item?.timestamp || item?.createdAt
-)}
-</Text>
-</View>
-
-<View
-style={[
-styles.statusBadge,
-{
-backgroundColor: `${statusColor}15`,
-borderColor: `${statusColor}40`,
-},
-]}
->
-<Text
-style={[styles.statusText, { color: statusColor }]}
->
-{status}
-</Text>
-</View>
-</View>
-);
-})}
-</View>
-)}
-</View>
-
-<View style={{ height: 24 }} />
-</ScrollView>
-</View>
-);
-}
-
-const stylesVars = {
-primary: "#4A7DC9",
-bg: "#FFFFFF",
-text: "#1F2937",
-muted: "#6B7280",
-border: "#E5E7EB",
-soft: "#F9FAFB",
-};
 
 const styles = StyleSheet.create({
-container: {
-flex: 1,
-backgroundColor: stylesVars.bg,
-},
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
-content: {
-paddingHorizontal: 24,
-paddingTop: 20,
-paddingBottom: 40,
-},
+  topHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#D6E8F5",
+  },
+  menuBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  placeholder: { width: 40 },
+  logoWrap: { flexDirection: "row", alignItems: "center" },
+  logoTitle: { color: "#0B1A2E", fontSize: 16, lineHeight: 18, fontWeight: "600" },
+  logoSub: { color: "#4A6480", fontSize: 14, lineHeight: 16, fontWeight: "300" },
 
-topHeader: {
-flexDirection: "row",
-alignItems: "center",
-justifyContent: "space-between",
-paddingBottom: 16,
-borderBottomWidth: 1,
-borderBottomColor: "#F3F4F6",
-},
+  heroRow: {
+    marginTop: 28,
+    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  screenTitle: { color: "#0B1A2E", fontSize: 28, fontWeight: "700", marginBottom: 8 },
+  screenSub: { color: "#4A6480", fontSize: 14 },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "#1A6FA8",
+  },
+  addBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
 
-menuBtn: {
-width: 40,
-height: 40,
-borderRadius: 12,
-alignItems: "center",
-justifyContent: "center",
-},
+  errorBox: {
+    marginBottom: 16,
+    backgroundColor: "#FDEDED",
+    borderWidth: 1,
+    borderColor: "#F5C2C2",
+    borderRadius: 14,
+    padding: 12,
+  },
+  errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
 
-placeholder: {
-width: 40,
-},
+  // Per-day stats bar
+  dayStatsRow: {
+    flexDirection: "row",
+    backgroundColor: "#EBF3FA",
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  dayStatItem: { flex: 1, alignItems: "center" },
+  dayStatLabel: { fontSize: 11, color: "#4A6480", marginBottom: 2 },
+  dayStatValue: { fontSize: 15, fontWeight: "700", color: "#0B1A2E" },
+  dayStatDivider: { width: 1, backgroundColor: "#B8D0E8", marginVertical: 4 },
 
-logoWrap: {
-flexDirection: "row",
-alignItems: "center",
-},
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#D6E8F5",
+    padding: 20,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
+  cardTitle: { fontSize: 16, fontWeight: "700", color: "#0B1A2E" },
 
-logoTitle: {
-color: "#1F2937",
-fontSize: 16,
-lineHeight: 18,
-fontWeight: "600",
-},
+  loadingText: { fontSize: 14, color: "#4A6480" },
+  emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
+  emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: "700", color: "#0B1A2E" },
+  emptySub: { marginTop: 6, fontSize: 12, color: "#4A6480" },
 
-logoSub: {
-color: "#6B7280",
-fontSize: 14,
-lineHeight: 16,
-fontWeight: "300",
-},
+  // Date group
+  dateGroup: { marginBottom: 20 },
 
-heroRow: {
-marginTop: 28,
-marginBottom: 20,
-flexDirection: "row",
-alignItems: "flex-start",
-justifyContent: "space-between",
-gap: 12,
-},
+  dateLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  dateLabelLine: { flex: 1, height: 1, backgroundColor: "#D6E8F5" },
+  dateLabelText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1A6FA8",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  dateCountBadge: {
+    backgroundColor: "#EBF3FA",
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  dateCountText: { fontSize: 11, fontWeight: "700", color: "#1A6FA8" },
 
-screenTitle: {
-color: stylesVars.text,
-fontSize: 28,
-fontWeight: "700",
-marginBottom: 8,
-},
+  // Reading row
+  readingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F4F9FD",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  readingIndicator: { width: 4, height: 36, borderRadius: 4 },
+  readingValue: { fontSize: 18, fontWeight: "700", color: "#0B1A2E", marginBottom: 2 },
+  readingUnit: { fontSize: 12, fontWeight: "400", color: "#4A6480" },
+  readingTime: { fontSize: 12, color: "#7A96B0" },
 
-screenSub: {
-color: stylesVars.muted,
-fontSize: 14,
-},
-
-addBtn: {
-flexDirection: "row",
-alignItems: "center",
-gap: 6,
-paddingHorizontal: 14,
-paddingVertical: 10,
-borderRadius: 14,
-backgroundColor: stylesVars.primary,
-},
-
-addBtnText: {
-color: "#FFFFFF",
-fontSize: 14,
-fontWeight: "600",
-},
-
-errorBox: {
-marginBottom: 16,
-backgroundColor: "#FEF2F2",
-borderWidth: 1,
-borderColor: "#FECACA",
-borderRadius: 14,
-padding: 12,
-},
-
-errorText: {
-color: "#B91C1C",
-fontSize: 13,
-fontWeight: "500",
-},
-
-statsRow: {
-flexDirection: "row",
-gap: 10,
-marginBottom: 18,
-},
-
-statCard: {
-flex: 1,
-backgroundColor: "#FFFFFF",
-borderRadius: 18,
-borderWidth: 1,
-borderColor: "#F3F4F6",
-paddingVertical: 16,
-alignItems: "center",
-shadowColor: "#000",
-shadowOpacity: 0.05,
-shadowRadius: 8,
-shadowOffset: { width: 0, height: 3 },
-elevation: 2,
-},
-
-statLabel: {
-fontSize: 12,
-color: stylesVars.muted,
-marginBottom: 6,
-},
-
-statValue: {
-fontSize: 20,
-fontWeight: "700",
-color: stylesVars.text,
-},
-
-card: {
-backgroundColor: "#FFFFFF",
-borderRadius: 24,
-borderWidth: 1,
-borderColor: "#F3F4F6",
-padding: 24,
-marginBottom: 18,
-shadowColor: "#000",
-shadowOpacity: 0.05,
-shadowRadius: 8,
-shadowOffset: { width: 0, height: 3 },
-elevation: 2,
-},
-
-cardHeader: {
-flexDirection: "row",
-alignItems: "center",
-gap: 8,
-marginBottom: 18,
-},
-
-cardTitle: {
-fontSize: 16,
-fontWeight: "700",
-color: stylesVars.text,
-},
-
-chartWrap: {
-alignItems: "center",
-justifyContent: "center",
-borderRadius: 18,
-backgroundColor: "#FFFFFF",
-overflow: "hidden",
-},
-
-chart: {
-borderRadius: 18,
-},
-
-chartPlaceholder: {
-height: 180,
-borderRadius: 18,
-backgroundColor: "#F8FAFC",
-borderWidth: 1,
-borderColor: "#E2E8F0",
-alignItems: "center",
-justifyContent: "center",
-paddingHorizontal: 20,
-},
-
-chartPlaceholderTitle: {
-marginTop: 10,
-fontSize: 15,
-fontWeight: "700",
-color: stylesVars.text,
-},
-
-chartPlaceholderSub: {
-marginTop: 6,
-fontSize: 12,
-color: stylesVars.muted,
-textAlign: "center",
-},
-
-loadingText: {
-fontSize: 14,
-color: stylesVars.muted,
-},
-
-emptyState: {
-alignItems: "center",
-justifyContent: "center",
-paddingVertical: 24,
-},
-
-emptyTitle: {
-marginTop: 10,
-fontSize: 15,
-fontWeight: "700",
-color: stylesVars.text,
-},
-
-emptySub: {
-marginTop: 6,
-fontSize: 12,
-color: stylesVars.muted,
-},
-
-listWrap: {
-gap: 12,
-},
-
-readingRow: {
-backgroundColor: "#F9FAFB",
-borderRadius: 16,
-paddingHorizontal: 16,
-paddingVertical: 14,
-flexDirection: "row",
-alignItems: "center",
-justifyContent: "space-between",
-},
-
-readingValue: {
-fontSize: 18,
-fontWeight: "700",
-color: stylesVars.text,
-marginBottom: 4,
-},
-
-readingUnit: {
-fontSize: 12,
-fontWeight: "500",
-color: stylesVars.muted,
-},
-
-readingDate: {
-fontSize: 12,
-color: stylesVars.muted,
-},
-
-statusBadge: {
-paddingHorizontal: 12,
-paddingVertical: 8,
-borderRadius: 999,
-borderWidth: 1,
-},
-
-statusText: {
-fontSize: 12,
-fontWeight: "700",
-},
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
+  statusText: { fontSize: 12, fontWeight: "700" },
 });

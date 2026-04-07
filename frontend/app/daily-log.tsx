@@ -82,7 +82,7 @@ return (
 {/* Header */}
 <View style={styles.topHeader}>
 <Pressable onPress={() => router.back()} style={styles.menuBtn}>
-<Ionicons name="arrow-back" size={22} color="#374151" />
+<Ionicons name="arrow-back" size={22} color="#1E3A52" />
 </Pressable>
 
 <View style={styles.logoWrap}>
@@ -135,7 +135,7 @@ onPress={() => router.push("/add-activity" as any)}
 <View
 style={[styles.quickIconCircle, { backgroundColor: "#ECFDF5" }]}
 >
-<Ionicons name="walk-outline" size={24} color="#16A34A" />
+<Ionicons name="walk-outline" size={24} color="#0D9E6E" />
 </View>
 <Text style={styles.quickTitle}>{t("addActivity")}</Text>
 <Text style={styles.quickSub}>{t("trackMovement")}</Text>
@@ -351,12 +351,12 @@ color={stylesVars.primary}
 }
 
 const stylesVars = {
-primary: "#4A7DC9",
+primary: "#1A6FA8",
 bg: "#FFFFFF",
-text: "#1F2937",
-muted: "#6B7280",
-border: "#E5E7EB",
-soft: "#F9FAFB",
+text: "#0B1A2E",
+muted: "#4A6480",
+border: "#B8D0E8",
+soft: "#E8F1F8",
 };
 
 const styles = StyleSheet.create({
@@ -377,7 +377,7 @@ alignItems: "center",
 justifyContent: "space-between",
 paddingBottom: 16,
 borderBottomWidth: 1,
-borderBottomColor: "#F3F4F6",
+borderBottomColor: "#D6E8F5",
 },
 
 menuBtn: {
@@ -398,14 +398,14 @@ alignItems: "center",
 },
 
 logoTitle: {
-color: "#1F2937",
+color: "#0B1A2E",
 fontSize: 16,
 lineHeight: 18,
 fontWeight: "600",
 },
 
 logoSub: {
-color: "#6B7280",
+color: "#4A6480",
 fontSize: 14,
 lineHeight: 16,
 fontWeight: "300",
@@ -430,9 +430,9 @@ fontSize: 14,
 
 errorBox: {
 marginBottom: 16,
-backgroundColor: "#FEF2F2",
+backgroundColor: "#FDEDED",
 borderWidth: 1,
-borderColor: "#FECACA",
+borderColor: "#F5C2C2",
 borderRadius: 14,
 padding: 12,
 },
@@ -450,7 +450,7 @@ marginBottom: 24,
 sectionLabel: {
 fontSize: 11,
 fontWeight: "600",
-color: "#6B7280",
+color: "#4A6480",
 marginBottom: 12,
 letterSpacing: 1,
 },
@@ -466,7 +466,7 @@ backgroundColor: "#FFFFFF",
 borderRadius: 20,
 padding: 20,
 borderWidth: 1,
-borderColor: "#F3F4F6",
+borderColor: "#D6E8F5",
 shadowColor: "#000",
 shadowOpacity: 0.05,
 shadowRadius: 8,
@@ -485,7 +485,7 @@ marginBottom: 12,
 },
 
 quickTitle: {
-color: "#1F2937",
+color: "#0B1A2E",
 fontSize: 14,
 fontWeight: "600",
 marginBottom: 4,
@@ -493,7 +493,7 @@ textAlign: "center",
 },
 
 quickSub: {
-color: "#6B7280",
+color: "#4A6480",
 fontSize: 12,
 textAlign: "center",
 },
@@ -502,7 +502,7 @@ sleepQuickBtn: {
 height: 54,
 borderRadius: 16,
 borderWidth: 1,
-borderColor: "#E5E7EB",
+borderColor: "#B8D0E8",
 backgroundColor: "#FFFFFF",
 flexDirection: "row",
 alignItems: "center",
@@ -511,7 +511,7 @@ gap: 8,
 },
 
 sleepQuickBtnText: {
-color: "#1F2937",
+color: "#0B1A2E",
 fontSize: 14,
 fontWeight: "600",
 },
@@ -526,7 +526,7 @@ flex: 1,
 backgroundColor: "#FFFFFF",
 borderRadius: 18,
 borderWidth: 1,
-borderColor: "#F3F4F6",
+borderColor: "#D6E8F5",
 paddingVertical: 16,
 alignItems: "center",
 shadowColor: "#000",
@@ -541,7 +541,7 @@ flex: 1,
 backgroundColor: "#FFFFFF",
 borderRadius: 18,
 borderWidth: 1,
-borderColor: "#F3F4F6",
+borderColor: "#D6E8F5",
 paddingVertical: 16,
 alignItems: "center",
 shadowColor: "#000",
@@ -567,7 +567,7 @@ card: {
 backgroundColor: "#FFFFFF",
 borderRadius: 24,
 borderWidth: 1,
-borderColor: "#F3F4F6",
+borderColor: "#D6E8F5",
 padding: 24,
 shadowColor: "#000",
 shadowOpacity: 0.05,
@@ -618,7 +618,7 @@ gap: 12,
 },
 
 logRow: {
-backgroundColor: "#F9FAFB",
+backgroundColor: "#E8F1F8",
 borderRadius: 16,
 paddingHorizontal: 16,
 paddingVertical: 14,
@@ -643,7 +643,7 @@ marginBottom: 4,
 
 logDateText: {
 fontSize: 11,
-color: "#9CA3AF",
+color: "#7A96B0",
 },
 
 badge: {

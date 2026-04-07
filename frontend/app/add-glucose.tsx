@@ -62,7 +62,7 @@ export default function AddGlucoseScreen() {
         {/* Header */}
         <View style={styles.topHeader}>
           <Pressable onPress={() => router.back()} style={styles.menuBtn}>
-            <Ionicons name="arrow-back" size={22} color="#374151" />
+            <Ionicons name="arrow-back" size={22} color="#1E3A52" />
           </Pressable>
 
           <View style={styles.logoWrap}>
@@ -130,12 +130,12 @@ export default function AddGlucoseScreen() {
 }
 
 const stylesVars = {
-  primary: "#4A7DC9",
+  primary: "#1A6FA8",
   bg: "#FFFFFF",
-  text: "#1F2937",
-  muted: "#6B7280",
-  border: "#E5E7EB",
-  soft: "#F9FAFB",
+  text: "#0B1A2E",
+  muted: "#4A6480",
+  border: "#B8D0E8",
+  soft: "#E8F1F8",
 };
 
 const styles = StyleSheet.create({
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "#D6E8F5",
   },
 
   menuBtn: {
@@ -177,14 +177,14 @@ const styles = StyleSheet.create({
   },
 
   logoTitle: {
-    color: "#1F2937",
+    color: "#0B1A2E",
     fontSize: 16,
     lineHeight: 18,
     fontWeight: "600",
   },
 
   logoSub: {
-    color: "#6B7280",
+    color: "#4A6480",
     fontSize: 14,
     lineHeight: 16,
     fontWeight: "300",
@@ -209,10 +209,10 @@ const styles = StyleSheet.create({
 
   errorBox: {
     marginBottom: 16,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#FDEDED",
     borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 14,
+    borderColor: "#F5C2C2",
+    borderRadius: 16,
     padding: 12,
   },
 
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: "#D6E8F5",
     padding: 24,
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -242,18 +242,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    color: "#1E3A52",
     marginBottom: 10,
   },
 
   input: {
-    height: 52,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    borderColor: "#B8D0E8",
+    backgroundColor: "#E8F1F8",
     paddingHorizontal: 14,
-    color: "#1F2937",
+    color: "#0B1A2E",
     ...Typography.button,
   },
 
@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
 
   saveBtn: {
     marginTop: 10,
-    height: 54,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: stylesVars.primary,
     alignItems: "center",
     justifyContent: "center",

@@ -92,7 +92,7 @@ export default function Login() {
               value={email}
               onChangeText={setEmail}
               placeholder={t("email")}
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.textMutedOnDark}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -109,7 +109,7 @@ export default function Login() {
               value={password}
               onChangeText={setPassword}
               placeholder={t("password")}
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.textMutedOnDark}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}

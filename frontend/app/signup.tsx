@@ -109,7 +109,7 @@ export default function SignUp() {
               <TextInput
                 style={[styles.input, !!errors.firstName && styles.inputErr]}
                 placeholder={t("firstName")}
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={Colors.textMutedOnDark}
                 value={firstName}
                 onChangeText={setFirstName}
                 autoCapitalize="words"
@@ -124,7 +124,7 @@ export default function SignUp() {
               <TextInput
                 style={[styles.input, !!errors.lastName && styles.inputErr]}
                 placeholder={t("lastName")}
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={Colors.textMutedOnDark}
                 value={lastName}
                 onChangeText={setLastName}
                 autoCapitalize="words"
@@ -140,7 +140,7 @@ export default function SignUp() {
             <TextInput
               style={[styles.input, !!errors.email && styles.inputErr]}
               placeholder={t("email")}
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.textMutedOnDark}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -156,7 +156,7 @@ export default function SignUp() {
             <TextInput
               style={[styles.input, !!errors.password && styles.inputErr]}
               placeholder={t("password")}
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.textMutedOnDark}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -175,7 +175,7 @@ export default function SignUp() {
                 !!errors.confirmPassword && styles.inputErr,
               ]}
               placeholder={t("confirmPassword")}
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.textMutedOnDark}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
