@@ -2,10 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Animated,
   Dimensions,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -297,6 +299,26 @@ export default function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
+  const DRAWER_W = 270;
+  const isRTL = I18nManager.isRTL;
+  const slideAnim = useRef(new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+
+  const openDrawer = () => {
+    setMenuOpen(true);
+    Animated.parallel([
+      Animated.timing(slideAnim,   { toValue: 0, duration: 260, useNativeDriver: true }),
+      Animated.timing(backdropAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const closeDrawer = (cb?: () => void) => {
+    Animated.parallel([
+      Animated.timing(slideAnim,   { toValue: isRTL ? DRAWER_W : -DRAWER_W, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => { setMenuOpen(false); cb?.(); });
+  };
+
   const [user, setUser] = useState<any>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [errorUser, setErrorUser] = useState("");
@@ -395,7 +417,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           {/* Left: hamburger + globe, always pinned to left edge */}
           <View style={styles.headerLeft}>
-            <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
+            <Pressable style={styles.iconBtn} onPress={openDrawer}>
               <Ionicons name="menu-outline" size={24} color="#1E3A52" />
             </Pressable>
             <Pressable style={styles.globeBtn} onPress={() => setLangOpen((v) => !v)}>
@@ -602,11 +624,25 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
 
-      {/* Side Drawer */}
-      <Modal visible={menuOpen} transparent animationType="slide" statusBarTranslucent>
+      {/* Side Drawer — Animated, slides from left (LTR) or right (RTL) */}
+      {menuOpen && (
         <View style={styles.overlay} pointerEvents="box-none">
-          {/* Drawer panel — left side, matches hamburger button position */}
-          <View style={styles.drawer}>
+          {/* Dimmed backdrop */}
+          <Animated.View
+            style={[styles.overlayBackdrop, { opacity: backdropAnim }]}
+            pointerEvents="box-none"
+          >
+            <Pressable style={{ flex: 1 }} onPress={() => closeDrawer()} />
+          </Animated.View>
+
+          {/* Sliding drawer panel */}
+          <Animated.View
+            style={[
+              styles.drawer,
+              isRTL ? { right: 0 } : { left: 0 },
+              { transform: [{ translateX: slideAnim }] },
+            ]}
+          >
             {/* Blue header */}
             <View style={styles.drawerHeader}>
               <View style={styles.drawerLogoRow}>
@@ -616,23 +652,22 @@ export default function HomeScreen() {
                   <Text style={styles.drawerLogoSub}>{t("appName2")}</Text>
                 </View>
               </View>
-              <Pressable style={styles.drawerCloseBtn} onPress={() => setMenuOpen(false)}>
+              <Pressable style={styles.drawerCloseBtn} onPress={() => closeDrawer()}>
                 <Ionicons name="close" size={20} color="#FFFFFF" />
               </Pressable>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={styles.drawerScroll}>
-
               {/* Profile section */}
               <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
               {[
-                { icon: "person-outline", label: t("openProfile"), route: "/profile" },
-                { icon: "create-outline", label: t("editProfile"), route: "/edit-profile" },
-                { icon: "pulse-outline", label: t("medicalInfo"), route: "/medical-info" },
-                { icon: "leaf-outline", label: t("lifestyleHabits"), route: "/lifestyle-habits" },
+                { icon: "person-outline",  label: t("openProfile"),     route: "/profile" },
+                { icon: "create-outline",  label: t("editProfile"),     route: "/edit-profile" },
+                { icon: "pulse-outline",   label: t("medicalInfo"),     route: "/medical-info" },
+                { icon: "leaf-outline",    label: t("lifestyleHabits"), route: "/lifestyle-habits" },
               ].map(({ icon, label, route }) => (
                 <Pressable key={route} style={styles.drawerItem}
-                  onPress={() => { setMenuOpen(false); router.push(route as any); }}>
+                  onPress={() => closeDrawer(() => router.push(route as any))}>
                   <Ionicons name={icon as any} size={17} color={Colors.primary} />
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
@@ -641,11 +676,11 @@ export default function HomeScreen() {
               {/* Glucose section */}
               <Text style={styles.drawerSection}>{t("glucoseNavigation")}</Text>
               {[
-                { icon: "stats-chart-outline", label: t("glucoseHistory"), route: "/glucose-history" },
-                { icon: "add-circle-outline", label: t("addGlucose"), route: "/add-glucose" },
+                { icon: "stats-chart-outline",  label: t("glucoseHistory"), route: "/glucose-history" },
+                { icon: "add-circle-outline",   label: t("addGlucose"),     route: "/add-glucose" },
               ].map(({ icon, label, route }) => (
                 <Pressable key={route} style={styles.drawerItem}
-                  onPress={() => { setMenuOpen(false); router.push(route as any); }}>
+                  onPress={() => closeDrawer(() => router.push(route as any))}>
                   <Ionicons name={icon as any} size={17} color={Colors.primary} />
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
@@ -654,13 +689,13 @@ export default function HomeScreen() {
               {/* Daily Logs section */}
               <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>
               {[
-                { icon: "calendar-outline", label: t("dailyLog"), route: "/daily-log" },
-                { icon: "restaurant-outline", label: t("addMeal"), route: "/add-meal" },
-                { icon: "walk-outline", label: t("addActivity"), route: "/add-activity" },
-                { icon: "moon-outline", label: t("addSleep"), route: "/add-sleep" },
+                { icon: "calendar-outline",    label: t("dailyLog"),      route: "/daily-log" },
+                { icon: "restaurant-outline",  label: t("addMeal"),       route: "/add-meal" },
+                { icon: "walk-outline",        label: t("addActivity"),   route: "/add-activity" },
+                { icon: "moon-outline",        label: t("addSleep"),      route: "/add-sleep" },
               ].map(({ icon, label, route }) => (
                 <Pressable key={route} style={styles.drawerItem}
-                  onPress={() => { setMenuOpen(false); router.push(route as any); }}>
+                  onPress={() => closeDrawer(() => router.push(route as any))}>
                   <Ionicons name={icon as any} size={17} color={Colors.primary} />
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
@@ -670,19 +705,16 @@ export default function HomeScreen() {
 
               {/* Logout */}
               <Pressable style={styles.drawerLogout}
-                onPress={() => { setMenuOpen(false); logout(); }}>
+                onPress={() => closeDrawer(() => logout())}>
                 <Ionicons name="log-out-outline" size={17} color="#D32F2F" />
                 <Text style={styles.drawerLogoutText}>{t("logout")}</Text>
               </Pressable>
 
               <View style={{ height: 32 }} />
             </ScrollView>
-          </View>
-
-          {/* Dim backdrop — right side, tap to close */}
-          <Pressable style={styles.overlayBackdrop} onPress={() => setMenuOpen(false)} />
+          </Animated.View>
         </View>
-      </Modal>
+      )}
     </LinearGradient>
   );
 }
@@ -1098,18 +1130,20 @@ const styles = StyleSheet.create({
   },
 
   overlay: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
   },
 
   overlayBackdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
 
   drawer: {
-    width: 240,
-    height: "100%",
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 270,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOpacity: 0.15,
