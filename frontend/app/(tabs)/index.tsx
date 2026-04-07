@@ -23,10 +23,9 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setAppLanguage } from "@/src/i18n";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 import { getGlucoseReadings, getProfile, updateProfile } from "@/services/api";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
@@ -392,12 +391,17 @@ export default function HomeScreen() {
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
+        {/* Header — 3 columns: [left controls] [centered logo] [spacer] */}
         <View style={styles.header}>
-          {/* Left: hamburger only */}
-          <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
-            <Ionicons name="menu-outline" size={24} color="#1E3A52" />
-          </Pressable>
+          {/* Left: hamburger + globe, always pinned to left edge */}
+          <View style={styles.headerLeft}>
+            <Pressable style={styles.iconBtn} onPress={() => setMenuOpen(true)}>
+              <Ionicons name="menu-outline" size={24} color="#1E3A52" />
+            </Pressable>
+            <Pressable style={styles.globeBtn} onPress={() => setLangOpen((v) => !v)}>
+              <Ionicons name="earth-outline" size={20} color="#1A6FA8" />
+            </Pressable>
+          </View>
 
           {/* Center: logo */}
           <View style={styles.logoWrap}>
@@ -408,49 +412,8 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Right: globe language picker */}
-          <View style={styles.langWrap}>
-            <Pressable style={styles.globeBtn} onPress={() => setLangOpen((v) => !v)}>
-              <Ionicons name="earth-outline" size={20} color="#1A6FA8" />
-            </Pressable>
-            {langOpen && (
-              <View style={styles.langDropdown}>
-                {[
-                  { code: "en", label: "English" },
-                  { code: "ar", label: "العربية" },
-                  { code: "he", label: "עברית" },
-                ].map(({ code, label }, index, arr) => {
-                  const active = i18n.language === code;
-                  return (
-                    <Pressable
-                      key={code}
-                      style={[
-                        styles.langOption,
-                        index < arr.length - 1 && styles.langOptionBorder,
-                        active && styles.langOptionActive,
-                      ]}
-                      onPress={async () => {
-                        setLangOpen(false);
-                        const lng = code as "en" | "ar" | "he";
-                        if (i18n.language === lng) return;
-                        await AsyncStorage.setItem("app_lang", lng);
-                        await i18n.changeLanguage(lng);
-                        await applyRtlIfNeeded(lng);
-                        updateProfile({ language: lng }).catch(() => {});
-                      }}
-                    >
-                      <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>
-                        {label}
-                      </Text>
-                      {active && (
-                        <Ionicons name="checkmark" size={14} color="#1A6FA8" />
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
+          {/* Right spacer — same width as headerLeft to keep logo visually centered */}
+          <View style={styles.headerRight} />
         </View>
 
         {/* Welcome */}
@@ -604,19 +567,54 @@ export default function HomeScreen() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
+      {/* Language dropdown — rendered as Modal so it floats above all content */}
+      <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
+        <Pressable style={styles.langModalBackdrop} onPress={() => setLangOpen(false)}>
+          <View style={styles.langDropdown}>
+            {[
+              { code: "en", label: "English" },
+              { code: "ar", label: "العربية" },
+              { code: "he", label: "עברית" },
+            ].map(({ code, label }, index, arr) => {
+              const active = i18n.language === code;
+              return (
+                <Pressable
+                  key={code}
+                  style={[
+                    styles.langOption,
+                    index < arr.length - 1 && styles.langOptionBorder,
+                    active && styles.langOptionActive,
+                  ]}
+                  onPress={async () => {
+                    setLangOpen(false);
+                    const lng = code as "en" | "ar" | "he";
+                    await setAppLanguage(lng, () => updateProfile({ language: lng }));
+                  }}
+                >
+                  <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>
+                    {label}
+                  </Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#1A6FA8" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Side Drawer */}
       <Modal visible={menuOpen} transparent animationType="slide" statusBarTranslucent>
         <View style={styles.overlay} pointerEvents="box-none">
-          {/* Dim backdrop — tap to close */}
-          <Pressable style={styles.overlayBackdrop} onPress={() => setMenuOpen(false)} />
-
-          {/* Drawer panel */}
+          {/* Drawer panel — left side, matches hamburger button position */}
           <View style={styles.drawer}>
             {/* Blue header */}
             <View style={styles.drawerHeader}>
               <View style={styles.drawerLogoRow}>
-                <Ionicons name="heart" size={20} color="#E8A317" />
-                <Text style={styles.drawerLogoText}>DiaConnect</Text>
+                <Ionicons name="heart-outline" size={22} color="#E8A317" />
+                <View style={{ marginLeft: 7 }}>
+                  <Text style={styles.drawerLogoText}>{t("appName1")}</Text>
+                  <Text style={styles.drawerLogoSub}>{t("appName2")}</Text>
+                </View>
               </View>
               <Pressable style={styles.drawerCloseBtn} onPress={() => setMenuOpen(false)}>
                 <Ionicons name="close" size={20} color="#FFFFFF" />
@@ -680,6 +678,9 @@ export default function HomeScreen() {
               <View style={{ height: 32 }} />
             </ScrollView>
           </View>
+
+          {/* Dim backdrop — right side, tap to close */}
+          <Pressable style={styles.overlayBackdrop} onPress={() => setMenuOpen(false)} />
         </View>
       </Modal>
     </LinearGradient>
@@ -1107,14 +1108,14 @@ const styles = StyleSheet.create({
   },
 
   drawer: {
-    width: 270,
+    width: 240,
     height: "100%",
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 2, height: 0 },
-    elevation: 12,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 4, height: 0 },
+    elevation: 10,
   },
 
   drawerHeader: {
@@ -1122,21 +1123,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#1A6FA8",
-    paddingHorizontal: 18,
-    paddingTop: 52,
-    paddingBottom: 18,
+    paddingHorizontal: 16,
+    paddingTop: 44,
+    paddingBottom: 14,
   },
 
   drawerLogoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
 
   drawerLogoText: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: "#FFFFFF",
+    lineHeight: 18,
+  },
+
+  drawerLogoSub: {
+    fontSize: 12,
+    fontWeight: "300",
+    color: "rgba(255,255,255,0.75)",
+    lineHeight: 15,
   },
 
   drawerCloseBtn: {
@@ -1203,6 +1211,23 @@ const styles = StyleSheet.create({
     color: "#D32F2F",
   },
 
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    width: 88,           // fixed width — mirrored by headerRight to center logo
+  },
+
+  headerRight: {
+    width: 88,           // mirrors headerLeft so logo stays centered
+  },
+
+  langModalBackdrop: {
+    flex: 1,
+    paddingTop: 70,      // clears the header height
+    paddingLeft: 16,     // aligns dropdown under the globe button
+  },
+
   langWrap: {
     position: "relative",
   },
@@ -1219,9 +1244,6 @@ const styles = StyleSheet.create({
   },
 
   langDropdown: {
-    position: "absolute",
-    top: 40,
-    right: 0,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     borderWidth: 1,

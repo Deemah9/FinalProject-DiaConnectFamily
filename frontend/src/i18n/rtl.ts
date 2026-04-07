@@ -1,4 +1,4 @@
-import { DevSettings, I18nManager, Platform } from "react-native";
+import { I18nManager, Platform } from "react-native";
 
 export function isRtlLanguage(lng: string) {
   return lng === "ar" || lng === "he";
@@ -15,16 +15,8 @@ export async function applyRtlIfNeeded(lng: "en" | "ar" | "he") {
     return;
   }
 
-  const currentRTL = I18nManager.isRTL;
-
-  if (currentRTL !== shouldRTL) {
-    I18nManager.allowRTL(shouldRTL);
-    I18nManager.forceRTL(shouldRTL);
-
-    setTimeout(() => {
-      try {
-        DevSettings.reload();
-      } catch {}
-    }, 50);
-  }
+  // Set the RTL flag for the next full app launch.
+  // Text translations update immediately via i18n; layout direction applies on restart.
+  I18nManager.allowRTL(shouldRTL);
+  I18nManager.forceRTL(shouldRTL);
 }

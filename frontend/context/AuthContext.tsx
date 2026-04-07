@@ -73,9 +73,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await getProfile();
       const lifestyle = profile?.lifestyle || {};
       profileComplete = !!(lifestyle.activity_level && lifestyle.sleep_hours != null);
-      const lang = profile?.language;
-      if (lang === "en" || lang === "ar" || lang === "he") {
-        await setAppLanguage(lang);
+
+      // Language priority: locally saved preference > server profile language.
+      // This ensures a language chosen on the welcome screen is never overwritten on login.
+      const localLang = await AsyncStorage.getItem("app_lang") as "en" | "ar" | "he" | null;
+      const serverLang = profile?.language as "en" | "ar" | "he" | undefined;
+
+      if (localLang && (localLang === "en" || localLang === "ar" || localLang === "he")) {
+        // Apply local preference (it's already in i18n, but make sure it's active)
+        await setAppLanguage(localLang);
+      } else if (serverLang === "en" || serverLang === "ar" || serverLang === "he") {
+        // No local preference — fall back to whatever the server has saved
+        await setAppLanguage(serverLang);
       }
     } catch {
       // if profile fetch fails, send to onboarding to be safe

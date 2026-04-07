@@ -22,7 +22,7 @@ export default function RootLayout() {
   useEffect(() => {
     setupI18n()
       .then(() => setReady(true))
-      .catch(() => setReady(true)); // حتى لو صار خطأ بالتشغيل، لا نعلّق التطبيق
+      .catch(() => setReady(true));
   }, []);
 
   if (!ready) {
