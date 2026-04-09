@@ -622,6 +622,7 @@ export default function HomeScreen() {
           >
             {/* Blue header */}
             <View style={styles.drawerHeader}>
+              <View style={styles.drawerSlot} />
               <View style={styles.drawerLogoRow}>
                 <Ionicons name="heart-outline" size={22} color="#E8A317" />
                 <View style={{ marginLeft: 7 }}>
@@ -629,9 +630,11 @@ export default function HomeScreen() {
                   <Text style={styles.drawerLogoSub}>{t("appName2")}</Text>
                 </View>
               </View>
-              <Pressable style={styles.drawerCloseBtn} onPress={() => closeDrawer()}>
-                <Ionicons name="close" size={20} color="#FFFFFF" />
-              </Pressable>
+              <View style={[styles.drawerSlot, { alignItems: "flex-end" }]}>
+                <Pressable style={styles.drawerCloseBtn} onPress={() => closeDrawer()}>
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                </Pressable>
+              </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={styles.drawerScroll}>
@@ -639,8 +642,6 @@ export default function HomeScreen() {
               <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
               {[
                 { icon: "person-outline",  label: t("openProfile"),     route: "/profile" },
-                { icon: "pulse-outline",   label: t("medicalInfo"),     route: "/medical-info" },
-                { icon: "leaf-outline",    label: t("lifestyleHabits"), route: "/lifestyle-habits" },
               ].map(({ icon, label, route }) => (
                 <Pressable key={route} style={styles.drawerItem}
                   onPress={() => closeDrawer(() => router.push(route as any))}>
@@ -1211,16 +1212,21 @@ const styles = StyleSheet.create({
   drawerHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     backgroundColor: "#1A6FA8",
     paddingHorizontal: 16,
     paddingTop: 44,
     paddingBottom: 14,
   },
 
+  drawerSlot: {
+    width: 36,
+  },
+
   drawerLogoRow: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
 
   drawerLogoText: {
