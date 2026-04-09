@@ -24,6 +24,8 @@ def get_user_doc(user_id: str) -> dict:
         )
     data = doc.to_dict()
     data["uid"] = user_id
+    data.setdefault("lifestyle", {})
+    data.setdefault("medical", {})
     return data
 
 
@@ -61,7 +63,7 @@ async def update_my_profile(
     """
     user_id = current_user["sub"]
     allowed_fields = {"firstName", "lastName",
-                      "phone", "dateOfBirth", "gender"}
+                      "phone", "dateOfBirth", "gender", "language"}
     update_data = {k: v for k, v in request.items() if k in allowed_fields}
 
     if not update_data:
