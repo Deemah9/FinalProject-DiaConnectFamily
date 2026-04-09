@@ -187,13 +187,16 @@ const styles = StyleSheet.create({
   errorBanner: {
     marginTop: Spacing.md,
     width: "100%",
-    backgroundColor: Colors.errorBg,
-    borderColor: Colors.errorBorder,
+    backgroundColor: "#B91C1C",
+    borderColor: "#991B1B",
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  errorBannerText: { color: Colors.white, fontSize: 13 },
+  errorBannerText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600", flex: 1 },
 
   form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
 
@@ -208,7 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
-    backgroundColor: Colors.inputBg,
+    backgroundColor: Colors.inputBgOnDark,
     paddingHorizontal: 16,
     color: Colors.white,
     ...Typography.button,
