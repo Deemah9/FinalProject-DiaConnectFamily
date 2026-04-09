@@ -49,7 +49,7 @@ const medicationsText = Array.isArray(medical?.medications)
 
 return (
 <View style={styles.container}>
-<AppHeader left={null} />
+<AppHeader />
 <ScrollView contentContainerStyle={styles.content}>
 
 {/* Title */}

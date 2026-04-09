@@ -20,7 +20,6 @@ import Svg, {
   Defs,
   LinearGradient as SvgGradient,
   Path,
-  Rect,
   Stop,
   Text as SvgText,
 } from "react-native-svg";
@@ -173,19 +172,8 @@ function GlucoseTrendChart({
       };
     });
 
-  // ── Tooltip (last point) ──────────────────────────────────────────────────
+  // ── Last point ───────────────────────────────────────────────────────────
   const last       = points[points.length - 1];
-  const lastParsed = parsed[parsed.length - 1];
-  const tipH       = lastParsed.date.getHours();
-  const tipM       = lastParsed.date.getMinutes();
-  const tipAmpm    = tipH >= 12 ? "PM" : "AM";
-  const tipH12     = tipH % 12 || 12;
-  const tipTime    = `${tipH12}:${tipM.toString().padStart(2, "0")} ${tipAmpm}`;
-  const TIP_W = 110, TIP_H = 48, TIP_R = 8;
-  const tipX = last.x + TIP_W + 12 > width - padR
-    ? last.x - TIP_W - 12
-    : last.x + 12;
-  const tipY = Math.max(padT + 2, last.y - TIP_H / 2);
 
   const activeColor = last.v < LOW ? "#F59E0B" : last.v > HIGH ? "#EF4444" : "#22C55E";
 
@@ -275,14 +263,6 @@ function GlucoseTrendChart({
       <Circle cx={last.x} cy={last.y} r={8}   fill="white" stroke={activeColor} strokeWidth={2} />
       <Circle cx={last.x} cy={last.y} r={3.5} fill={activeColor} />
 
-      {/* ── Tooltip ── */}
-      <Rect x={tipX} y={tipY} width={TIP_W} height={TIP_H} rx={TIP_R} ry={TIP_R} fill="#1C2B3A" />
-      <SvgText x={tipX + TIP_W / 2} y={tipY + 18} textAnchor="middle" fontSize={13} fill="white" fontWeight="700">
-        {last.v} mg/dL
-      </SvgText>
-      <SvgText x={tipX + TIP_W / 2} y={tipY + 35} textAnchor="middle" fontSize={11} fill="#9DB4C8">
-        {tipTime}
-      </SvgText>
 
       {/* ── X-axis labels ── */}
       {xLabels.map(({ label, x }, i) => (
@@ -495,9 +475,7 @@ export default function HomeScreen() {
                     <Text style={styles.legendText}>{t("normal")}</Text>
                   </View>
                   <View style={styles.legendItem}>
-                    <View style={styles.legendHighBadge}>
-                      <Text style={styles.legendHighBadgeText}>H</Text>
-                    </View>
+                    <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
                     <Text style={[styles.legendText, { color: "#EF4444" }]}>{t("high")}</Text>
                   </View>
                 </View>
@@ -557,21 +535,25 @@ export default function HomeScreen() {
           <Text style={styles.sectionLabel}>{t("recentAlerts")}</Text>
 
           <View style={styles.recentList}>
-            <View style={styles.recentItem}>
-              <View style={[styles.dot, { backgroundColor: "#FACC15" }]} />
+            {/* Reminder — light green */}
+            <View style={styles.reminderCard}>
+              <View style={styles.reminderIconCircle}>
+                <Ionicons name="alarm-outline" size={20} color="#16A34A" />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.recentTitle}>{t("reminder")}</Text>
-                <Text style={styles.recentSub}>{t("measureAfterLunch")}</Text>
-                <Text style={styles.recentTime}>{t("twoHoursAgo")}</Text>
+                <Text style={styles.reminderTitle}>{t("reminder")}</Text>
+                <Text style={styles.reminderSub}>{t("measureAfterLunch")}</Text>
               </View>
             </View>
 
-            <View style={styles.recentItem}>
-              <View style={[styles.dot, { backgroundColor: "#60A5FA" }]} />
+            {/* Tip — light blue */}
+            <View style={styles.tipCard}>
+              <View style={styles.tipIconCircle}>
+                <Ionicons name="bulb-outline" size={20} color="#2563EB" />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.recentTitle}>{t("tip")}</Text>
-                <Text style={styles.recentSub}>{t("drinkWater")}</Text>
-                <Text style={styles.recentTime}>{t("fiveHoursAgo")}</Text>
+                <Text style={styles.tipTitle}>{t("tip")}</Text>
+                <Text style={styles.tipSub}>{t("drinkWater")}</Text>
               </View>
             </View>
           </View>
@@ -657,7 +639,6 @@ export default function HomeScreen() {
               <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
               {[
                 { icon: "person-outline",  label: t("openProfile"),     route: "/profile" },
-                { icon: "create-outline",  label: t("editProfile"),     route: "/edit-profile" },
                 { icon: "pulse-outline",   label: t("medicalInfo"),     route: "/medical-info" },
                 { icon: "leaf-outline",    label: t("lifestyleHabits"), route: "/lifestyle-habits" },
               ].map(({ icon, label, route }) => (
@@ -1035,18 +1016,6 @@ const styles = StyleSheet.create({
     color: "#4A6480",
   },
 
-  legendHighBadge: {
-    backgroundColor: "#FEE2E2",
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-
-  legendHighBadgeText: {
-    fontSize: 10,
-    fontWeight: "700" as const,
-    color: "#EF4444",
-  },
 
   trendEmpty: {
     alignItems: "center",
@@ -1105,6 +1074,74 @@ const styles = StyleSheet.create({
 
   recentList: {
     gap: 12,
+  },
+
+  reminderCard: {
+    backgroundColor: "#F0FDF4",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderColor: "#BBF7D0",
+    borderLeftColor: "#22C55E",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 12,
+  },
+
+  reminderIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+
+  reminderTitle: {
+    color: "#14532D",
+    fontSize: 14,
+    fontWeight: "600" as const,
+    marginBottom: 2,
+  },
+
+  reminderSub: {
+    color: "#15803D",
+    fontSize: 12,
+  },
+
+  tipCard: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderColor: "#BFDBFE",
+    borderLeftColor: "#3B82F6",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 12,
+  },
+
+  tipIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+
+  tipTitle: {
+    color: "#1E3A8A",
+    fontSize: 14,
+    fontWeight: "600" as const,
+    marginBottom: 2,
+  },
+
+  tipSub: {
+    color: "#1D4ED8",
+    fontSize: 12,
   },
 
   recentItem: {
