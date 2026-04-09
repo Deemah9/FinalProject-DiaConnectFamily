@@ -667,9 +667,6 @@ export default function HomeScreen() {
               <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>
               {[
                 { icon: "calendar-outline",    label: t("dailyLog"),      route: "/daily-log" },
-                { icon: "restaurant-outline",  label: t("addMeal"),       route: "/add-meal" },
-                { icon: "walk-outline",        label: t("addActivity"),   route: "/add-activity" },
-                { icon: "moon-outline",        label: t("addSleep"),      route: "/add-sleep" },
               ].map(({ icon, label, route }) => (
                 <Pressable key={route} style={styles.drawerItem}
                   onPress={() => closeDrawer(() => router.push(route as any))}>
