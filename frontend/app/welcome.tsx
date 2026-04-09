@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -87,6 +87,14 @@ export default function WelcomeScreen() {
           </Pressable>
         </Link>
 
+        <Pressable
+          style={styles.familyBtn}
+          onPress={() => router.push("/family-access" as any)}
+        >
+          <Ionicons name="people-outline" size={18} color="rgba(255,255,255,0.85)" />
+          <Text style={styles.familyBtnText}>{t("familyMemberBtn")}</Text>
+        </Pressable>
+
         <Text style={styles.footer}>{t("footer")}</Text>
       </View>
     </View>
@@ -170,5 +178,21 @@ const styles = StyleSheet.create({
   },
   outlineText: { color: Colors.white, ...Typography.button },
 
+  familyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  familyBtnText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    fontWeight: "500",
+  },
   footer: { marginTop: Spacing.sm, color: Colors.textMutedOnDark, ...Typography.footer },
 });

@@ -675,6 +675,30 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
 
+              {/* Family Connection section */}
+              <Text style={styles.drawerSection}>العائلة</Text>
+              {user?.role === "patient" && (
+                <Pressable style={styles.drawerItem}
+                  onPress={() => closeDrawer(() => router.push("/family-invite" as any))}>
+                  <Ionicons name="person-add-outline" size={17} color={Colors.primary} />
+                  <Text style={styles.drawerItemText}>دعوة فرد العائلة</Text>
+                </Pressable>
+              )}
+              {user?.role === "family_member" && (
+                <>
+                  <Pressable style={styles.drawerItem}
+                    onPress={() => closeDrawer(() => router.push("/family-patients" as any))}>
+                    <Ionicons name="people-outline" size={17} color={Colors.primary} />
+                    <Text style={styles.drawerItemText}>مرضاي</Text>
+                  </Pressable>
+                  <Pressable style={styles.drawerItem}
+                    onPress={() => closeDrawer(() => router.push("/family-join" as any))}>
+                    <Ionicons name="link-outline" size={17} color={Colors.primary} />
+                    <Text style={styles.drawerItemText}>إدخال رمز الاقتران</Text>
+                  </Pressable>
+                </>
+              )}
+
               <View style={styles.drawerDivider} />
 
               {/* Logout */}

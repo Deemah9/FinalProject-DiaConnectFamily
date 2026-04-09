@@ -114,3 +114,21 @@ export const addActivity = (data) =>
 export const addSleep = (data) => request("POST", "/daily-logs/sleep", data);
 
 export const getTodayLogs = () => request("GET", "/daily-logs/today");
+
+// ==========================================
+// Family Connection APIs
+// ==========================================
+
+export const viewWithCode = (code) =>
+  request("POST", "/family/view", { code });
+
+export const generateFamilyCode = () =>
+  request("POST", "/family/generate-code");
+
+export const joinWithCode = (code) =>
+  request("POST", "/family/join", { code });
+
+export const getLinkedPatients = () => request("GET", "/family/patients");
+
+export const getPatientGlucose = (patientId, limit = 50) =>
+  request("GET", `/family/patient/${patientId}/glucose?limit=${limit}`);
