@@ -418,7 +418,7 @@ function SaveCancelRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: "#EBF3FA",
   },
 
   content: {

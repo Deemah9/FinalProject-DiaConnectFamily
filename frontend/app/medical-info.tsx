@@ -212,7 +212,7 @@ disabled={saving}
 
 const stylesVars = {
 primary: "#1A6FA8",
-bg: "#FFFFFF",
+bg: "#EBF3FA",
 text: "#0B1A2E",
 muted: "#4A6480",
 border: "#B8D0E8",

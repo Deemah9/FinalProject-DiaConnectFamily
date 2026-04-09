@@ -226,7 +226,7 @@ export default function GlucoseHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  container: { flex: 1, backgroundColor: "#EBF3FA" },
   content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
   topHeader: {
