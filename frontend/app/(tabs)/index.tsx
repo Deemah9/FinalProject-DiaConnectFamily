@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -25,9 +25,11 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 
-import { setAppLanguage } from "@/src/i18n";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import AppHeader from "@/src/components/AppHeader";
+import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 import { getGlucoseReadings, getProfile, updateProfile } from "@/services/api";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
@@ -412,31 +414,20 @@ export default function HomeScreen() {
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
+      <AppHeader
+        left={null}
+        right={
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable style={styles.topBarBtn} onPress={() => setLangOpen((v) => !v)}>
+              <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Pressable style={styles.topBarBtn} onPress={openDrawer}>
+              <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        }
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header — 3 columns: [left controls] [centered logo] [spacer] */}
-        <View style={styles.header}>
-          {/* Left: hamburger + globe, always pinned to left edge */}
-          <View style={styles.headerLeft}>
-            <Pressable style={styles.iconBtn} onPress={openDrawer}>
-              <Ionicons name="menu-outline" size={24} color="#1E3A52" />
-            </Pressable>
-            <Pressable style={styles.globeBtn} onPress={() => setLangOpen((v) => !v)}>
-              <Ionicons name="earth-outline" size={20} color="#1A6FA8" />
-            </Pressable>
-          </View>
-
-          {/* Center: logo */}
-          <View style={styles.logoWrap}>
-            <Ionicons name="heart-outline" size={26} color="#E8A317" />
-            <View style={{ marginLeft: 7 }}>
-              <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
-              <Text style={styles.logoSub}>{t("family")}</Text>
-            </View>
-          </View>
-
-          {/* Right spacer — same width as headerLeft to keep logo visually centered */}
-          <View style={styles.headerRight} />
-        </View>
 
         {/* Welcome */}
         <View style={styles.hero}>
@@ -610,7 +601,11 @@ export default function HomeScreen() {
                   onPress={async () => {
                     setLangOpen(false);
                     const lng = code as "en" | "ar" | "he";
-                    await setAppLanguage(lng, () => updateProfile({ language: lng }));
+                    if (i18n.language === lng) return;
+                    await AsyncStorage.setItem("app_lang", lng);
+                    await i18n.changeLanguage(lng);
+                    await applyRtlIfNeeded(lng);
+                    updateProfile({ language: lng }).catch(() => {});
                   }}
                 >
                   <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>
@@ -730,13 +725,56 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  header: {
+  // ── Blue top bar ──────────────────────────────────────────────────────────
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#D6E8F5",
+    backgroundColor: "#1A6FA8",
+    paddingHorizontal: 12,
+    paddingTop: 48,
+    paddingBottom: 14,
+  },
+
+  topBarSpacer: {
+    width: 80, // mirrors topBarRight width to keep logo visually centered
+  },
+
+  topBarLogo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  topBarRight: {
+    width: 80,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 2,
+  },
+
+  topBarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  topBarTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+
+  topBarSub: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    fontWeight: "300",
+    lineHeight: 15,
   },
 
   iconBtn: {
@@ -745,25 +783,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  logoWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  logoTitle: {
-    color: "#0B1A2E",
-    fontSize: 16,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-
-  logoSub: {
-    color: "#4A6480",
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: "300",
   },
 
   hero: {
@@ -1245,16 +1264,6 @@ const styles = StyleSheet.create({
     color: "#D32F2F",
   },
 
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    width: 88,           // fixed width — mirrored by headerRight to center logo
-  },
-
-  headerRight: {
-    width: 88,           // mirrors headerLeft so logo stays centered
-  },
 
   langModalBackdrop: {
     flex: 1,

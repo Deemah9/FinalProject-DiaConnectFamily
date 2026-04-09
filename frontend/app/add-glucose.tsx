@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -11,7 +10,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { Colors } from "@/constants/Colors";
+import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
 import { addGlucose } from "@/services/api";
 import TimePicker, { buildTimestamp, initTime } from "@/components/TimePicker";
@@ -55,26 +54,11 @@ export default function AddGlucoseScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <AppHeader />
+<ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View style={styles.topHeader}>
-          <Pressable onPress={() => router.back()} style={styles.menuBtn}>
-            <Ionicons name="arrow-back" size={22} color="#1E3A52" />
-          </Pressable>
-
-          <View style={styles.logoWrap}>
-            <Ionicons name="heart-outline" size={28} color={Colors.gold} />
-            <View style={{ marginLeft: 8 }}>
-              <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
-              <Text style={styles.logoSub}>{t("family")}</Text>
-            </View>
-          </View>
-
-          <View style={styles.placeholder} />
-        </View>
 
         {/* Title */}
         <View style={styles.hero}>
@@ -155,8 +139,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#D6E8F5",
+    backgroundColor: "#1A6FA8",
   },
 
   menuBtn: {
@@ -172,19 +155,21 @@ const styles = StyleSheet.create({
   },
 
   logoWrap: {
+    flex: 1,
+    justifyContent: 'center',
     flexDirection: "row",
     alignItems: "center",
   },
 
   logoTitle: {
-    color: "#0B1A2E",
+    color: "#FFFFFF",
     fontSize: 16,
     lineHeight: 18,
     fontWeight: "600",
   },
 
   logoSub: {
-    color: "#4A6480",
+    color: "rgba(255,255,255,0.75)",
     fontSize: 14,
     lineHeight: 16,
     fontWeight: "300",
