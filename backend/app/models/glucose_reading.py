@@ -73,9 +73,13 @@ class GlucoseResponse(BaseModel):
 class GlucoseStatsResponse(BaseModel):
     """
     Response shape for glucose statistics endpoint.
-    Returns None for average, min, max if no readings exist.
+    Returns None for average, min, max, time_in_range if no readings exist.
+    time_in_range: percentage of readings between 70–180 mg/dL (standard target range).
+    days: the filter window used (7, 14, or 30).
     """
     count: int
     average: float | None
     min: int | None
     max: int | None
+    time_in_range: float | None
+    days: int

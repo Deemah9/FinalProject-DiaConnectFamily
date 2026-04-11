@@ -228,6 +228,36 @@ const resources = {
       saveSleep: "Save Sleep",
       invalidSleepHours: "Please enter valid sleep hours",
 
+      // Glucose Stats
+      glucoseStats: "Glucose Stats",
+      glucoseStatsSub: "Your glucose trends over time",
+      loadingStats: "Loading statistics...",
+      noDataForPeriod: "No data for this period",
+      noDataForPeriodSub: "Add glucose readings to see stats",
+      timeInRange: "Time in Range",
+      timeInRangeDesc: "% of readings between 70–180 mg/dL",
+      timeInRangeNote: "Target: 70% or more time in range",
+      statistics: "Statistics",
+      totalReadings: "Total Readings",
+      readingsInPeriod: "Readings in the last {{days}} days",
+      stats: "Stats",
+
+      // Alerts
+      glucoseAlerts: "Glucose Alerts",
+      glucoseAlertsSub: "High and low glucose notifications",
+      loadingAlerts: "Loading alerts...",
+      noAlerts: "No alerts",
+      noAlertsSub: "Your glucose levels are in range",
+      highGlucose: "High Glucose",
+      lowGlucose: "Low Glucose",
+
+      // Delete
+      deleteReading: "Delete Reading",
+      deleteReadingConfirm: "Are you sure you want to delete this reading?",
+      delete: "Delete",
+      cancel: "Cancel",
+      back: "Back",
+
       // Errors
       errors: {
         emailRequired: "Email is required",
@@ -464,6 +494,36 @@ const resources = {
       saveSleep: "حفظ النوم",
       invalidSleepHours: "يرجى إدخال ساعات نوم صحيحة",
 
+      // Glucose Stats
+      glucoseStats: "إحصائيات السكر",
+      glucoseStatsSub: "اتجاهات السكر على مدار الوقت",
+      loadingStats: "جارٍ تحميل الإحصائيات...",
+      noDataForPeriod: "لا توجد بيانات لهذه الفترة",
+      noDataForPeriodSub: "أضف قراءات لعرض الإحصائيات",
+      timeInRange: "الوقت في النطاق",
+      timeInRangeDesc: "% من القراءات بين 70–180 ملغ/ديسيلتر",
+      timeInRangeNote: "الهدف: 70% أو أكثر في النطاق",
+      statistics: "الإحصائيات",
+      totalReadings: "إجمالي القراءات",
+      readingsInPeriod: "القراءات في آخر {{days}} أيام",
+      stats: "إحصائيات",
+
+      // Alerts
+      glucoseAlerts: "تنبيهات السكر",
+      glucoseAlertsSub: "إشعارات ارتفاع وانخفاض السكر",
+      loadingAlerts: "جارٍ تحميل التنبيهات...",
+      noAlerts: "لا توجد تنبيهات",
+      noAlertsSub: "مستويات السكر في النطاق الطبيعي",
+      highGlucose: "ارتفاع السكر",
+      lowGlucose: "انخفاض السكر",
+
+      // Delete
+      deleteReading: "حذف القراءة",
+      deleteReadingConfirm: "هل أنت متأكد من حذف هذه القراءة؟",
+      delete: "حذف",
+      cancel: "إلغاء",
+      back: "رجوع",
+
       // Errors
       errors: {
         emailRequired: "البريد الإلكتروني مطلوب",
@@ -699,6 +759,36 @@ const resources = {
       sleepHoursPlaceholder: "לדוגמה: 7",
       saveSleep: "שמור שינה",
       invalidSleepHours: "אנא הזן שעות שינה תקינות",
+
+      // Glucose Stats
+      glucoseStats: "סטטיסטיקות גלוקוז",
+      glucoseStatsSub: "מגמות הגלוקוז שלך לאורך זמן",
+      loadingStats: "טוען סטטיסטיקות...",
+      noDataForPeriod: "אין נתונים לתקופה זו",
+      noDataForPeriodSub: "הוסף קריאות גלוקוז כדי לראות סטטיסטיקות",
+      timeInRange: "זמן בטווח",
+      timeInRangeDesc: "% מהקריאות בין 70–180 מ\"ג/ד\"ל",
+      timeInRangeNote: "יעד: 70% או יותר בטווח",
+      statistics: "סטטיסטיקות",
+      totalReadings: "סה\"כ קריאות",
+      readingsInPeriod: "קריאות ב-{{days}} הימים האחרונים",
+      stats: "סטטיסטיקות",
+
+      // Alerts
+      glucoseAlerts: "התראות גלוקוז",
+      glucoseAlertsSub: "התראות גלוקוז גבוה ונמוך",
+      loadingAlerts: "טוען התראות...",
+      noAlerts: "אין התראות",
+      noAlertsSub: "רמות הגלוקוז שלך בטווח התקין",
+      highGlucose: "גלוקוז גבוה",
+      lowGlucose: "גלוקוז נמוך",
+
+      // Delete
+      deleteReading: "מחק קריאה",
+      deleteReadingConfirm: "האם אתה בטוח שברצונך למחוק קריאה זו?",
+      delete: "מחק",
+      cancel: "ביטול",
+      back: "חזרה",
 
       // Errors
       errors: {

@@ -654,7 +654,9 @@ export default function HomeScreen() {
               <Text style={styles.drawerSection}>{t("glucoseNavigation")}</Text>
               {[
                 { icon: "stats-chart-outline",  label: t("glucoseHistory"), route: "/glucose-history" },
-                { icon: "add-circle-outline",   label: t("addGlucose"),     route: "/add-glucose" },
+                { icon: "bar-chart-outline",    label: t("glucoseStats"),   route: "/glucose-stats"   },
+                { icon: "add-circle-outline",   label: t("addGlucose"),     route: "/add-glucose"     },
+                { icon: "notifications-outline", label: t("alerts"),        route: "/alerts"           },
               ].map(({ icon, label, route }) => (
                 <Pressable key={route} style={styles.drawerItem}
                   onPress={() => closeDrawer(() => router.push(route as any))}>

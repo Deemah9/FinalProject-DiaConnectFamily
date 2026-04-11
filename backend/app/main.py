@@ -3,6 +3,7 @@ from app.routes import auth
 from app.routes import user_routes
 from app.routes import glucose
 from app.routes import daily_logs
+from app.routes import alerts
 from fastapi.middleware.cors import CORSMiddleware
 
 # ==========================================
@@ -35,6 +36,7 @@ app.include_router(auth.router)
 app.include_router(user_routes.router)
 app.include_router(glucose.router)
 app.include_router(daily_logs.router)
+app.include_router(alerts.router)
 
 
 # ==========================================

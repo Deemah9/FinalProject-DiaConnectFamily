@@ -106,3 +106,27 @@ class TodaySummaryResponse(BaseModel):
     meals: list[MealResponse]
     activities: list[ActivityResponse]
     sleep: list[SleepResponse]
+
+
+# ==========================================
+# Period Summary Response
+# ==========================================
+
+class PeriodSummaryResponse(BaseModel):
+    """
+    Aggregated summary for GET /daily-logs/summary?days=7/14/30.
+    meals_count: number of meal logs in the period.
+    avg_carbs: average carbs per meal (None if no meals).
+    activities_count: number of activity logs in the period.
+    total_activity_minutes: total exercise minutes in the period.
+    sleep_count: number of sleep logs in the period.
+    avg_sleep_hours: average sleep hours per log (None if no logs).
+    days: the filter window used.
+    """
+    meals_count: int
+    avg_carbs: Optional[float]
+    activities_count: int
+    total_activity_minutes: int
+    sleep_count: int
+    avg_sleep_hours: Optional[float]
+    days: int

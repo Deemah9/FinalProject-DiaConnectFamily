@@ -100,7 +100,10 @@ export const getGlucoseReadings = () => request("GET", "/glucose/");
 
 export const getLatestGlucose = () => request("GET", "/glucose/latest");
 
-export const getGlucoseStats = () => request("GET", "/glucose/stats");
+export const deleteGlucose = (id) => request("DELETE", `/glucose/${id}`);
+
+export const getGlucoseStats = (days = 7) =>
+  request("GET", `/glucose/stats?days=${days}`);
 
 // ==========================================
 // Daily Logs APIs
@@ -114,3 +117,18 @@ export const addActivity = (data) =>
 export const addSleep = (data) => request("POST", "/daily-logs/sleep", data);
 
 export const getTodayLogs = () => request("GET", "/daily-logs/today");
+
+export const getDailyLogsSummary = (days = 7) =>
+  request("GET", `/daily-logs/summary?days=${days}`);
+
+export const deleteMeal = (id) =>
+  request("DELETE", `/daily-logs/meals/${id}`);
+
+export const deleteActivity = (id) =>
+  request("DELETE", `/daily-logs/activities/${id}`);
+
+export const deleteSleep = (id) =>
+  request("DELETE", `/daily-logs/sleep/${id}`);
+
+export const getAlerts = (limit = 20) =>
+  request("GET", `/alerts/?limit=${limit}`);

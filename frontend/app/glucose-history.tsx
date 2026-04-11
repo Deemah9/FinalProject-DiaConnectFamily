@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,13 +13,14 @@ import {
 import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
-import { getGlucoseReadings } from "@/services/api";
+import { getGlucoseReadings, deleteGlucose } from "@/services/api";
 
 export default function GlucoseHistoryScreen() {
   const { t } = useTranslation();
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const parseDate = (item: any) => {
     const raw = item?.measuredAt || item?.timestamp || item?.createdAt;
@@ -49,6 +51,31 @@ export default function GlucoseHistoryScreen() {
   };
 
   useFocusEffect(useCallback(() => { loadReadings(); }, []));
+
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      t("deleteReading"),
+      t("deleteReadingConfirm"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("delete"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingId(id);
+              await deleteGlucose(id);
+              setReadings((prev) => prev.filter((r) => r.id !== id));
+            } catch (e: any) {
+              setErrorMsg(e?.message || "Failed to delete reading");
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const getStatus = (value: number) => {
     if (value < 70) return t("low");
@@ -129,10 +156,19 @@ export default function GlucoseHistoryScreen() {
             <Text style={styles.screenTitle}>{t("glucoseHistory")}</Text>
             <Text style={styles.screenSub}>{t("trackReadingsTime")}</Text>
           </View>
-          <Pressable style={styles.addBtn} onPress={() => router.push("/add-glucose" as any)}>
-            <Ionicons name="add-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>{t("add")}</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Pressable
+              style={styles.statsBtn}
+              onPress={() => router.push("/glucose-stats" as any)}
+            >
+              <Ionicons name="bar-chart-outline" size={16} color="#1A6FA8" />
+              <Text style={styles.statsBtnText}>{t("stats")}</Text>
+            </Pressable>
+            <Pressable style={styles.addBtn} onPress={() => router.push("/add-glucose" as any)}>
+              <Ionicons name="add-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.addBtnText}>{t("add")}</Text>
+            </Pressable>
+          </View>
         </View>
 
         {!!errorMsg && (
@@ -211,6 +247,18 @@ export default function GlucoseHistoryScreen() {
                       <View style={[styles.statusBadge, { backgroundColor: bg }]}>
                         <Text style={[styles.statusText, { color }]}>{status}</Text>
                       </View>
+                      <Pressable
+                        onPress={() => handleDelete(item?.id)}
+                        disabled={deletingId === item?.id}
+                        style={styles.deleteBtn}
+                        hitSlop={8}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={16}
+                          color={deletingId === item?.id ? "#B8D0E8" : "#94A3B8"}
+                        />
+                      </Pressable>
                     </View>
                   );
                 })}
@@ -252,6 +300,18 @@ const styles = StyleSheet.create({
   },
   screenTitle: { color: "#0B1A2E", fontSize: 28, fontWeight: "700", marginBottom: 8 },
   screenSub: { color: "#4A6480", fontSize: 14 },
+  statsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D6E8F5",
+  },
+  statsBtnText: { color: "#1A6FA8", fontSize: 14, fontWeight: "600" },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -350,4 +410,10 @@ const styles = StyleSheet.create({
 
   statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
   statusText: { fontSize: 12, fontWeight: "700" },
+  deleteBtn: {
+    marginLeft: 8,
+    padding: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

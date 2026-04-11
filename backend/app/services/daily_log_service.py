@@ -90,6 +90,38 @@ class DailyLogService:
         return sleep
 
     # ==========================================
+    # Delete Helpers
+    # ==========================================
+
+    def _delete_doc(
+        self, collection: str, user_id: str, doc_id: str
+    ) -> bool:
+        """
+        Generic ownership-checked delete for any daily log collection.
+        Returns True if deleted, False if not found or not owned by user.
+        """
+        doc_ref = self.db.collection(collection).document(doc_id)
+        doc = doc_ref.get()
+
+        if not doc.exists:
+            return False
+
+        if doc.to_dict().get("userId") != user_id:
+            return False
+
+        doc_ref.delete()
+        return True
+
+    def delete_meal(self, user_id: str, meal_id: str) -> bool:
+        return self._delete_doc("meals", user_id, meal_id)
+
+    def delete_activity(self, user_id: str, activity_id: str) -> bool:
+        return self._delete_doc("activities", user_id, activity_id)
+
+    def delete_sleep(self, user_id: str, sleep_id: str) -> bool:
+        return self._delete_doc("sleep_logs", user_id, sleep_id)
+
+    # ==========================================
     # Get Today's Summary (last 24 hours)
     # ==========================================
 
@@ -97,7 +129,8 @@ class DailyLogService:
         """
         Retrieve all events from the last 24 hours for a specific user.
         Uses timestamp-based filtering instead of date-based for accuracy.
-        This ensures events like late-night meals appear in the correct context.
+        This ensures events like late-night meals appear in the
+        correct context.
         """
         since = datetime.now(timezone.utc) - timedelta(hours=24)
 
@@ -135,6 +168,63 @@ class DailyLogService:
             "meals": meals,
             "activities": activities,
             "sleep": sleep
+        }
+
+    # ==========================================
+    # Get Period Summary
+    # ==========================================
+
+    def get_summary(self, user_id: str, days: int = 7) -> dict:
+        """
+        Return aggregated stats for meals, activities, and sleep
+        over the last N days. Date filtering is done in Python to
+        avoid composite Firestore index requirements.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        def fetch(collection: str) -> list:
+            result = []
+            for doc in self.db.collection(collection) \
+                    .where("userId", "==", user_id) \
+                    .stream():
+                data = doc.to_dict()
+                ts = data.get("timestamp")
+                if ts is None:
+                    continue
+                if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if ts >= since:
+                    result.append(data)
+            return result
+
+        meals = fetch("meals")
+        activities = fetch("activities")
+        sleep_logs = fetch("sleep_logs")
+
+        carbs_vals = [m["carbs"] for m in meals if "carbs" in m]
+        activity_mins = [
+            a["duration_minutes"] for a in activities
+            if "duration_minutes" in a
+        ]
+        sleep_vals = [
+            s["sleep_hours"] for s in sleep_logs
+            if "sleep_hours" in s
+        ]
+
+        return {
+            "meals_count": len(meals),
+            "avg_carbs": (
+                round(sum(carbs_vals) / len(carbs_vals), 1)
+                if carbs_vals else None
+            ),
+            "activities_count": len(activities),
+            "total_activity_minutes": sum(activity_mins),
+            "sleep_count": len(sleep_logs),
+            "avg_sleep_hours": (
+                round(sum(sleep_vals) / len(sleep_vals), 1)
+                if sleep_vals else None
+            ),
+            "days": days,
         }
 
 
