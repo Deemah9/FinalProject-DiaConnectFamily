@@ -106,6 +106,7 @@ const resources = {
       shareTitle: "Send your code to a family member",
       shareSubtitle: "Once they download the app and enter the code, you will be securely linked.",
       enterCodeLabel: "Enter the 6-character pairing code",
+      shareMessage: "Join me in Family Mode for diabetes care!\n\nHere's how to get started:\n1. Tap the link below.\n\nThe app will open or redirect you to download it (available on iOS and Android):\n{{storeLink}}\n\n2. Open the app and tap \"Follow Patient\" on the welcome screen. Enter the pairing code: {{code}} ➡️",
       joinBtn: "Link",
       linkedSuccess: "Linked Successfully!",
       linkedTo: "You are now linked to {{name}}",
@@ -139,6 +140,8 @@ const resources = {
 
       // Home screen
       welcomeBack: "Welcome Back",
+      familyWelcome: "Hello, {{name}} 👋",
+      familyWelcomeSubtitle: "You are monitoring the health of your loved ones",
       homeSubtitle: "Manage your diabetes care with ease",
       quickActions: "QUICK ACTIONS",
       quickCheck: "Quick Check",
@@ -384,6 +387,7 @@ const resources = {
       shareTitle: "أرسل رمزك إلى فرد العائلة",
       shareSubtitle: "بمجرد أن يقوم فرد عائلتك بتنزيل التطبيق وإدخال الرمز، سيتم ربطكما بشكل آمن.",
       enterCodeLabel: "أدخل رمز الاقتران المكوّن من 6 خانات",
+      shareMessage: "انضم إليّ في وضع العائلة لرعاية السكري!\n\nإليك كيفية البدء:\n1. اضغط على الرابط أدناه.\n\nسيفتح التطبيق أو ينقلك إلى تحميله (متوفر على iOS وAndroid):\n{{storeLink}}\n\n2. افتح التطبيق واضغط على \"متابعة المريض\" في صفحة الترحيب. أدخل رمز الاقتران: {{code}} ➡️",
       joinBtn: "اقتران",
       linkedSuccess: "تم الاقتران بنجاح!",
       linkedTo: "أنت الآن مرتبط بـ {{name}}",
@@ -417,6 +421,8 @@ const resources = {
 
       // Home screen
       welcomeBack: "مرحباً بعودتك",
+      familyWelcome: "أهلاً، {{name}} 👋",
+      familyWelcomeSubtitle: "أنت تتابع صحة أحبائك",
       homeSubtitle: "أدر رعاية السكري بسهولة",
       quickActions: "إجراءات سريعة",
       quickCheck: "فحص سريع",
@@ -662,6 +668,7 @@ const resources = {
       shareTitle: "שלח את הקוד לבן המשפחה",
       shareSubtitle: "ברגע שיוריד את האפליקציה ויכניס את הקוד, תחוברו בצורה מאובטחת.",
       enterCodeLabel: "הכנס את קוד החיבור בן 6 התווים",
+      shareMessage: "הצטרף אליי במצב משפחה לטיפול בסוכרת!\n\nכך תתחיל:\n1. לחץ על הקישור למטה.\n\nהאפליקציה תיפתח או תנחה אותך להורדה (זמינה ב-iOS וב-Android):\n{{storeLink}}\n\n2. פתח את האפליקציה ולחץ על \"מעקב אחר מטופל\" במסך הפתיחה. הכנס את קוד החיבור: {{code}} ➡️",
       joinBtn: "התחבר",
       linkedSuccess: "החיבור הצליח!",
       linkedTo: "אתה מחובר כעת לـ {{name}}",
@@ -695,6 +702,8 @@ const resources = {
 
       // Home screen
       welcomeBack: "ברוך שובך",
+      familyWelcome: "שלום, {{name}} 👋",
+      familyWelcomeSubtitle: "אתה עוקב אחר בריאות יקיריך",
       homeSubtitle: "נהל את טיפול הסוכרת שלך בקלות",
       quickActions: "פעולות מהירות",
       quickCheck: "בדיקה מהירה",

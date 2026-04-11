@@ -19,6 +19,7 @@ const request = async (method, endpoint, body = null) => {
 
   const headers = {
     "Content-Type": "application/json",
+    "bypass-tunnel-reminder": "true",
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 

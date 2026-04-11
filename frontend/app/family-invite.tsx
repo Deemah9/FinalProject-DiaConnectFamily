@@ -45,11 +45,8 @@ export default function FamilyInviteScreen() {
 
   const handleShare = async () => {
     if (!code) return;
-    const message =
-      `${t("shareTitle")}\n\n` +
-      `1. ${t("shareSubtitle")}\n` +
-      `2. ${t("enterCodeLabel")}: ${code}\n\n` +
-      `${t("codeExpiryNote", { days: expiryDays })}`;
+    const storeLink = "https://expo.go";
+    const message = t("shareMessage", { code, storeLink });
     await Share.share({ message });
   };
 
