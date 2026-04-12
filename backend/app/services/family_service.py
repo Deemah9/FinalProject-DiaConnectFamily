@@ -59,8 +59,8 @@ def generate_code(patient_id: str) -> dict:
 def join_with_code(family_member_id: str, code: str) -> dict:
     """
     Family member joins using a pairing code.
-    Validates code exists, not expired, not used.
-    Creates a link and marks the code as used.
+    Each code is single-use — marked as used after one successful join.
+    The patient must generate a new code for each additional family member.
     """
     code = code.strip().upper()
     now = datetime.now(timezone.utc)
@@ -113,7 +113,7 @@ def join_with_code(family_member_id: str, code: str) -> dict:
         "linked_at": now,
     })
 
-    # Mark code as used
+    # Mark code as used — one code per family member
     db.collection(PAIRING_CODES_COLLECTION).document(doc.id).update({"used": True})
 
     return {
@@ -121,6 +121,57 @@ def join_with_code(family_member_id: str, code: str) -> dict:
         "patient_name": patient_name,
         "patient_id": patient_id,
     }
+
+
+def get_family_members(patient_id: str) -> list:
+    """Return all family members linked to this patient."""
+    results = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("patient_id", "==", patient_id)\
+        .stream()
+
+    members = []
+    for doc in results:
+        d = doc.to_dict()
+        family_member_id = d.get("family_member_id")
+        linked_at = d.get("linked_at")
+
+        # Fetch family member name from users collection
+        name = d.get("family_member_name", "")
+        if not name and family_member_id:
+            user_doc = db.collection(USERS_COLLECTION).document(family_member_id).get()
+            if user_doc.exists:
+                udata = user_doc.to_dict()
+                first = udata.get("firstName", "")
+                last = udata.get("lastName", "")
+                name = f"{first} {last}".strip() or udata.get("email", "Unknown")
+
+        members.append({
+            "link_id": doc.id,
+            "family_member_id": family_member_id,
+            "family_member_name": name,
+            "linked_at": linked_at.isoformat() if linked_at else None,
+        })
+
+    return members
+
+
+def remove_family_member(patient_id: str, link_id: str) -> bool:
+    """
+    Remove a family member link.
+    Only the patient who owns the link can delete it.
+    Returns True if deleted, False if not found or unauthorized.
+    """
+    doc_ref = db.collection(FAMILY_LINKS_COLLECTION).document(link_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        return False
+
+    if doc.to_dict().get("patient_id") != patient_id:
+        return False
+
+    doc_ref.delete()
+    return True
 
 
 def get_patients(family_member_id: str) -> list:

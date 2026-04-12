@@ -139,3 +139,9 @@ export const getPatientDailyLogs = (patientId, days = 7) =>
 
 export const registerPushToken = (token) =>
   request("PUT", "/users/me/push-token", { token });
+
+export const getFamilyMembers = () =>
+  request("GET", "/family/my-members");
+
+export const removeFamilyMember = (linkId) =>
+  request("DELETE", `/family/members/${linkId}`);

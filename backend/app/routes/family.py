@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.middleware.dependencies import require_role
-from app.models.family_link import DailyLogsResponse, GenerateCodeResponse, JoinRequest, JoinResponse, PatientSummary, ViewRequest, ViewResponse
+from app.models.family_link import DailyLogsResponse, FamilyMemberSummary, GenerateCodeResponse, JoinRequest, JoinResponse, PatientSummary, ViewRequest, ViewResponse
 import app.services.family_service as family_service
 
 router = APIRouter(prefix="/family", tags=["Family Connection"])
@@ -39,6 +39,29 @@ def join_with_code(
     if "error" in result:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
     return result
+
+
+@router.get("/my-members", response_model=list[FamilyMemberSummary])
+def get_my_family_members(current_user: dict = Depends(require_role("patient"))):
+    """Get all family members linked to the current patient."""
+    return family_service.get_family_members(patient_id=current_user["sub"])
+
+
+@router.delete("/members/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_family_member(
+    link_id: str,
+    current_user: dict = Depends(require_role("patient"))
+):
+    """Remove a family member link. Only the patient can remove their own links."""
+    deleted = family_service.remove_family_member(
+        patient_id=current_user["sub"],
+        link_id=link_id,
+    )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found or not authorized"
+        )
 
 
 @router.get("/patients", response_model=list[PatientSummary])
