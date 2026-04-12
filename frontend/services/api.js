@@ -19,6 +19,7 @@ const request = async (method, endpoint, body = null) => {
 
   const headers = {
     "Content-Type": "application/json",
+    "bypass-tunnel-reminder": "true",
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 
@@ -114,3 +115,33 @@ export const addActivity = (data) =>
 export const addSleep = (data) => request("POST", "/daily-logs/sleep", data);
 
 export const getTodayLogs = () => request("GET", "/daily-logs/today");
+
+// ==========================================
+// Family Connection APIs
+// ==========================================
+
+export const viewWithCode = (code) =>
+  request("POST", "/family/view", { code });
+
+export const generateFamilyCode = () =>
+  request("POST", "/family/generate-code");
+
+export const joinWithCode = (code) =>
+  request("POST", "/family/join", { code });
+
+export const getLinkedPatients = () => request("GET", "/family/patients");
+
+export const getPatientGlucose = (patientId, limit = 50) =>
+  request("GET", `/family/patient/${patientId}/glucose?limit=${limit}`);
+
+export const getPatientDailyLogs = (patientId, days = 7) =>
+  request("GET", `/family/patient/${patientId}/daily-logs?days=${days}`);
+
+export const registerPushToken = (token) =>
+  request("PUT", "/users/me/push-token", { token });
+
+export const getFamilyMembers = () =>
+  request("GET", "/family/my-members");
+
+export const removeFamilyMember = (linkId) =>
+  request("DELETE", `/family/members/${linkId}`);
