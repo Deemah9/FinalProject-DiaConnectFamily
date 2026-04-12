@@ -23,12 +23,16 @@ class GlucoseService:
     # Create Reading
     # ==========================================
 
+    DANGEROUS_LOW = 70
+    DANGEROUS_HIGH = 300
+
     def create_reading(self, user_id: str, data: GlucoseCreate) -> dict:
         """
         Save a new glucose reading to Firestore.
         Source is always set to 'manual' for patient-submitted readings.
         Uses GlucoseDocument model to ensure data consistency.
         Returns the saved document including its generated ID.
+        Triggers emergency push notifications for family members if value is dangerous.
         """
         doc_ref = self.db.collection(self.collection).document()
 
@@ -43,6 +47,27 @@ class GlucoseService:
         doc_ref.set(document.dict())
         result = document.dict()
         result["id"] = doc_ref.id
+
+        # Send emergency notifications for dangerous glucose values
+        if data.value < self.DANGEROUS_LOW or data.value > self.DANGEROUS_HIGH:
+            try:
+                from app.services.family_service import send_emergency_notification
+                patient_doc = self.db.collection("users").document(user_id).get()
+                patient_name = "Patient"
+                if patient_doc.exists:
+                    pdata = patient_doc.to_dict()
+                    patient_name = (
+                        f"{pdata.get('firstName', '')} {pdata.get('lastName', '')}".strip()
+                        or pdata.get("email", "Patient")
+                    )
+                send_emergency_notification(
+                    patient_id=user_id,
+                    patient_name=patient_name,
+                    glucose_value=data.value,
+                )
+            except Exception as e:
+                print(f"⚠️ Notification error: {e}")
+
         return result
 
     # ==========================================
