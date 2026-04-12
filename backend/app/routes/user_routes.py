@@ -112,7 +112,8 @@ async def update_lifestyle_info(
     """
     Updates the lifestyle information of the current user.
     Available to both patients and family members.
-    Stores the entire lifestyle object under the 'lifestyle' field in Firestore.
+    Stores the entire lifestyle object under the 'lifestyle' field
+    in Firestore.
     Requires a valid Bearer token.
     """
     user_id = current_user["sub"]

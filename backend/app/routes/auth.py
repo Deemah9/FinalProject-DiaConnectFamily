@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
-from datetime import datetime
 from typing import Optional
 
 # Import our utilities
 from app.config.firebase import db
-from app.utils.security import hash_password, verify_password, create_access_token
+from app.utils.security import (
+    hash_password, verify_password, create_access_token
+)
 from app.models.user import User
+from app.middleware.dependencies import get_current_user
 
 # ==========================================
 # Router Configuration
@@ -123,7 +125,10 @@ def get_user_by_email(email: str) -> Optional[dict]:
 # Authentication Endpoints
 # ==========================================
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED
+)
 async def register(request: RegisterRequest):
     """
     Register a new user.
@@ -241,4 +246,49 @@ async def login(request: LoginRequest):
         email=user_data['email'],
         role=user_data['role'],
         accessToken=access_token
+    )
+
+
+# ==========================================
+# GET /auth/me
+# ==========================================
+
+class MeResponse(BaseModel):
+    """
+    Response model for GET /auth/me.
+    Returns basic identity fields derived from the JWT token + Firestore.
+    Excludes sensitive fields like password.
+    """
+    userId: str
+    email: str
+    role: str
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    phone: Optional[str] = None
+
+
+@router.get("/me", response_model=MeResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """
+    Return the identity of the currently authenticated user.
+    Validates the Bearer token and fetches basic info from Firestore.
+    Raises 404 if the user document no longer exists.
+    """
+    user_id = current_user["sub"]
+
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    data = doc.to_dict()
+    return MeResponse(
+        userId=user_id,
+        email=data.get("email", ""),
+        role=data.get("role", ""),
+        firstName=data.get("firstName"),
+        lastName=data.get("lastName"),
+        phone=data.get("phone"),
     )
