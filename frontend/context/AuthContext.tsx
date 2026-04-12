@@ -54,6 +54,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const role = await AsyncStorage.getItem("role");
       if (token && role) {
         setUser({ token, role });
+        if (role === "family_member") {
+          router.replace("/family-home" as any);
+        }
       }
       setLoading(false);
     };
@@ -90,7 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // if profile fetch fails, send to onboarding to be safe
     }
 
-    router.replace(profileComplete ? "/(tabs)" : "/onboarding");
+    if (role === "family_member") {
+      router.replace("/family-home" as any);
+    } else {
+      router.replace(profileComplete ? "/(tabs)" : "/onboarding");
+    }
   };
 
   const register = async (userData: RegisterPayload) => {

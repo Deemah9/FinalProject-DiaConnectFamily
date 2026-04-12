@@ -89,7 +89,7 @@ export default function WelcomeScreen() {
 
         <Pressable
           style={styles.familyBtn}
-          onPress={() => router.push("/family-access" as any)}
+          onPress={() => router.push({ pathname: "/signup" as any, params: { role: "family_member" } })}
         >
           <Ionicons name="people-outline" size={18} color="rgba(255,255,255,0.85)" />
           <Text style={styles.familyBtnText}>{t("familyMemberBtn")}</Text>

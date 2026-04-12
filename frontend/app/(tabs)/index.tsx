@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -27,9 +27,16 @@ import { getGlucoseReadings, getProfile, updateProfile } from "@/services/api";
 // ───────────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
-  const { logout } = useAuth();
+  const { logout, user: authUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+
+  // Redirect family members to their own home screen
+  useEffect(() => {
+    if (authUser?.role === "family_member") {
+      router.replace("/family-home" as any);
+    }
+  }, [authUser?.role]);
 
   const DRAWER_W = 270;
   const isRTL = I18nManager.isRTL;

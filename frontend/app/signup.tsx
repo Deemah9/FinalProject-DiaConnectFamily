@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Link, router } from "expo-router";
+import { Link, router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,6 +21,8 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function SignUp() {
   const { t } = useTranslation();
   const { register } = useAuth();
+  const { role } = useLocalSearchParams<{ role?: string }>();
+  const isFamilyMember = role === "family_member";
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -65,7 +67,7 @@ export default function SignUp() {
         password,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        role: "patient",
+        role: isFamilyMember ? "family_member" : "patient",
       });
     } catch (e: any) {
       setGeneralError(e.message || t("errors.signupFailed"));
@@ -95,6 +97,12 @@ export default function SignUp() {
         </View>
 
         <Text style={styles.header}>{t("signup")}</Text>
+        {isFamilyMember && (
+          <View style={styles.roleBadge}>
+            <Ionicons name="people-outline" size={14} color={Colors.primary} />
+            <Text style={styles.roleBadgeText}>{t("familyMemberBtn")}</Text>
+          </View>
+        )}
 
         {!!generalError && (
           <View style={styles.errorBanner}>
@@ -297,4 +305,16 @@ const styles = StyleSheet.create({
 
   link: { color: Colors.linkText, fontSize: 13, textAlign: "center" },
   linkBold: { fontWeight: "700", textDecorationLine: "underline" },
+
+  roleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.white,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  roleBadgeText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
 });
