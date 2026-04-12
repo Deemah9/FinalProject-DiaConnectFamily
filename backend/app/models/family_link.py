@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from pydantic import BaseModel
 
 
@@ -39,3 +39,9 @@ class ViewResponse(BaseModel):
     patient_id: str
     patient_name: str
     readings: list[GlucoseItem]
+
+
+class DailyLogsResponse(BaseModel):
+    meals: list[dict[str, Any]]
+    activities: list[dict[str, Any]]
+    sleep: list[dict[str, Any]]

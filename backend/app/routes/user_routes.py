@@ -121,3 +121,30 @@ async def update_lifestyle_info(
         "updatedAt": firestore.SERVER_TIMESTAMP
     })
     return get_user_doc(user_id)
+
+
+# ==========================================
+# PUT /users/me/push-token
+# ==========================================
+
+@router.put("/me/push-token")
+async def update_push_token(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Save the Expo push notification token for the current user.
+    Used to send emergency glucose alerts to family members.
+    """
+    token = request.get("token", "").strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="token is required"
+        )
+    user_id = current_user["sub"]
+    db.collection("users").document(user_id).update({
+        "pushToken": token,
+        "updatedAt": firestore.SERVER_TIMESTAMP,
+    })
+    return {"message": "Push token saved"}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.middleware.dependencies import require_role
-from app.models.family_link import GenerateCodeResponse, JoinRequest, JoinResponse, PatientSummary, ViewRequest, ViewResponse
+from app.models.family_link import DailyLogsResponse, GenerateCodeResponse, JoinRequest, JoinResponse, PatientSummary, ViewRequest, ViewResponse
 import app.services.family_service as family_service
 
 router = APIRouter(prefix="/family", tags=["Family Connection"])
@@ -45,6 +45,27 @@ def join_with_code(
 def get_patients(current_user: dict = Depends(require_role("family_member"))):
     """Get all patients linked to the current family member."""
     return family_service.get_patients(family_member_id=current_user["sub"])
+
+
+@router.get("/patient/{patient_id}/daily-logs", response_model=DailyLogsResponse)
+def get_patient_daily_logs(
+    patient_id: str,
+    days: int = 7,
+    current_user: dict = Depends(require_role("family_member"))
+):
+    """Get daily logs (meals, activities, sleep) for a linked patient."""
+    days = max(1, min(days, 30))
+    result = family_service.get_patient_daily_logs(
+        family_member_id=current_user["sub"],
+        patient_id=patient_id,
+        days=days,
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not linked to this patient"
+        )
+    return result
 
 
 @router.get("/patient/{patient_id}/glucose")

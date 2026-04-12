@@ -1,5 +1,7 @@
+import json as json_lib
 import random
 import string
+import urllib.request
 from datetime import datetime, timezone, timedelta
 from app.config.firebase import db
 
@@ -26,7 +28,19 @@ def _generate_unique_code() -> str:
 
 
 def generate_code(patient_id: str) -> dict:
-    """Patient generates a new pairing code. Returns code and expiry info."""
+    """
+    Patient generates a new pairing code.
+    Deletes all previous unused codes for this patient before creating a new one.
+    Returns code and expiry info.
+    """
+    # Delete all existing unused codes for this patient
+    old_codes = db.collection(PAIRING_CODES_COLLECTION)\
+        .where("patient_id", "==", patient_id)\
+        .where("used", "==", False)\
+        .stream()
+    for doc in old_codes:
+        doc.reference.delete()
+
     code = _generate_unique_code()
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=CODE_EXPIRY_DAYS)
@@ -187,6 +201,106 @@ def view_with_code(code: str, limit: int = 50) -> dict:
         "patient_name": patient_name,
         "readings": readings,
     }
+
+
+def get_patient_daily_logs(family_member_id: str, patient_id: str, days: int = 7) -> dict | None:
+    """
+    Return daily logs (meals, activities, sleep) for a patient.
+    Only accessible if family member is linked to the patient.
+    """
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("family_member_id", "==", family_member_id)\
+        .where("patient_id", "==", patient_id)\
+        .limit(1).stream()
+
+    if not any(True for _ in links):
+        return None
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    def _serialize(d: dict) -> dict:
+        for k in ("timestamp", "createdAt"):
+            if k in d and hasattr(d[k], "isoformat"):
+                d[k] = d[k].isoformat()
+        return d
+
+    def _fetch(collection: str) -> list:
+        result = []
+        for doc in db.collection(collection)\
+                .where("userId", "==", patient_id)\
+                .where("timestamp", ">=", since)\
+                .stream():
+            data = doc.to_dict()
+            data["id"] = doc.id
+            result.append(_serialize(data))
+        return result
+
+    return {
+        "meals": _fetch("meals"),
+        "activities": _fetch("activities"),
+        "sleep": _fetch("sleep_logs"),
+    }
+
+
+def send_emergency_notification(patient_id: str, patient_name: str, glucose_value: int) -> None:
+    """
+    Send Expo push notifications to all family members linked to a patient
+    when a dangerous glucose level is recorded (< 70 or > 300 mg/dL).
+    """
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("patient_id", "==", patient_id)\
+        .stream()
+
+    family_ids = [doc.to_dict().get("family_member_id") for doc in links if doc.to_dict().get("family_member_id")]
+    if not family_ids:
+        return
+
+    if glucose_value < 70:
+        title = f"\u26a0\ufe0f {patient_name} - Low Glucose Alert"
+        body = f"Glucose is dangerously LOW: {glucose_value} mg/dL. Please check immediately."
+    else:
+        title = f"\u26a0\ufe0f {patient_name} - High Glucose Alert"
+        body = f"Glucose is dangerously HIGH: {glucose_value} mg/dL. Please check immediately."
+
+    tokens = []
+    for fid in family_ids:
+        doc = db.collection(USERS_COLLECTION).document(fid).get()
+        if doc.exists:
+            token = doc.to_dict().get("pushToken", "")
+            if token and token.startswith("ExponentPushToken["):
+                tokens.append(token)
+
+    if not tokens:
+        return
+
+    messages = [
+        {
+            "to": token,
+            "title": title,
+            "body": body,
+            "data": {"patient_id": patient_id, "glucose_value": glucose_value, "type": "glucose_alert"},
+            "sound": "default",
+            "priority": "high",
+        }
+        for token in tokens
+    ]
+
+    try:
+        payload = json_lib.dumps(messages).encode("utf-8")
+        req = urllib.request.Request(
+            "https://exp.host/--/api/v2/push/send",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        print(f"✅ Emergency notifications sent for patient {patient_id}: {glucose_value} mg/dL")
+    except Exception as e:
+        print(f"⚠️ Push notification failed: {e}")
 
 
 def get_patient_glucose(family_member_id: str, patient_id: str, limit: int = 50) -> list:

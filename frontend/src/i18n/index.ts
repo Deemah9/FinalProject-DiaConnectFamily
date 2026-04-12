@@ -225,6 +225,13 @@ const resources = {
       sleepSection: "SLEEP",
       mealsSection: "MEALS",
 
+      // Family patient detail tabs
+      glucoseTab: "Glucose",
+      dailyLogsTab: "Daily Logs",
+      noLogsThisWeek: "No logs in the past 7 days",
+      minutesDuration: "{{min}} min",
+      hoursSlept: "{{hours}} hrs",
+
       // Glucose History
       trackReadingsTime: "Track your glucose readings over time",
       glucoseTrend: "Glucose Trend",
@@ -507,6 +514,13 @@ const resources = {
       sleepSection: "النوم",
       mealsSection: "الوجبات",
 
+      // Family patient detail tabs
+      glucoseTab: "الجلوكوز",
+      dailyLogsTab: "السجلات اليومية",
+      noLogsThisWeek: "لا توجد سجلات في آخر 7 أيام",
+      minutesDuration: "{{min}} دقيقة",
+      hoursSlept: "{{hours}} ساعات",
+
       // Glucose History
       trackReadingsTime: "تتبع قراءات السكر عبر الزمن",
       glucoseTrend: "مؤشر السكر",
@@ -788,6 +802,13 @@ const resources = {
       activitiesSection: "פעילויות",
       sleepSection: "שינה",
       mealsSection: "ארוחות",
+
+      // Family patient detail tabs
+      glucoseTab: "גלוקוז",
+      dailyLogsTab: "יומנים יומיים",
+      noLogsThisWeek: "אין רשומות ב-7 הימים האחרונים",
+      minutesDuration: "{{min}} דקות",
+      hoursSlept: "{{hours}} שעות",
 
       // Glucose History
       trackReadingsTime: "עקוב אחר קריאות הגלוקוז לאורך זמן",

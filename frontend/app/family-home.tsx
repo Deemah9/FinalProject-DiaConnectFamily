@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -20,7 +20,8 @@ import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import AppHeader from "@/src/components/AppHeader";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getLinkedPatients, getProfile, updateProfile } from "@/services/api";
+import { getLinkedPatients, getProfile, registerPushToken, updateProfile } from "@/services/api";
+import * as Notifications from "expo-notifications";
 import i18n from "@/src/i18n";
 
 export default function FamilyHomeScreen() {
@@ -53,6 +54,10 @@ export default function FamilyHomeScreen() {
     ]).start(() => { setMenuOpen(false); cb?.(); });
   };
 
+  useEffect(() => {
+    registerForPushNotifications();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       load();
@@ -72,6 +77,22 @@ export default function FamilyHomeScreen() {
       // silent
     } finally {
       setLoading(false);
+    }
+  };
+
+  const registerForPushNotifications = async () => {
+    try {
+      const { status: existing } = await Notifications.getPermissionsAsync();
+      let finalStatus = existing;
+      if (existing !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") return;
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      await registerPushToken(tokenData.data);
+    } catch {
+      // silent — push notifications are non-critical
     }
   };
 

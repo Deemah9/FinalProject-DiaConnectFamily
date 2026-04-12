@@ -133,3 +133,9 @@ export const getLinkedPatients = () => request("GET", "/family/patients");
 
 export const getPatientGlucose = (patientId, limit = 50) =>
   request("GET", `/family/patient/${patientId}/glucose?limit=${limit}`);
+
+export const getPatientDailyLogs = (patientId, days = 7) =>
+  request("GET", `/family/patient/${patientId}/daily-logs?days=${days}`);
+
+export const registerPushToken = (token) =>
+  request("PUT", "/users/me/push-token", { token });
