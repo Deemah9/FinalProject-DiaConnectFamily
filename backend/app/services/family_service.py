@@ -354,6 +354,84 @@ def send_emergency_notification(patient_id: str, patient_name: str, glucose_valu
         print(f"⚠️ Push notification failed: {e}")
 
 
+def send_prediction_alert(
+    patient_id: str,
+    patient_name: str,
+    alert_type: str,
+    current: float,
+    predicted: float,
+    hours: int,
+) -> None:
+    """
+    Send push notification to all linked family members when the prediction
+    detects an upcoming low, high, or patch error alert.
+    """
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("patient_id", "==", patient_id)\
+        .stream()
+
+    family_ids = [
+        doc.to_dict().get("family_member_id")
+        for doc in links
+        if doc.to_dict().get("family_member_id")
+    ]
+    if not family_ids:
+        return
+
+    alert_labels = {
+        "low":         ("⬇️ Low Glucose Alert",   f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL in {hours}h (now {current:.0f}). Please check on them."),
+        "high":        ("⬆️ High Glucose Alert",  f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL in {hours}h (now {current:.0f}). Please check on them."),
+        "patch_error": ("⚠️ Sensor Error",         f"A suspicious reading was detected for {patient_name}. The sensor may need checking."),
+    }
+    title, body = alert_labels.get(alert_type, ("⚠️ Glucose Alert", f"Check {patient_name}'s glucose levels."))
+
+    tokens = []
+    for fid in family_ids:
+        doc = db.collection(USERS_COLLECTION).document(fid).get()
+        if doc.exists:
+            token = doc.to_dict().get("pushToken", "")
+            if token and token.startswith("ExponentPushToken["):
+                tokens.append(token)
+
+    if not tokens:
+        return
+
+    messages = [
+        {
+            "to": token,
+            "title": title,
+            "body": body,
+            "data": {
+                "patient_id":  patient_id,
+                "alert_type":  alert_type,
+                "current":     current,
+                "predicted":   predicted,
+                "type":        "prediction_alert",
+            },
+            "sound":    "default",
+            "priority": "high",
+        }
+        for token in tokens
+    ]
+
+    try:
+        payload = json_lib.dumps(messages).encode("utf-8")
+        req = urllib.request.Request(
+            "https://exp.host/--/api/v2/push/send",
+            data=payload,
+            headers={
+                "Content-Type":    "application/json",
+                "Accept":          "application/json",
+                "Accept-Encoding": "gzip, deflate",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        print(f"✅ Prediction alert sent for {patient_name}: {alert_type}")
+    except Exception as e:
+        print(f"⚠️ Prediction push notification failed: {e}")
+
+
 def get_patient_glucose(family_member_id: str, patient_id: str, limit: int = 50) -> list:
     """
     Return glucose readings for a patient, only if family member is linked to them.

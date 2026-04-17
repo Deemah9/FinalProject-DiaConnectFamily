@@ -14,7 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
+import { getPatientAlerts, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -48,13 +48,15 @@ export default function FamilyPatientGlucoseScreen() {
     familyCode?: string;
   }>();
 
-  const [activeTab, setActiveTab] = useState<"glucose" | "logs">("glucose");
+  const [activeTab, setActiveTab] = useState<"glucose" | "logs" | "alerts">("glucose");
   const [readings, setReadings] = useState<any[]>([]);
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -97,6 +99,7 @@ export default function FamilyPatientGlucoseScreen() {
           setDailyLogs({ meals: [], activities: [], sleep: [] });
         }
         loadPrediction();
+        loadAlerts();
       }
     } catch (e: any) {
       setError(e.message || t("familyLinkFailed"));
@@ -115,6 +118,19 @@ export default function FamilyPatientGlucoseScreen() {
       setPrediction(null);
     } finally {
       setLoadingPrediction(false);
+    }
+  };
+
+  const loadAlerts = async () => {
+    if (!patientId) return;
+    try {
+      setLoadingAlerts(true);
+      const data = await getPatientAlerts(patientId, 20);
+      setAlerts(Array.isArray(data) ? data : []);
+    } catch {
+      setAlerts([]);
+    } finally {
+      setLoadingAlerts(false);
     }
   };
 
@@ -294,6 +310,19 @@ export default function FamilyPatientGlucoseScreen() {
                 />
                 <Text style={[styles.tabText, activeTab === "logs" && styles.tabTextActive]}>
                   {t("dailyLogsTab")}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tabBtn, activeTab === "alerts" && styles.tabBtnActive]}
+                onPress={() => setActiveTab("alerts")}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={14}
+                  color={activeTab === "alerts" ? "#1A6FA8" : "#7A96B0"}
+                />
+                <Text style={[styles.tabText, activeTab === "alerts" && styles.tabTextActive]}>
+                  {t("glucoseAlerts")}
                 </Text>
               </Pressable>
             </View>
@@ -487,6 +516,51 @@ export default function FamilyPatientGlucoseScreen() {
             </>
           )}
 
+          {/* ── ALERTS TAB ── */}
+          {activeTab === "alerts" && !familyCode && (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="notifications-outline" size={18} color="#1A6FA8" />
+                <Text style={styles.cardTitle}>{t("glucoseAlerts")}</Text>
+              </View>
+
+              {loadingAlerts ? (
+                <ActivityIndicator size="small" color="#1A6FA8" style={{ marginVertical: 16 }} />
+              ) : alerts.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="checkmark-circle-outline" size={30} color="#94A3B8" />
+                  <Text style={styles.emptyTitle}>{t("noAlerts")}</Text>
+                  <Text style={{ color: "#7A96B0", fontSize: 13, marginTop: 4 }}>{t("noAlertsSub")}</Text>
+                </View>
+              ) : (
+                alerts.map((alert: any, idx: number) => {
+                  const isHigh = alert.type === "high";
+                  const color = isHigh ? "#D32F2F" : "#E07B00";
+                  const bg    = isHigh ? "#FDEDED" : "#FEF3E2";
+                  const label = isHigh ? t("highGlucose") : t("lowGlucose");
+                  const raw   = alert.createdAt || "";
+                  const time  = raw ? new Date(raw).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "--";
+                  return (
+                    <View key={alert.id || idx} style={[styles.alertRow, { backgroundColor: bg }]}>
+                      <Ionicons
+                        name={isHigh ? "arrow-up-circle" : "arrow-down-circle"}
+                        size={22}
+                        color={color}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.alertLabel, { color }]}>{label}</Text>
+                        <Text style={styles.alertValue}>
+                          {alert.value} <Text style={styles.alertUnit}>{t("mgdL")}</Text>
+                        </Text>
+                      </View>
+                      <Text style={styles.alertTime}>{time}</Text>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          )}
+
           <View style={{ height: 24 }} />
         </ScrollView>
       )}
@@ -659,4 +733,18 @@ const styles = StyleSheet.create({
   trendBadgeText: { fontSize: 12, fontWeight: "600" },
   adviceBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, padding: 10, borderWidth: 1 },
   adviceText: { fontSize: 13, flex: 1, lineHeight: 19 },
+
+  alertRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  alertLabel: { fontSize: 13, fontWeight: "700" },
+  alertValue: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginTop: 2 },
+  alertUnit: { fontSize: 12, fontWeight: "400", color: "#7A96B0" },
+  alertTime: { fontSize: 11, color: "#7A96B0", textAlign: "right" },
 });

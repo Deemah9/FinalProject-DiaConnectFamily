@@ -140,6 +140,9 @@ export const deleteSleep = (id) =>
 export const getAlerts = (limit = 20) =>
   request("GET", `/alerts/?limit=${limit}`);
 
+export const getPatientAlerts = (patientId, limit = 20) =>
+  request("GET", `/alerts/patient/${patientId}?limit=${limit}`);
+
 // ==========================================
 // Family Connection APIs
 // ==========================================

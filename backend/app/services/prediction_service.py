@@ -15,6 +15,7 @@ import urllib.error
 import os
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+from app.services.family_service import send_prediction_alert
 
 load_dotenv()
 
@@ -375,9 +376,9 @@ Reply in JSON format only:
     ) -> str | None:
         if patch_error:
             return "patch_error"
-        if current < 100 or predicted < 100:
+        if current < 70 or predicted < 70:
             return "low"
-        if current > 150 or predicted > 150:
+        if current > 300 or predicted > 300:
             return "high"
         return None
 
@@ -447,6 +448,20 @@ Reply in JSON format only:
             "sleep_hours":    last_sleep,
             "activity_level": profile["activity_level"],
         }
+
+        # Send push notification to family members when alert detected
+        if alert_type:
+            try:
+                send_prediction_alert(
+                    patient_id=user_id,
+                    patient_name=patient_name,
+                    alert_type=alert_type,
+                    current=current,
+                    predicted=predicted,
+                    hours=hours,
+                )
+            except Exception as e:
+                print(f"Prediction alert notification failed: {e}")
 
         advice = None
         if alert_type:
