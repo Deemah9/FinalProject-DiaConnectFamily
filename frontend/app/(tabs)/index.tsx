@@ -21,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getGlucoseReadings, getProfile, updateProfile } from "@/services/api";
+import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile } from "@/services/api";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
@@ -66,12 +66,28 @@ export default function HomeScreen() {
   const [loadingGlucose, setLoadingGlucose] = useState(true);
   const [errorGlucose, setErrorGlucose] = useState("");
 
+  const [prediction, setPrediction] = useState<any>(null);
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       loadUser();
       loadGlucose();
+      loadPrediction();
     }, []),
   );
+
+  const loadPrediction = async () => {
+    try {
+      setLoadingPrediction(true);
+      const data = await getGlucosePrediction(1, i18n.language);
+      setPrediction(data);
+    } catch {
+      setPrediction(null);
+    } finally {
+      setLoadingPrediction(false);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -250,6 +266,93 @@ export default function HomeScreen() {
               </View>
             )}
 
+          </View>
+        </View>
+
+        {/* AI Prediction Card */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("predictionTitle")}</Text>
+          <View style={styles.predictionCard}>
+            <View style={styles.predictionHeader}>
+              <Ionicons name="analytics-outline" size={20} color={Colors.primary} />
+              <Text style={styles.predictionLabel}>{t("predictionSubtitle")}</Text>
+            </View>
+
+            {loadingPrediction ? (
+              <Text style={styles.predictionLoading}>{t("predictionLoading")}</Text>
+            ) : prediction?.message ? (
+              <Text style={styles.predictionInsufficient}>{prediction.message}</Text>
+            ) : prediction?.predicted_value != null ? (
+              <>
+                {/* Value + Trend Badge Row */}
+                <View style={styles.predictionValueRow}>
+                  <View>
+                    <Text style={styles.predictionValue}>
+                      {Math.round(prediction.predicted_value)}
+                      <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
+                    </Text>
+                  </View>
+
+                  {prediction.trend && (
+                    <View style={[
+                      styles.trendBadge,
+                      prediction.trend === "rising"  && { backgroundColor: "#FEE2E2" },
+                      prediction.trend === "falling" && { backgroundColor: "#FEF3C7" },
+                      prediction.trend === "stable"  && { backgroundColor: "#D1FAE5" },
+                    ]}>
+                      <Ionicons
+                        name={
+                          prediction.trend === "rising"  ? "trending-up"   :
+                          prediction.trend === "falling" ? "trending-down" : "remove"
+                        }
+                        size={18}
+                        color={
+                          prediction.trend === "rising"  ? "#DC2626" :
+                          prediction.trend === "falling" ? "#D97706" : "#059669"
+                        }
+                      />
+                      <Text style={[
+                        styles.trendBadgeText,
+                        prediction.trend === "rising"  && { color: "#DC2626" },
+                        prediction.trend === "falling" && { color: "#D97706" },
+                        prediction.trend === "stable"  && { color: "#059669" },
+                      ]}>
+                        {t(`trend_${prediction.trend}`)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Alert + AI Advice */}
+                {prediction.alert_type && (
+                  <View style={[
+                    styles.predictionAlert,
+                    prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
+                    prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
+                    prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+                  ]}>
+                    <Ionicons
+                      name={prediction.alert_type === "patch_error" ? "warning" : "alert-circle"}
+                      size={18}
+                      color={
+                        prediction.alert_type === "low"  ? "#E07B00" :
+                        prediction.alert_type === "high" ? "#D32F2F" : "#6B7280"
+                      }
+                    />
+                    <Text style={[
+                      styles.predictionAlertText,
+                      prediction.alert_type === "low"         && { color: "#92400E" },
+                      prediction.alert_type === "high"        && { color: "#991B1B" },
+                      prediction.alert_type === "patch_error" && { color: "#374151" },
+                    ]}>
+                      {prediction.advice?.patient || t(`alert_${prediction.alert_type}`)}
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text style={styles.predictionInsufficient}>{t("predictionUnavailable")}</Text>
+            )}
           </View>
         </View>
 
@@ -1157,5 +1260,81 @@ const styles = StyleSheet.create({
   langOptionTextActive: {
     fontWeight: "700",
     color: "#1A6FA8",
+  },
+
+  // Prediction Card
+  predictionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  predictionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  predictionLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+  },
+  predictionLoading: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: "center",
+    paddingVertical: 8,
+  },
+  predictionInsufficient: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: "center",
+    paddingVertical: 8,
+    lineHeight: 20,
+  },
+  predictionValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  predictionValue: {
+    fontSize: 40,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+  predictionUnit: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    fontWeight: "400",
+  },
+  trendBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  trendBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  predictionAlert: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+  },
+  predictionAlertText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 20,
   },
 });

@@ -252,6 +252,18 @@ const resources = {
       trend: "Glucose Trend",
       addFirstReading: "Add your first glucose reading",
 
+      // Prediction
+      predictionTitle: "AI Prediction",
+      predictionSubtitle: "Expected glucose in 1 hour",
+      predictionLoading: "Analyzing your readings...",
+      predictionUnavailable: "Prediction unavailable",
+      alert_low: "Your glucose is dropping — have a fast-acting carb now",
+      alert_high: "High glucose detected — contact your doctor if it persists",
+      alert_patch_error: "Suspicious reading — check your sensor placement",
+      trend_rising: "Rising",
+      trend_falling: "Falling",
+      trend_stable: "Stable",
+
       // Add Glucose
       addGlucoseDesc: "Add a new glucose reading manually",
       glucoseValue: "Glucose Value (mg/dL)",
@@ -579,6 +591,18 @@ const resources = {
       trend: "مؤشر الجلوكوز",
       addFirstReading: "أضف قراءة السكر الأولى",
 
+      // Prediction
+      predictionTitle: "تنبؤ الذكاء الاصطناعي",
+      predictionSubtitle: "مستوى السكر المتوقع خلال ساعة",
+      predictionLoading: "جارٍ تحليل قراءاتك...",
+      predictionUnavailable: "التنبؤ غير متاح",
+      alert_low: "سكرك ينخفض — تناول كربوهيدرات سريعة الآن",
+      alert_high: "ارتفاع في السكر — تواصل مع طبيبك إذا استمر",
+      alert_patch_error: "قراءة مشبوهة — تحقق من مكان الجهاز",
+      trend_rising: "صاعد",
+      trend_falling: "هابط",
+      trend_stable: "مستقر",
+
       // Add Glucose
       addGlucoseDesc: "إضافة قراءة سكر يدوياً",
       glucoseValue: "قيمة السكر (ملغ/ديسيلتر)",
@@ -905,6 +929,18 @@ const resources = {
       noReadingsYet: "אין קריאות עדיין",
       trend: "מגמת גלוקוז",
       addFirstReading: "הוסף את קריאת הגלוקוז הראשונה שלך",
+
+      // Prediction
+      predictionTitle: "תחזית AI",
+      predictionSubtitle: "גלוקוז צפוי בעוד שעה",
+      predictionLoading: "מנתח את הקריאות שלך...",
+      predictionUnavailable: "תחזית אינה זמינה",
+      alert_low: "הגלוקוז שלך יורד — אכול פחמימה מהירה עכשיו",
+      alert_high: "גלוקוז גבוה — פנה לרופא אם זה נמשך",
+      alert_patch_error: "קריאה חשודה — בדוק את מיקום החיישן",
+      trend_rising: "עולה",
+      trend_falling: "יורד",
+      trend_stable: "יציב",
 
       // Add Glucose
       addGlucoseDesc: "הוסף קריאת גלוקוז חדשה ידנית",

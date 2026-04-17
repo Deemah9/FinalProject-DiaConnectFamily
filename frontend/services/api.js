@@ -106,6 +106,9 @@ export const deleteGlucose = (id) => request("DELETE", `/glucose/${id}`);
 export const getGlucoseStats = (days = 7) =>
   request("GET", `/glucose/stats?days=${days}`);
 
+export const getGlucosePrediction = (hours = 1, lang = "ar") =>
+  request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
+
 // ==========================================
 // Daily Logs APIs
 // ==========================================
