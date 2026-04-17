@@ -293,31 +293,37 @@ export default function HomeScreen() {
                     </Text>
                   </View>
 
-                  {prediction.trend && (
+                  {(prediction.trend || prediction.alert_type === "patch_error") && (
                     <View style={[
                       styles.trendBadge,
-                      prediction.trend === "rising"  && { backgroundColor: "#FEE2E2" },
-                      prediction.trend === "falling" && { backgroundColor: "#FEF3C7" },
-                      prediction.trend === "stable"  && { backgroundColor: "#D1FAE5" },
+                      prediction.alert_type === "patch_error" ? { backgroundColor: "#FEF3C7" } :
+                      prediction.trend === "rising"  ? { backgroundColor: "#FEE2E2" } :
+                      prediction.trend === "falling" ? { backgroundColor: "#FEF3C7" } :
+                                                       { backgroundColor: "#D1FAE5" },
                     ]}>
                       <Ionicons
                         name={
-                          prediction.trend === "rising"  ? "trending-up"   :
-                          prediction.trend === "falling" ? "trending-down" : "remove"
+                          prediction.alert_type === "patch_error" ? "warning"       :
+                          prediction.trend === "rising"            ? "trending-up"   :
+                          prediction.trend === "falling"           ? "trending-down" : "remove"
                         }
                         size={18}
                         color={
-                          prediction.trend === "rising"  ? "#DC2626" :
-                          prediction.trend === "falling" ? "#D97706" : "#059669"
+                          prediction.alert_type === "patch_error" ? "#D97706" :
+                          prediction.trend === "rising"            ? "#DC2626" :
+                          prediction.trend === "falling"           ? "#D97706" : "#059669"
                         }
                       />
                       <Text style={[
                         styles.trendBadgeText,
-                        prediction.trend === "rising"  && { color: "#DC2626" },
-                        prediction.trend === "falling" && { color: "#D97706" },
-                        prediction.trend === "stable"  && { color: "#059669" },
+                        prediction.alert_type === "patch_error" ? { color: "#92400E" } :
+                        prediction.trend === "rising"            ? { color: "#DC2626" } :
+                        prediction.trend === "falling"           ? { color: "#D97706" } :
+                                                                   { color: "#059669" },
                       ]}>
-                        {t(`trend_${prediction.trend}`)}
+                        {prediction.alert_type === "patch_error"
+                          ? t("alert_patch_error_short")
+                          : t(`trend_${prediction.trend}`)}
                       </Text>
                     </View>
                   )}

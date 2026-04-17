@@ -263,6 +263,7 @@ const resources = {
       trend_rising: "Rising",
       trend_falling: "Falling",
       trend_stable: "Stable",
+      alert_patch_error_short: "Sensor Error",
 
       // Add Glucose
       addGlucoseDesc: "Add a new glucose reading manually",
@@ -602,6 +603,7 @@ const resources = {
       trend_rising: "صاعد",
       trend_falling: "هابط",
       trend_stable: "مستقر",
+      alert_patch_error_short: "خطأ في الجهاز",
 
       // Add Glucose
       addGlucoseDesc: "إضافة قراءة سكر يدوياً",
@@ -941,6 +943,7 @@ const resources = {
       trend_rising: "עולה",
       trend_falling: "יורד",
       trend_stable: "יציב",
+      alert_patch_error_short: "שגיאת חיישן",
 
       // Add Glucose
       addGlucoseDesc: "הוסף קריאת גלוקוז חדשה ידנית",
