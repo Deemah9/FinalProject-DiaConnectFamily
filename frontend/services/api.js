@@ -109,6 +109,9 @@ export const getGlucoseStats = (days = 7) =>
 export const getGlucosePrediction = (hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
 
+export const getPatientPrediction = (patientId, hours = 1, lang = "ar") =>
+  request("GET", `/glucose/predict/family?patient_id=${patientId}&hours=${hours}&lang=${lang}`);
+
 // ==========================================
 // Daily Logs APIs
 // ==========================================

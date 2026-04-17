@@ -14,7 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientDailyLogs, getPatientGlucose, viewWithCode } from "@/services/api";
+import { getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -41,7 +41,7 @@ const dayStats = (items: any[]) => {
 };
 
 export default function FamilyPatientGlucoseScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { patientId, patientName, familyCode } = useLocalSearchParams<{
     patientId: string;
     patientName: string;
@@ -53,6 +53,8 @@ export default function FamilyPatientGlucoseScreen() {
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [prediction, setPrediction] = useState<any>(null);
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,11 +96,25 @@ export default function FamilyPatientGlucoseScreen() {
         } catch {
           setDailyLogs({ meals: [], activities: [], sleep: [] });
         }
+        loadPrediction();
       }
     } catch (e: any) {
       setError(e.message || t("familyLinkFailed"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPrediction = async () => {
+    if (!patientId) return;
+    try {
+      setLoadingPrediction(true);
+      const data = await getPatientPrediction(patientId, 1, i18n.language);
+      setPrediction(data);
+    } catch {
+      setPrediction(null);
+    } finally {
+      setLoadingPrediction(false);
     }
   };
 
@@ -173,6 +189,83 @@ export default function FamilyPatientGlucoseScreen() {
               <Text style={styles.screenSub}>{t("trackReadingsTime")}</Text>
             </View>
           </View>
+
+          {/* AI Prediction Card — only for authenticated family members */}
+          {!familyCode && (
+            <View style={styles.predictionCard}>
+              <View style={styles.predictionHeader}>
+                <Ionicons name="analytics-outline" size={18} color="#1A6FA8" />
+                <Text style={styles.predictionTitle}>{t("predictionTitle")}</Text>
+              </View>
+
+              {loadingPrediction ? (
+                <Text style={styles.predictionMuted}>{t("predictionLoading")}</Text>
+              ) : prediction?.message ? (
+                <Text style={styles.predictionMuted}>{prediction.message}</Text>
+              ) : prediction?.predicted_value != null ? (
+                <>
+                  <View style={styles.predictionRow}>
+                    <Text style={styles.predictionValue}>
+                      {Math.round(prediction.predicted_value)}
+                      <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
+                    </Text>
+                    {prediction.alert_type === "patch_error" ? (
+                      <View style={[styles.trendBadge, { backgroundColor: "#FEF3C7" }]}>
+                        <Ionicons name="warning" size={15} color="#D97706" />
+                        <Text style={[styles.trendBadgeText, { color: "#92400E" }]}>{t("alert_patch_error_short")}</Text>
+                      </View>
+                    ) : prediction.trend ? (
+                      <View style={[
+                        styles.trendBadge,
+                        prediction.trend === "rising"  ? { backgroundColor: "#FEE2E2" } :
+                        prediction.trend === "falling" ? { backgroundColor: "#FEF3C7" } :
+                                                         { backgroundColor: "#D1FAE5" },
+                      ]}>
+                        <Ionicons
+                          name={prediction.trend === "rising" ? "trending-up" : prediction.trend === "falling" ? "trending-down" : "remove"}
+                          size={15}
+                          color={prediction.trend === "rising" ? "#DC2626" : prediction.trend === "falling" ? "#D97706" : "#059669"}
+                        />
+                        <Text style={[
+                          styles.trendBadgeText,
+                          prediction.trend === "rising"  ? { color: "#DC2626" } :
+                          prediction.trend === "falling" ? { color: "#D97706" } :
+                                                           { color: "#059669" },
+                        ]}>
+                          {t(`trend_${prediction.trend}`)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {prediction.alert_type && (
+                    <View style={[
+                      styles.adviceBox,
+                      prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
+                      prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
+                      prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+                    ]}>
+                      <Ionicons
+                        name={prediction.alert_type === "patch_error" ? "warning" : "people"}
+                        size={16}
+                        color={prediction.alert_type === "low" ? "#E07B00" : prediction.alert_type === "high" ? "#D32F2F" : "#6B7280"}
+                      />
+                      <Text style={[
+                        styles.adviceText,
+                        prediction.alert_type === "low"         && { color: "#92400E" },
+                        prediction.alert_type === "high"        && { color: "#991B1B" },
+                        prediction.alert_type === "patch_error" && { color: "#374151" },
+                      ]}>
+                        {prediction.advice?.family || t(`alert_${prediction.alert_type}`)}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.predictionMuted}>{t("predictionUnavailable")}</Text>
+              )}
+            </View>
+          )}
 
           {/* Tab switcher — only show daily logs tab for authenticated family members */}
           {!familyCode && (
@@ -546,4 +639,24 @@ const styles = StyleSheet.create({
   logPrimary: { fontSize: 14, fontWeight: "600", color: "#0B1A2E" },
   logMeta: { fontSize: 13, fontWeight: "400", color: "#7A96B0" },
   logTime: { fontSize: 12, color: "#7A96B0", marginTop: 2 },
+  predictionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  predictionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  predictionTitle: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
+  predictionMuted: { fontSize: 13, color: "#7A96B0", textAlign: "center", paddingVertical: 6 },
+  predictionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  predictionValue: { fontSize: 36, fontWeight: "700", color: "#0B1A2E" },
+  predictionUnit: { fontSize: 13, color: "#7A96B0", fontWeight: "400" },
+  trendBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  trendBadgeText: { fontSize: 12, fontWeight: "600" },
+  adviceBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, padding: 10, borderWidth: 1 },
+  adviceText: { fontSize: 13, flex: 1, lineHeight: 19 },
 });

@@ -185,15 +185,11 @@ class PredictionService:
     # Calculate Trend
     # ==========================================
 
-    def _calculate_trend(self, values: list[float]) -> str:
-        if len(values) < 2:
-            return "stable"
-        recent = values[-5:]
-        changes = [recent[i] - recent[i - 1] for i in range(1, len(recent))]
-        avg = sum(changes) / len(changes)
-        if avg > 2:
+    def _calculate_trend(self, current: float, predicted: float) -> str:
+        diff = predicted - current
+        if diff > 5:
             return "rising"
-        if avg < -2:
+        if diff < -5:
             return "falling"
         return "stable"
 
@@ -225,6 +221,8 @@ class PredictionService:
         except hour_of_day which advances by 1h per step.
         """
         import tensorflow as tf
+        import os as _os
+        _os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # ensures reproducibility on CPU
         tf.random.set_seed(42)
         np.random.seed(42)
 
@@ -433,8 +431,10 @@ Reply in JSON format only:
         current = raw_last if raw_last is not None else values[-1]
 
         predicted   = self._predict_lstm(feature_matrix, hours)
-        trend       = self._calculate_trend(values)
-        patch_error = last_was_outlier or self._detect_patch_error(current, predicted)
+        trend       = self._calculate_trend(current, predicted)
+        # patch_error only when outlier removal actually replaced the last reading
+        # (avoid false positives when LSTM under-predicts after a real glucose rise)
+        patch_error = last_was_outlier
         alert_type  = self._get_alert_type(current, predicted, patch_error)
 
         # ── Latest lifestyle context for Groq prompt ───────────────────────
