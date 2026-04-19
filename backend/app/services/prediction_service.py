@@ -1,40 +1,53 @@
 """
-Glucose Prediction Service
-Multi-variate LSTM trained on the patient's own readings + lifestyle context.
-Features: glucose, hour_of_day, carbs_last_2h, activity_last_2h, sleep_hours.
-Lifestyle/daily-log features fall back to profile baseline or zero when missing.
-Also detects patch malfunctions and generates AI advice via Groq (LLaMA 3.3).
+Glucose Prediction Service — v2 (pre-trained base model + per-patient fine-tuning)
+
+Features per reading: glucose, hour_of_day, carbs_last_2h, activity_last_2h, sleep_hours.
+
+Pre-training:  run scripts/pretrain_lstm.py once → saves models/base_model.keras
+Inference:     load base model → freeze LSTM → fine-tune Dense layers on patient
+               readings → cache per user → predict recursively.
+
+Fixed glucose scaler [40–400 mg/dL] matches the pre-training normalisation.
 """
 
-from sklearn.preprocessing import MinMaxScaler
-from firebase_admin import firestore
-import numpy as np
+import os
 import json
 import urllib.request
 import urllib.error
-import os
+import numpy as np
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+from firebase_admin import firestore
 from app.services.family_service import send_prediction_alert
 
 load_dotenv()
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
 # ==========================================
 # Constants
 # ==========================================
 
-MIN_READINGS = 15
-SEQUENCE_LENGTH = 10
-N_FEATURES = 5                  # glucose, hour, carbs_2h, activity_2h, sleep
-PATCH_ERROR_THRESHOLD = 40      # % deviation from prediction → patch error
-CGM_MAX_CHANGE = 30             # max mg/dL change for CGM readings
-MANUAL_MAX_CHANGE = 80          # max mg/dL change for manual readings
+MIN_READINGS        = 10            # lowered — fine-tuning works with fewer samples
+SEQUENCE_LENGTH     = 5             # (was 10) — more training samples per patient
+N_FEATURES          = 5             # glucose, hour, carbs_2h, activity_2h, sleep
+GLUCOSE_MIN         = 40.0          # fixed scaler lower bound
+GLUCOSE_MAX         = 400.0         # fixed scaler upper bound
+PATCH_ERROR_THRESHOLD = 40          # % deviation → patch error
+CGM_MAX_CHANGE      = 30
+MANUAL_MAX_CHANGE   = 80
+AUGMENT_COPIES      = 3             # data-augmentation factor
+FINETUNE_EPOCHS     = 15
+FINETUNE_LR         = 5e-4
 
-ACTIVITY_LEVEL_MAP = {"low": 0.2, "moderate": 0.5, "high": 0.8}
+ACTIVITY_LEVEL_MAP  = {"low": 0.2, "moderate": 0.5, "high": 0.8}
+GROQ_API_KEY        = os.getenv("GROQ_API_KEY", "")
+GROQ_URL            = "https://api.groq.com/openai/v1/chat/completions"
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+BASE_MODEL_PATH = Path(__file__).parent.parent.parent / "models" / "base_model.keras"
 
 
 # ==========================================
@@ -42,6 +55,10 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # ==========================================
 
 class PredictionService:
+
+    # Shared across all requests for the lifetime of the server process
+    _model_cache: dict = {}   # user_id → {"model": model, "n_readings": int}
+    _base_weights = None      # loaded once from disk
 
     def __init__(self):
         self.db = firestore.client()
@@ -72,10 +89,6 @@ class PredictionService:
     # ==========================================
 
     def _fetch_lifestyle_profile(self, user_id: str) -> dict:
-        """
-        Returns activity_level and sleep_hours_baseline from user profile.
-        Falls back to safe defaults if not set.
-        """
         try:
             doc = self.db.collection("users").document(user_id).get()
             if doc.exists:
@@ -94,10 +107,6 @@ class PredictionService:
     # ==========================================
 
     def _fetch_daily_log_context(self, user_id: str) -> dict:
-        """
-        Fetches all meals, activities, and sleep logs for the user.
-        Used to compute per-reading context features.
-        """
         def _ensure_tz(ts):
             if ts and hasattr(ts, "tzinfo") and ts.tzinfo is None:
                 return ts.replace(tzinfo=timezone.utc)
@@ -133,10 +142,6 @@ class PredictionService:
     def _context_for_reading(
         self, reading: dict, log_ctx: dict, sleep_baseline: float
     ) -> tuple[float, float, float, float]:
-        """
-        Returns (hour_of_day, carbs_2h, activity_min_2h, sleep_hours) for a reading.
-        Falls back to 0 / baseline when daily logs are missing.
-        """
         ts = reading.get("measuredAt")
         if ts is None:
             return 12.0, 0.0, 0.0, sleep_baseline
@@ -155,7 +160,6 @@ class PredictionService:
             if window_start <= a["ts"] <= ts
         )
 
-        # Most recent sleep log before this reading, else use baseline
         past_sleep = [s for s in log_ctx["sleep_logs"] if s["ts"] <= ts]
         sleep_hours = past_sleep[-1]["hours"] if past_sleep else sleep_baseline
 
@@ -170,13 +174,13 @@ class PredictionService:
             return readings
         cleaned = [readings[0]]
         for i in range(1, len(readings)):
-            current = readings[i]
-            prev_value = cleaned[-1]["value"]
-            curr_value = current["value"]
+            current   = readings[i]
+            prev_val  = cleaned[-1]["value"]
+            curr_val  = current["value"]
             max_change = CGM_MAX_CHANGE if current.get("source") == "libreview" else MANUAL_MAX_CHANGE
-            if abs(curr_value - prev_value) > max_change:
+            if abs(curr_val - prev_val) > max_change:
                 fixed = dict(current)
-                fixed["value"] = prev_value
+                fixed["value"] = prev_val
                 cleaned.append(fixed)
             else:
                 cleaned.append(current)
@@ -204,85 +208,119 @@ class PredictionService:
         return abs(actual - predicted) / predicted * 100 > PATCH_ERROR_THRESHOLD
 
     # ==========================================
-    # Multi-variate LSTM Prediction
+    # Normalise / Denormalise (fixed range)
     # ==========================================
 
-    def _predict_lstm(self, feature_matrix: np.ndarray, hours: int = 1) -> float:
-        """
-        Multi-variate LSTM.
-        feature_matrix: shape (n_readings, 5)
-          col 0 — glucose
-          col 1 — hour_of_day
-          col 2 — carbs_last_2h
-          col 3 — activity_min_last_2h
-          col 4 — sleep_hours
+    @staticmethod
+    def _normalise(feature_matrix: np.ndarray) -> np.ndarray:
+        g_norm = (feature_matrix[:, 0] - GLUCOSE_MIN) / (GLUCOSE_MAX - GLUCOSE_MIN)
+        h_norm = feature_matrix[:, 1] / 24.0
+        c_norm = np.clip(feature_matrix[:, 2] / 150.0, 0.0, 1.0)
+        a_norm = np.clip(feature_matrix[:, 3] / 120.0, 0.0, 1.0)
+        s_norm = np.clip(feature_matrix[:, 4] / 12.0,  0.0, 1.0)
+        return np.stack([g_norm, h_norm, c_norm, a_norm, s_norm], axis=1)
 
-        Only glucose is predicted recursively.
-        Other features are held at their last known values for future steps,
-        except hour_of_day which advances by 1h per step.
+    @staticmethod
+    def _denormalise_glucose(val: float) -> float:
+        return float(np.clip(val, 0.0, 1.0)) * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+
+    # ==========================================
+    # Load Base Model (once)
+    # ==========================================
+
+    def _get_base_model(self):
+        """
+        Returns a freshly-built model with base weights loaded (if available).
+        Always returns a new instance so fine-tuning one user never affects another.
         """
         import tensorflow as tf
-        import os as _os
-        _os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # ensures reproducibility on CPU
-        tf.random.set_seed(42)
-        np.random.seed(42)
 
-        n = feature_matrix.shape[0]
-
-        # ── Normalize ──────────────────────────────────────────────────────
-        glucose_scaler = MinMaxScaler(feature_range=(0, 1))
-        glucose_scaled = glucose_scaler.fit_transform(
-            feature_matrix[:, 0:1]
-        ).flatten()
-
-        hour_scaled     = feature_matrix[:, 1] / 24.0
-        carbs_scaled    = np.clip(feature_matrix[:, 2] / 150.0, 0.0, 1.0)
-        activity_scaled = np.clip(feature_matrix[:, 3] / 120.0, 0.0, 1.0)
-        sleep_scaled    = np.clip(feature_matrix[:, 4] / 12.0,  0.0, 1.0)
-
-        scaled = np.stack(
-            [glucose_scaled, hour_scaled, carbs_scaled, activity_scaled, sleep_scaled],
-            axis=1,
-        )  # (n, 5)
-
-        # ── Build sequences ────────────────────────────────────────────────
-        X, y = [], []
-        for i in range(n - SEQUENCE_LENGTH):
-            X.append(scaled[i: i + SEQUENCE_LENGTH])
-            y.append(glucose_scaled[i + SEQUENCE_LENGTH])
-
-        X = np.array(X)   # (samples, SEQ, 5)
-        y = np.array(y)   # (samples,)
-
-        # ── Model ──────────────────────────────────────────────────────────
         model = tf.keras.Sequential([
             tf.keras.layers.LSTM(32, input_shape=(SEQUENCE_LENGTH, N_FEATURES)),
             tf.keras.layers.Dense(16, activation="relu"),
             tf.keras.layers.Dense(1),
-        ])
-        model.compile(optimizer="adam", loss="mse")
-        model.fit(X, y, epochs=30, batch_size=8, verbose=0)
+        ], name="glucose_lstm")
 
-        # ── Recursive prediction ───────────────────────────────────────────
-        seq = list(scaled[-SEQUENCE_LENGTH:])
-        last_hour_raw = feature_matrix[-1, 1]          # actual last hour (0-23)
-        last_context  = scaled[-1, 2:].copy()          # [carbs, activity, sleep]
+        # Load shared base weights (loaded from disk once, then reused)
+        if PredictionService._base_weights is None and BASE_MODEL_PATH.exists():
+            try:
+                tmp = tf.keras.models.load_model(str(BASE_MODEL_PATH))
+                PredictionService._base_weights = tmp.get_weights()
+                print(f"✅ Base model weights loaded from {BASE_MODEL_PATH}")
+            except Exception as e:
+                print(f"⚠️  Could not load base model: {e}")
 
-        predicted_glucose_scaled = None
+        if PredictionService._base_weights is not None:
+            # Build with a dummy input so weights can be set
+            model(np.zeros((1, SEQUENCE_LENGTH, N_FEATURES), dtype=np.float32))
+            model.set_weights(PredictionService._base_weights)
+
+        return model
+
+    # ==========================================
+    # LSTM Prediction (fine-tune + cache)
+    # ==========================================
+
+    def _predict_lstm(
+        self, feature_matrix: np.ndarray, user_id: str, hours: int = 1
+    ) -> float:
+        import tensorflow as tf
+        tf.random.set_seed(42)
+        np.random.seed(42)
+
+        n      = feature_matrix.shape[0]
+        scaled = self._normalise(feature_matrix)   # (n, 5)
+
+        # ── Build training sequences ──────────────────────────────────────
+        X, y = [], []
+        for i in range(n - SEQUENCE_LENGTH):
+            X.append(scaled[i : i + SEQUENCE_LENGTH])
+            y.append(scaled[i + SEQUENCE_LENGTH, 0])   # glucose only
+        X = np.array(X, dtype=np.float32)
+        y = np.array(y, dtype=np.float32)
+
+        # ── Data augmentation (add small Gaussian noise) ──────────────────
+        X_aug, y_aug = [X], [y]
+        for _ in range(AUGMENT_COPIES - 1):
+            noise = np.random.normal(0, 0.01, X.shape).astype(np.float32)
+            X_aug.append(X + noise)
+            y_aug.append(y)
+        X_train = np.concatenate(X_aug)
+        y_train = np.concatenate(y_aug)
+
+        # ── Load or retrieve cached fine-tuned model ──────────────────────
+        cache = PredictionService._model_cache.get(user_id)
+        if cache and cache["n_readings"] == n:
+            model = cache["model"]
+        else:
+            model = self._get_base_model()
+
+            # Freeze the LSTM layer — only adapt the Dense layers per patient
+            model.layers[0].trainable = False
+            model.compile(
+                optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
+                loss="mse",
+            )
+            model.fit(X_train, y_train, epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
+
+            PredictionService._model_cache[user_id] = {"model": model, "n_readings": n}
+
+        # ── Recursive prediction ──────────────────────────────────────────
+        seq           = list(scaled[-SEQUENCE_LENGTH:])
+        last_hour_raw = feature_matrix[-1, 1]
+        last_context  = scaled[-1, 2:].copy()   # [carbs, activity, sleep] normalised
+
+        predicted_norm = 0.0
         for step in range(hours):
             inp = np.array(seq[-SEQUENCE_LENGTH:]).reshape(1, SEQUENCE_LENGTH, N_FEATURES)
-            predicted_glucose_scaled = float(model.predict(inp, verbose=0)[0][0])
+            predicted_norm = float(model.predict(inp, verbose=0)[0][0])
+            predicted_norm = float(np.clip(predicted_norm, 0.0, 1.0))
 
             next_hour = ((last_hour_raw + step + 1) % 24) / 24.0
-            next_row = np.concatenate(
-                [[predicted_glucose_scaled, next_hour], last_context]
-            )
+            next_row  = np.concatenate([[predicted_norm, next_hour], last_context])
             seq.append(next_row)
 
-        predicted_value = float(
-            glucose_scaler.inverse_transform([[predicted_glucose_scaled]])[0][0]
-        )
-        return round(predicted_value, 1)
+        return round(self._denormalise_glucose(predicted_norm), 1)
 
     # ==========================================
     # AI Advice via Groq
@@ -308,7 +346,6 @@ class PredictionService:
             "he": "Respond ONLY in Hebrew.",
         }.get(lang, "Respond ONLY in Arabic.")
 
-        # Build lifestyle context block for the prompt
         ctx_lines = ""
         if lifestyle_ctx:
             carbs   = lifestyle_ctx.get("carbs_2h", 0)
@@ -350,15 +387,15 @@ Reply in JSON format only:
                 GROQ_URL,
                 data=body,
                 headers={
-                    "Content-Type": "application/json",
+                    "Content-Type":  "application/json",
                     "Authorization": f"Bearer {GROQ_API_KEY}",
-                    "User-Agent": "DiaConnectFamily/1.0",
+                    "User-Agent":    "DiaConnectFamily/1.0",
                 },
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode())
-                text = result["choices"][0]["message"]["content"]
-                text = text.strip().strip("```json").strip("```").strip()
+                text   = result["choices"][0]["message"]["content"]
+                text   = text.strip().strip("```json").strip("```").strip()
                 return json.loads(text)
         except urllib.error.HTTPError as e:
             print(f"Groq advice error: {e.code} - {e.read().decode()}")
@@ -392,31 +429,32 @@ Reply in JSON format only:
         1. Fetch glucose readings + lifestyle profile + daily logs
         2. Remove outliers
         3. Build multi-variate feature matrix per reading
-        4. Train multi-variate LSTM and predict
+        4. Fine-tune base LSTM on patient data (cached) and predict
         5. Detect patch error
         6. Determine alert type
-        7. Get Groq AI advice with lifestyle context if alert
+        7. Get Groq AI advice if alert detected
         """
-        raw_readings = self._fetch_readings(user_id)
+        raw_readings     = self._fetch_readings(user_id)
         cleaned_readings = self._remove_outliers(raw_readings)
 
         if len(cleaned_readings) < MIN_READINGS:
             return {
                 "predicted_value": None,
-                "hours": hours,
-                "trend": None,
-                "alert_type": None,
-                "advice": None,
-                "readings_used": len(cleaned_readings),
-                "message": f"بيانات غير كافية — يلزم {MIN_READINGS} قراءة على الأقل، لديك {len(cleaned_readings)} فقط.",
+                "hours":           hours,
+                "trend":           None,
+                "alert_type":      None,
+                "advice":          None,
+                "readings_used":   len(cleaned_readings),
+                "message": (
+                    f"بيانات غير كافية — يلزم {MIN_READINGS} قراءة على الأقل، "
+                    f"لديك {len(cleaned_readings)} فقط."
+                ),
             }
 
-        # ── Fetch context ──────────────────────────────────────────────────
         profile  = self._fetch_lifestyle_profile(user_id)
         log_ctx  = self._fetch_daily_log_context(user_id)
         sleep_bl = profile["sleep_hours_baseline"]
 
-        # ── Build feature matrix ───────────────────────────────────────────
         rows = []
         for r in cleaned_readings:
             hour, carbs, activity, sleep = self._context_for_reading(r, log_ctx, sleep_bl)
@@ -424,21 +462,15 @@ Reply in JSON format only:
 
         feature_matrix = np.array(rows, dtype=np.float32)
 
-        # ── Patch error check ──────────────────────────────────────────────
-        raw_last = raw_readings[-1]["value"] if raw_readings else None
+        raw_last        = raw_readings[-1]["value"] if raw_readings else None
         last_was_outlier = raw_last is not None and raw_last != cleaned_readings[-1]["value"]
+        current          = raw_last if raw_last is not None else feature_matrix[-1, 0]
 
-        values  = feature_matrix[:, 0].tolist()
-        current = raw_last if raw_last is not None else values[-1]
-
-        predicted   = self._predict_lstm(feature_matrix, hours)
+        predicted   = self._predict_lstm(feature_matrix, user_id=user_id, hours=hours)
         trend       = self._calculate_trend(current, predicted)
-        # patch_error only when outlier removal actually replaced the last reading
-        # (avoid false positives when LSTM under-predicts after a real glucose rise)
         patch_error = last_was_outlier
         alert_type  = self._get_alert_type(current, predicted, patch_error)
 
-        # ── Latest lifestyle context for Groq prompt ───────────────────────
         _, last_carbs, last_activity, last_sleep = self._context_for_reading(
             cleaned_readings[-1], log_ctx, sleep_bl
         )
@@ -449,7 +481,6 @@ Reply in JSON format only:
             "activity_level": profile["activity_level"],
         }
 
-        # Send push notification to family members when alert detected
         if alert_type:
             try:
                 send_prediction_alert(
@@ -478,12 +509,12 @@ Reply in JSON format only:
 
         return {
             "predicted_value": predicted,
-            "hours": hours,
-            "trend": trend,
-            "alert_type": alert_type,
-            "advice": advice,
-            "readings_used": len(values),
-            "message": None,
+            "hours":           hours,
+            "trend":           trend,
+            "alert_type":      alert_type,
+            "advice":          advice,
+            "readings_used":   len(rows),
+            "message":         None,
         }
 
 
