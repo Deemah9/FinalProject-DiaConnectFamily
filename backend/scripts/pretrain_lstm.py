@@ -166,7 +166,7 @@ def main():
 
     # ── Model ──────────────────────────────────────────────────────────────
     model = tf.keras.Sequential([
-        tf.keras.layers.LSTM(32, input_shape=(SEQUENCE_LENGTH, N_FEATURES)),
+        tf.keras.layers.LSTM(64, input_shape=(SEQUENCE_LENGTH, N_FEATURES)),
         tf.keras.layers.Dense(16, activation="relu"),
         tf.keras.layers.Dense(1),
     ], name="glucose_lstm")
