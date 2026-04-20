@@ -62,8 +62,8 @@ export default function FamilyPatientGlucoseScreen() {
   const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [selectedLogDate, setSelectedLogDate] = useState<string | null>(null);
+  const [showAllReadings, setShowAllReadings] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -166,7 +166,7 @@ export default function FamilyPatientGlucoseScreen() {
       .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
       .map(([key, items]) => {
         const d = new Date(key);
-        const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
         let label: string;
         if (key === todayStr) label = t("today");
         else if (key === yesterdayStr) label = t("yesterday");
@@ -186,6 +186,10 @@ export default function FamilyPatientGlucoseScreen() {
       setSelectedDateStr(grouped[0].dateStr);
     }
   }, [grouped]);
+
+  useEffect(() => {
+    setShowAllReadings(false);
+  }, [selectedDateStr]);
 
   const chartReadings = useMemo(() => {
     if (!selectedDateStr) return readings;
@@ -217,10 +221,17 @@ export default function FamilyPatientGlucoseScreen() {
     return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
   }, [selectedDateStr, grouped, t]);
 
+  const toLocalDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const shiftDay = (dateStr: string, delta: number) => {
-    const d = new Date(dateStr);
-    d.setDate(d.getDate() + delta);
-    return d.toISOString().split("T")[0];
+    const [y, m, day] = dateStr.split("-").map(Number);
+    const d = new Date(y, m - 1, day + delta);
+    return toLocalDateStr(d);
   };
 
   const hasLogs =
@@ -233,7 +244,7 @@ export default function FamilyPatientGlucoseScreen() {
     [...(dailyLogs?.meals ?? []), ...(dailyLogs?.activities ?? []), ...(dailyLogs?.sleep ?? [])].forEach((item) => {
       const raw = item?.timestamp || item?.createdAt || "";
       const d = new Date(raw);
-      if (!Number.isNaN(d.getTime())) dates.add(d.toISOString().split("T")[0]);
+      if (!Number.isNaN(d.getTime())) dates.add(toLocalDateStr(d));
     });
     return Array.from(dates).sort((a, b) => b.localeCompare(a));
   }, [dailyLogs]);
@@ -246,7 +257,7 @@ export default function FamilyPatientGlucoseScreen() {
     if (!selectedLogDate) return { meals: [], activities: [], sleep: [] };
     const inDay = (ts: any) => {
       const d = new Date(ts || "");
-      return !Number.isNaN(d.getTime()) && d.toISOString().split("T")[0] === selectedLogDate;
+      return !Number.isNaN(d.getTime()) && toLocalDateStr(d) === selectedLogDate;
     };
     return {
       meals:      (dailyLogs?.meals      ?? []).filter((m: any) => inDay(m.timestamp)),
@@ -420,7 +431,7 @@ export default function FamilyPatientGlucoseScreen() {
 
                   {/* Day picker with arrows */}
                   {(() => {
-                    const todayDate = new Date().toISOString().split("T")[0];
+                    const todayDate = toLocalDateStr(new Date());
                     const canPrev = true;
                     const canNext = !!selectedDateStr && selectedDateStr < todayDate;
                     return (
@@ -493,66 +504,85 @@ export default function FamilyPatientGlucoseScreen() {
           {/* ── HISTORY TAB ── */}
           {activeTab === "history" && !familyCode && (
             <View style={styles.card}>
-              {grouped.length === 0 ? (
+              {/* Day navigator */}
+              <View style={styles.logDayNav}>
+                <Pressable
+                  onPress={() => selectedDateStr && setSelectedDateStr(shiftDay(selectedDateStr, -1))}
+                  style={styles.dayNavArrow}
+                >
+                  <Ionicons name="chevron-back" size={20} color="#4A6480" />
+                </Pressable>
+                <View style={styles.dayNavCenter}>
+                  <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
+                  <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+                </View>
+                <Pressable
+                  onPress={() => selectedDateStr && selectedDateStr < toLocalDateStr(new Date()) && setSelectedDateStr(shiftDay(selectedDateStr, 1))}
+                  style={[styles.dayNavArrow, selectedDateStr === toLocalDateStr(new Date()) && { opacity: 0.3 }]}
+                  disabled={selectedDateStr === toLocalDateStr(new Date())}
+                >
+                  <Ionicons name="chevron-forward" size={20} color="#4A6480" />
+                </Pressable>
+              </View>
+
+              {chartReadings.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="document-text-outline" size={30} color="#94A3B8" />
-                  <Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
+                  <Text style={styles.emptyTitle}>{t("noReadingsThisDay")}</Text>
                 </View>
               ) : (
-                grouped.map(({ label, items }) => {
-                  const stats = dayStats(items);
-                  const isExpanded = expandedDays.has(label);
-                  const toggle = () => setExpandedDays(prev => {
-                    const next = new Set(prev);
-                    next.has(label) ? next.delete(label) : next.add(label);
-                    return next;
-                  });
-                  return (
-                    <View key={label} style={styles.accordionItem}>
-                      <Pressable style={styles.accordionHeader} onPress={toggle}>
+                <>
+                  {(() => {
+                    const stats = dayStats(chartReadings);
+                    return stats ? (
+                      <View style={styles.dayStatsRow}>
+                        <View style={styles.dayStatItem}>
+                          <Text style={styles.dayStatLabel}>{t("average")}</Text>
+                          <Text style={styles.dayStatValue}>{stats.avg}</Text>
+                        </View>
+                        <View style={styles.dayStatDivider} />
+                        <View style={styles.dayStatItem}>
+                          <Text style={styles.dayStatLabel}>{t("min")}</Text>
+                          <Text style={[styles.dayStatValue, { color: getStatusColor(stats.min) }]}>{stats.min}</Text>
+                        </View>
+                        <View style={styles.dayStatDivider} />
+                        <View style={styles.dayStatItem}>
+                          <Text style={styles.dayStatLabel}>{t("max")}</Text>
+                          <Text style={[styles.dayStatValue, { color: "#D32F2F" }]}>{stats.max}</Text>
+                        </View>
+                      </View>
+                    ) : null;
+                  })()}
+                  {(showAllReadings ? chartReadings : chartReadings.slice(0, 5)).map((item: any, idx: number) => {
+                    const value = Number(item?.value || 0);
+                    const color = getStatusColor(value);
+                    const bg    = getStatusBg(value);
+                    const raw   = item?.measuredAt || item?.timestamp || item?.createdAt || "";
+                    const statusLabel = value < 70 ? t("low") : value > 180 ? t("high") : t("normal");
+                    return (
+                      <View key={item?.id || idx} style={styles.readingRow}>
+                        <View style={[styles.readingIndicator, { backgroundColor: color }]} />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.accordionLabel}>{label}</Text>
-                          {stats && (
-                            <Text style={styles.accordionSub}>
-                              {t("average")}: {stats.avg} · {t("min")}: {stats.min} · {t("max")}: {stats.max}
-                            </Text>
-                          )}
+                          <Text style={styles.readingValue}>
+                            {value} <Text style={styles.readingUnit}>{t("mgdL")}</Text>
+                          </Text>
+                          <Text style={styles.readingTime}>{formatTime(raw)}</Text>
                         </View>
-                        <View style={styles.dateCountBadge}>
-                          <Text style={styles.dateCountText}>{items.length}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+                          <Text style={[styles.statusText, { color }]}>{statusLabel}</Text>
                         </View>
-                        <Ionicons
-                          name={isExpanded ? "chevron-up" : "chevron-down"}
-                          size={18}
-                          color="#1A6FA8"
-                          style={{ marginLeft: 6 }}
-                        />
-                      </Pressable>
-                      {isExpanded && items.map((item: any, idx: number) => {
-                        const value = Number(item?.value || 0);
-                        const color = getStatusColor(value);
-                        const bg    = getStatusBg(value);
-                        const raw   = item?.measuredAt || item?.timestamp || item?.createdAt || "";
-                        const statusLabel = value < 70 ? t("low") : value > 180 ? t("high") : t("normal");
-                        return (
-                          <View key={item?.id || idx} style={styles.readingRow}>
-                            <View style={[styles.readingIndicator, { backgroundColor: color }]} />
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.readingValue}>
-                                {value}{" "}
-                                <Text style={styles.readingUnit}>{t("mgdL")}</Text>
-                              </Text>
-                              <Text style={styles.readingTime}>{formatTime(raw)}</Text>
-                            </View>
-                            <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-                              <Text style={[styles.statusText, { color }]}>{statusLabel}</Text>
-                            </View>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  );
-                })
+                      </View>
+                    );
+                  })}
+                  {chartReadings.length > 5 && (
+                    <Pressable style={styles.readMoreBtn} onPress={() => setShowAllReadings(prev => !prev)}>
+                      <Text style={styles.readMoreText}>
+                        {showAllReadings ? t("showLess") : `${t("showMore")} (${chartReadings.length - 5})`}
+                      </Text>
+                      <Ionicons name={showAllReadings ? "chevron-up" : "chevron-down"} size={14} color="#1A6FA8" />
+                    </Pressable>
+                  )}
+                </>
               )}
             </View>
           )}
@@ -584,12 +614,12 @@ export default function FamilyPatientGlucoseScreen() {
                       </View>
                       <Pressable
                         onPress={() => {
-                          const todayDate = new Date().toISOString().split("T")[0];
+                          const todayDate = toLocalDateStr(new Date());
                           if (selectedLogDate && selectedLogDate < todayDate)
                             setSelectedLogDate(shiftDay(selectedLogDate, 1));
                         }}
-                        style={[styles.dayNavArrow, selectedLogDate === new Date().toISOString().split("T")[0] && { opacity: 0.3 }]}
-                        disabled={selectedLogDate === new Date().toISOString().split("T")[0]}
+                        style={[styles.dayNavArrow, selectedLogDate === toLocalDateStr(new Date()) && { opacity: 0.3 }]}
+                        disabled={selectedLogDate === toLocalDateStr(new Date())}
                       >
                         <Ionicons name="chevron-forward" size={20} color="#4A6480" />
                       </Pressable>
@@ -1037,6 +1067,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   logSectionTitle: { fontSize: 13, fontWeight: "700", color: "#0B1A2E", flex: 1 },
+  readMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 10,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#EBF3FA",
+  },
+  readMoreText: { fontSize: 13, fontWeight: "600", color: "#1A6FA8" },
   menuBtn: { padding: 8 },
   menuBackdrop: {
     flex: 1,

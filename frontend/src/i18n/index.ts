@@ -250,6 +250,8 @@ const resources = {
       loadingReadings: "Loading glucose readings...",
       noReadingsYet: "No readings yet",
       noReadingsThisDay: "No readings recorded for this day",
+      showMore: "Show more",
+      showLess: "Show less",
       trend: "Glucose Trend",
       addFirstReading: "Add your first glucose reading",
 
@@ -590,6 +592,8 @@ const resources = {
       loadingReadings: "جاري تحميل قراءات السكر...",
       noReadingsYet: "لا توجد قراءات بعد",
       noReadingsThisDay: "لا توجد قراءات مسجلة لهذا اليوم",
+      showMore: "عرض المزيد",
+      showLess: "عرض أقل",
       trend: "مؤشر الجلوكوز",
       addFirstReading: "أضف قراءة السكر الأولى",
 
@@ -930,6 +934,8 @@ const resources = {
       loadingReadings: "טוען קריאות גלוקוז...",
       noReadingsYet: "אין קריאות עדיין",
       noReadingsThisDay: "אין קריאות מוקלטות ליום זה",
+      showMore: "הצג עוד",
+      showLess: "הצג פחות",
       trend: "מגמת גלוקוז",
       addFirstReading: "הוסף את קריאת הגלוקוז הראשונה שלך",
 
