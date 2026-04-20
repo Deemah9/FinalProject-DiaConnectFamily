@@ -249,6 +249,7 @@ const resources = {
       readingHistory: "Reading History",
       loadingReadings: "Loading glucose readings...",
       noReadingsYet: "No readings yet",
+      noReadingsThisDay: "No readings recorded for this day",
       trend: "Glucose Trend",
       addFirstReading: "Add your first glucose reading",
 
@@ -329,7 +330,6 @@ const resources = {
       deleteReading: "Delete Reading",
       deleteReadingConfirm: "Are you sure you want to delete this reading?",
       delete: "Delete",
-      cancel: "Cancel",
       back: "Back",
 
       // Errors
@@ -589,6 +589,7 @@ const resources = {
       readingHistory: "سجل القراءات",
       loadingReadings: "جاري تحميل قراءات السكر...",
       noReadingsYet: "لا توجد قراءات بعد",
+      noReadingsThisDay: "لا توجد قراءات مسجلة لهذا اليوم",
       trend: "مؤشر الجلوكوز",
       addFirstReading: "أضف قراءة السكر الأولى",
 
@@ -669,7 +670,6 @@ const resources = {
       deleteReading: "حذف القراءة",
       deleteReadingConfirm: "هل أنت متأكد من حذف هذه القراءة؟",
       delete: "حذف",
-      cancel: "إلغاء",
       back: "رجوع",
 
       // Errors
@@ -929,6 +929,7 @@ const resources = {
       readingHistory: "היסטוריית קריאות",
       loadingReadings: "טוען קריאות גלוקוז...",
       noReadingsYet: "אין קריאות עדיין",
+      noReadingsThisDay: "אין קריאות מוקלטות ליום זה",
       trend: "מגמת גלוקוז",
       addFirstReading: "הוסף את קריאת הגלוקוז הראשונה שלך",
 
@@ -1009,7 +1010,6 @@ const resources = {
       deleteReading: "מחק קריאה",
       deleteReadingConfirm: "האם אתה בטוח שברצונך למחוק קריאה זו?",
       delete: "מחק",
-      cancel: "ביטול",
       back: "חזרה",
 
       // Errors

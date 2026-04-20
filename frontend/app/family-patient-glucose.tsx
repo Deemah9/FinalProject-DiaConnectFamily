@@ -1,16 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
@@ -48,7 +50,8 @@ export default function FamilyPatientGlucoseScreen() {
     familyCode?: string;
   }>();
 
-  const [activeTab, setActiveTab] = useState<"glucose" | "logs" | "alerts">("glucose");
+  const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "alerts">("glucose");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [readings, setReadings] = useState<any[]>([]);
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +60,10 @@ export default function FamilyPatientGlucoseScreen() {
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
+  const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [selectedLogDate, setSelectedLogDate] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -158,25 +165,105 @@ export default function FamilyPatientGlucoseScreen() {
     return Array.from(map.entries())
       .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
       .map(([key, items]) => {
+        const d = new Date(key);
+        const dateStr = d.toISOString().split("T")[0]; // YYYY-MM-DD
         let label: string;
         if (key === todayStr) label = t("today");
         else if (key === yesterdayStr) label = t("yesterday");
         else {
-          const d = new Date(key);
           label = d.toLocaleDateString(undefined, {
             weekday: "long",
             month: "short",
             day: "numeric",
           });
         }
-        return { label, items };
+        return { label, dateStr, items };
       });
   }, [readings, t]);
+
+  useEffect(() => {
+    if (grouped.length > 0 && !selectedDateStr) {
+      setSelectedDateStr(grouped[0].dateStr);
+    }
+  }, [grouped]);
+
+  const chartReadings = useMemo(() => {
+    if (!selectedDateStr) return readings;
+    return grouped.find((g) => g.dateStr === selectedDateStr)?.items ?? [];
+  }, [selectedDateStr, grouped, readings]);
+
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
+    grouped.forEach(({ dateStr }) => {
+      marks[dateStr] = {
+        marked: true,
+        dotColor: "#1A6FA8",
+        selected: dateStr === selectedDateStr,
+        selectedColor: "#1A6FA8",
+      };
+    });
+    return marks;
+  }, [grouped, selectedDateStr]);
+
+  const selectedLabel = useMemo(() => {
+    if (!selectedDateStr) return "";
+    const match = grouped.find((g) => g.dateStr === selectedDateStr);
+    if (match) return match.label;
+    const todayStr = new Date().toDateString();
+    const yesterdayStr = new Date(Date.now() - 86_400_000).toDateString();
+    const d = new Date(selectedDateStr);
+    if (d.toDateString() === todayStr) return t("today");
+    if (d.toDateString() === yesterdayStr) return t("yesterday");
+    return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  }, [selectedDateStr, grouped, t]);
+
+  const shiftDay = (dateStr: string, delta: number) => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + delta);
+    return d.toISOString().split("T")[0];
+  };
 
   const hasLogs =
     (dailyLogs?.meals?.length ?? 0) +
     (dailyLogs?.activities?.length ?? 0) +
     (dailyLogs?.sleep?.length ?? 0) > 0;
+
+  const logDays = useMemo(() => {
+    const dates = new Set<string>();
+    [...(dailyLogs?.meals ?? []), ...(dailyLogs?.activities ?? []), ...(dailyLogs?.sleep ?? [])].forEach((item) => {
+      const raw = item?.timestamp || item?.createdAt || "";
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) dates.add(d.toISOString().split("T")[0]);
+    });
+    return Array.from(dates).sort((a, b) => b.localeCompare(a));
+  }, [dailyLogs]);
+
+  useEffect(() => {
+    if (logDays.length > 0 && !selectedLogDate) setSelectedLogDate(logDays[0]);
+  }, [logDays]);
+
+  const logsForDay = useMemo(() => {
+    if (!selectedLogDate) return { meals: [], activities: [], sleep: [] };
+    const inDay = (ts: any) => {
+      const d = new Date(ts || "");
+      return !Number.isNaN(d.getTime()) && d.toISOString().split("T")[0] === selectedLogDate;
+    };
+    return {
+      meals:      (dailyLogs?.meals      ?? []).filter((m: any) => inDay(m.timestamp)),
+      activities: (dailyLogs?.activities ?? []).filter((a: any) => inDay(a.timestamp)),
+      sleep:      (dailyLogs?.sleep      ?? []).filter((s: any) => inDay(s.timestamp)),
+    };
+  }, [selectedLogDate, dailyLogs]);
+
+  const logDayLabel = useMemo(() => {
+    if (!selectedLogDate) return "";
+    const todayStr = new Date().toDateString();
+    const yesterdayStr = new Date(Date.now() - 86_400_000).toDateString();
+    const d = new Date(selectedLogDate);
+    if (d.toDateString() === todayStr) return t("today");
+    if (d.toDateString() === yesterdayStr) return t("yesterday");
+    return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  }, [selectedLogDate, t]);
 
   const formatLogTime = (raw: string) => {
     if (!raw) return "--";
@@ -187,7 +274,41 @@ export default function FamilyPatientGlucoseScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
+      <AppHeader
+        right={!familyCode ? (
+          <Pressable style={styles.menuBtn} onPress={() => setMenuOpen(true)}>
+            <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+          </Pressable>
+        ) : null}
+      />
+
+      {/* Dropdown Menu */}
+      {menuOpen && (
+        <Modal visible={menuOpen} transparent animationType="fade">
+          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+            <View style={styles.menuDropdown}>
+              {([
+                { key: "glucose",  icon: "pulse-outline",         label: "glucoseTab" },
+                { key: "history",  icon: "time-outline",          label: "readingHistory" },
+                { key: "logs",     icon: "receipt-outline",       label: "dailyLogsTab" },
+                { key: "alerts",   icon: "notifications-outline", label: "glucoseAlerts" },
+              ] as const).map(({ key, icon, label }, idx, arr) => (
+                <Pressable
+                  key={key}
+                  style={[styles.menuItem, activeTab === key && styles.menuItemActive, idx < arr.length - 1 && styles.menuItemBorder]}
+                  onPress={() => { setActiveTab(key); setMenuOpen(false); }}
+                >
+                  <Ionicons name={icon} size={18} color={activeTab === key ? "#1A6FA8" : "#4A6480"} />
+                  <Text style={[styles.menuItemText, activeTab === key && styles.menuItemTextActive]}>
+                    {t(label)}
+                  </Text>
+                  {activeTab === key && <Ionicons name="checkmark" size={16} color="#1A6FA8" />}
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+      )}
 
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#1A6FA8" />
@@ -254,25 +375,27 @@ export default function FamilyPatientGlucoseScreen() {
                     ) : null}
                   </View>
 
-                  {prediction.alert_type && (
+                  {(prediction.alert_type || prediction.advice?.family) && (
                     <View style={[
                       styles.adviceBox,
                       prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
                       prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
                       prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+                      !prediction.alert_type                  && { backgroundColor: "#EBF3FA", borderColor: "#B8D0E8" },
                     ]}>
                       <Ionicons
-                        name={prediction.alert_type === "patch_error" ? "warning" : "people"}
+                        name={prediction.alert_type === "patch_error" ? "warning" : prediction.alert_type ? "people" : "information-circle"}
                         size={16}
-                        color={prediction.alert_type === "low" ? "#E07B00" : prediction.alert_type === "high" ? "#D32F2F" : "#6B7280"}
+                        color={prediction.alert_type === "low" ? "#E07B00" : prediction.alert_type === "high" ? "#D32F2F" : "#1A6FA8"}
                       />
                       <Text style={[
                         styles.adviceText,
                         prediction.alert_type === "low"         && { color: "#92400E" },
                         prediction.alert_type === "high"        && { color: "#991B1B" },
                         prediction.alert_type === "patch_error" && { color: "#374151" },
+                        !prediction.alert_type                  && { color: "#1A4A6B" },
                       ]}>
-                        {prediction.advice?.family || t(`alert_${prediction.alert_type}`)}
+                        {prediction.advice?.family || (prediction.alert_type ? t(`alert_${prediction.alert_type}`) : "")}
                       </Text>
                     </View>
                   )}
@@ -283,50 +406,6 @@ export default function FamilyPatientGlucoseScreen() {
             </View>
           )}
 
-          {/* Tab switcher — only show daily logs tab for authenticated family members */}
-          {!familyCode && (
-            <View style={styles.tabRow}>
-              <Pressable
-                style={[styles.tabBtn, activeTab === "glucose" && styles.tabBtnActive]}
-                onPress={() => setActiveTab("glucose")}
-              >
-                <Ionicons
-                  name="pulse-outline"
-                  size={14}
-                  color={activeTab === "glucose" ? "#1A6FA8" : "#7A96B0"}
-                />
-                <Text style={[styles.tabText, activeTab === "glucose" && styles.tabTextActive]}>
-                  {t("glucoseTab")}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.tabBtn, activeTab === "logs" && styles.tabBtnActive]}
-                onPress={() => setActiveTab("logs")}
-              >
-                <Ionicons
-                  name="receipt-outline"
-                  size={14}
-                  color={activeTab === "logs" ? "#1A6FA8" : "#7A96B0"}
-                />
-                <Text style={[styles.tabText, activeTab === "logs" && styles.tabTextActive]}>
-                  {t("dailyLogsTab")}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.tabBtn, activeTab === "alerts" && styles.tabBtnActive]}
-                onPress={() => setActiveTab("alerts")}
-              >
-                <Ionicons
-                  name="notifications-outline"
-                  size={14}
-                  color={activeTab === "alerts" ? "#1A6FA8" : "#7A96B0"}
-                />
-                <Text style={[styles.tabText, activeTab === "alerts" && styles.tabTextActive]}>
-                  {t("glucoseAlerts")}
-                </Text>
-              </Pressable>
-            </View>
-          )}
 
           {/* ── GLUCOSE TAB ── */}
           {(activeTab === "glucose" || !!familyCode) && (
@@ -338,83 +417,144 @@ export default function FamilyPatientGlucoseScreen() {
                     <Ionicons name="stats-chart-outline" size={18} color="#1A6FA8" />
                     <Text style={styles.cardTitle}>{t("glucoseTrend")}</Text>
                   </View>
-                  <GlucoseTrendChart readings={readings} width={SCREEN_WIDTH - 80} />
+
+                  {/* Day picker with arrows */}
+                  {(() => {
+                    const todayDate = new Date().toISOString().split("T")[0];
+                    const canPrev = true;
+                    const canNext = !!selectedDateStr && selectedDateStr < todayDate;
+                    return (
+                      <View style={styles.dayNav}>
+                        <Pressable
+                          onPress={() => selectedDateStr && setSelectedDateStr(shiftDay(selectedDateStr, -1))}
+                          style={[styles.dayNavArrow, !canPrev && { opacity: 0.3 }]}
+                          disabled={!canPrev}
+                        >
+                          <Ionicons name="chevron-back" size={20} color="#4A6480" />
+                        </Pressable>
+                        <View style={styles.dayNavCenter}>
+                          <Pressable onPress={() => setShowCalendar(true)}>
+                            <Ionicons name="calendar-outline" size={18} color="#1A6FA8" />
+                          </Pressable>
+                          <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+                        </View>
+                        <Pressable
+                          onPress={() => selectedDateStr && setSelectedDateStr(shiftDay(selectedDateStr, 1))}
+                          style={[styles.dayNavArrow, !canNext && { opacity: 0.3 }]}
+                          disabled={!canNext}
+                        >
+                          <Ionicons name="chevron-forward" size={20} color="#4A6480" />
+                        </Pressable>
+                      </View>
+                    );
+                  })()}
+
+                  {/* Calendar Modal */}
+                  <Modal visible={showCalendar} transparent animationType="fade">
+                    <Pressable style={styles.calModalBackdrop} onPress={() => setShowCalendar(false)}>
+                      <Pressable style={styles.calModalBox} onPress={(e) => e.stopPropagation()}>
+                        <Calendar
+                          markedDates={markedDates}
+                          onDayPress={(day: any) => {
+                            const match = grouped.find((g) => g.dateStr === day.dateString);
+                            if (match) {
+                              setSelectedDateStr(day.dateString);
+                              setShowCalendar(false);
+                            }
+                          }}
+                          theme={{
+                            selectedDayBackgroundColor: "#1A6FA8",
+                            todayTextColor: "#1A6FA8",
+                            arrowColor: "#1A6FA8",
+                            dotColor: "#1A6FA8",
+                          }}
+                        />
+                        <Pressable style={styles.calCloseBtn} onPress={() => setShowCalendar(false)}>
+                          <Text style={styles.calCloseTxt}>{t("close")}</Text>
+                        </Pressable>
+                      </Pressable>
+                    </Pressable>
+                  </Modal>
+
+                  {chartReadings.length >= 2 ? (
+                    <GlucoseTrendChart readings={chartReadings} width={SCREEN_WIDTH - 80} />
+                  ) : (
+                    <View style={styles.emptyChart}>
+                      <Ionicons name="analytics-outline" size={36} color="#B8D0E8" />
+                      <Text style={styles.emptyChartText}>{t("noReadingsThisDay")}</Text>
+                    </View>
+                  )}
                 </View>
               )}
 
-              {/* History grouped by date */}
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Ionicons name="time-outline" size={18} color="#1A6FA8" />
-                  <Text style={styles.cardTitle}>{t("readingHistory")}</Text>
-                </View>
-
-                {grouped.length === 0 ? (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="document-text-outline" size={30} color="#94A3B8" />
-                    <Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
-                  </View>
-                ) : (
-                  grouped.map(({ label, items }) => {
-                    const stats = dayStats(items);
-                    return (
-                      <View key={label} style={styles.dateGroup}>
-                        <View style={styles.dateLabelRow}>
-                          <View style={styles.dateLabelLine} />
-                          <Text style={styles.dateLabelText}>{label}</Text>
-                          <View style={styles.dateLabelLine} />
-                          <View style={styles.dateCountBadge}>
-                            <Text style={styles.dateCountText}>{items.length}</Text>
-                          </View>
-                        </View>
-
-                        {stats && (
-                          <View style={styles.dayStatsRow}>
-                            <View style={styles.dayStatItem}>
-                              <Text style={styles.dayStatLabel}>{t("average")}</Text>
-                              <Text style={styles.dayStatValue}>{stats.avg}</Text>
-                            </View>
-                            <View style={styles.dayStatDivider} />
-                            <View style={styles.dayStatItem}>
-                              <Text style={styles.dayStatLabel}>{t("min")}</Text>
-                              <Text style={[styles.dayStatValue, { color: getStatusColor(stats.min) }]}>{stats.min}</Text>
-                            </View>
-                            <View style={styles.dayStatDivider} />
-                            <View style={styles.dayStatItem}>
-                              <Text style={styles.dayStatLabel}>{t("max")}</Text>
-                              <Text style={[styles.dayStatValue, { color: "#D32F2F" }]}>{stats.max}</Text>
-                            </View>
-                          </View>
-                        )}
-
-                        {items.map((item: any, idx: number) => {
-                          const value = Number(item?.value || 0);
-                          const color = getStatusColor(value);
-                          const bg    = getStatusBg(value);
-                          const raw   = item?.measuredAt || item?.timestamp || item?.createdAt || "";
-                          const statusLabel = value < 70 ? t("low") : value > 180 ? t("high") : t("normal");
-                          return (
-                            <View key={item?.id || idx} style={styles.readingRow}>
-                              <View style={[styles.readingIndicator, { backgroundColor: color }]} />
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.readingValue}>
-                                  {value}{" "}
-                                  <Text style={styles.readingUnit}>{t("mgdL")}</Text>
-                                </Text>
-                                <Text style={styles.readingTime}>{formatTime(raw)}</Text>
-                              </View>
-                              <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-                                <Text style={[styles.statusText, { color }]}>{statusLabel}</Text>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    );
-                  })
-                )}
-              </View>
             </>
+          )}
+
+          {/* ── HISTORY TAB ── */}
+          {activeTab === "history" && !familyCode && (
+            <View style={styles.card}>
+              {grouped.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="document-text-outline" size={30} color="#94A3B8" />
+                  <Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
+                </View>
+              ) : (
+                grouped.map(({ label, items }) => {
+                  const stats = dayStats(items);
+                  const isExpanded = expandedDays.has(label);
+                  const toggle = () => setExpandedDays(prev => {
+                    const next = new Set(prev);
+                    next.has(label) ? next.delete(label) : next.add(label);
+                    return next;
+                  });
+                  return (
+                    <View key={label} style={styles.accordionItem}>
+                      <Pressable style={styles.accordionHeader} onPress={toggle}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.accordionLabel}>{label}</Text>
+                          {stats && (
+                            <Text style={styles.accordionSub}>
+                              {t("average")}: {stats.avg} · {t("min")}: {stats.min} · {t("max")}: {stats.max}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.dateCountBadge}>
+                          <Text style={styles.dateCountText}>{items.length}</Text>
+                        </View>
+                        <Ionicons
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color="#1A6FA8"
+                          style={{ marginLeft: 6 }}
+                        />
+                      </Pressable>
+                      {isExpanded && items.map((item: any, idx: number) => {
+                        const value = Number(item?.value || 0);
+                        const color = getStatusColor(value);
+                        const bg    = getStatusBg(value);
+                        const raw   = item?.measuredAt || item?.timestamp || item?.createdAt || "";
+                        const statusLabel = value < 70 ? t("low") : value > 180 ? t("high") : t("normal");
+                        return (
+                          <View key={item?.id || idx} style={styles.readingRow}>
+                            <View style={[styles.readingIndicator, { backgroundColor: color }]} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.readingValue}>
+                                {value}{" "}
+                                <Text style={styles.readingUnit}>{t("mgdL")}</Text>
+                              </Text>
+                              <Text style={styles.readingTime}>{formatTime(raw)}</Text>
+                            </View>
+                            <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+                              <Text style={[styles.statusText, { color }]}>{statusLabel}</Text>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  );
+                })
+              )}
+            </View>
           )}
 
           {/* ── DAILY LOGS TAB ── */}
@@ -429,88 +569,110 @@ export default function FamilyPatientGlucoseScreen() {
                 </View>
               ) : (
                 <>
-                  {/* Meals */}
-                  {(dailyLogs?.meals?.length ?? 0) > 0 && (
-                    <View style={styles.card}>
-                      <View style={styles.cardHeader}>
-                        <Ionicons name="restaurant-outline" size={18} color="#F59E0B" />
-                        <Text style={styles.cardTitle}>{t("meals")}</Text>
-                        <View style={styles.countPill}>
-                          <Text style={styles.countPillText}>{dailyLogs!.meals.length}</Text>
-                        </View>
+                  <View style={styles.card}>
+                    {/* Day navigator inside card */}
+                    <View style={styles.logDayNav}>
+                      <Pressable
+                        onPress={() => selectedLogDate && setSelectedLogDate(shiftDay(selectedLogDate, -1))}
+                        style={styles.dayNavArrow}
+                      >
+                        <Ionicons name="chevron-back" size={20} color="#4A6480" />
+                      </Pressable>
+                      <View style={styles.dayNavCenter}>
+                        <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
+                        <Text style={styles.dayNavLabel}>{logDayLabel}</Text>
                       </View>
-                      {dailyLogs!.meals.map((m: any, i: number) => (
-                        <View key={m.id || i} style={styles.logRow}>
-                          <View style={[styles.logDot, { backgroundColor: "#F59E0B" }]} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.logPrimary}>
-                              {m.foods || t("meal")}
-                              {m.carbs != null && (
-                                <Text style={styles.logMeta}>{"  "}{m.carbs}{t("carbsUnit")} {t("carbs")}</Text>
-                              )}
-                            </Text>
-                            <Text style={styles.logTime}>{formatLogTime(m.timestamp)}</Text>
-                          </View>
-                        </View>
-                      ))}
+                      <Pressable
+                        onPress={() => {
+                          const todayDate = new Date().toISOString().split("T")[0];
+                          if (selectedLogDate && selectedLogDate < todayDate)
+                            setSelectedLogDate(shiftDay(selectedLogDate, 1));
+                        }}
+                        style={[styles.dayNavArrow, selectedLogDate === new Date().toISOString().split("T")[0] && { opacity: 0.3 }]}
+                        disabled={selectedLogDate === new Date().toISOString().split("T")[0]}
+                      >
+                        <Ionicons name="chevron-forward" size={20} color="#4A6480" />
+                      </Pressable>
                     </View>
-                  )}
 
-                  {/* Activities */}
-                  {(dailyLogs?.activities?.length ?? 0) > 0 && (
-                    <View style={styles.card}>
-                      <View style={styles.cardHeader}>
-                        <Ionicons name="walk-outline" size={18} color="#10B981" />
-                        <Text style={styles.cardTitle}>{t("activity")}</Text>
-                        <View style={[styles.countPill, { backgroundColor: "#ECFDF5" }]}>
-                          <Text style={[styles.countPillText, { color: "#10B981" }]}>{dailyLogs!.activities.length}</Text>
-                        </View>
+                    {logsForDay.meals.length === 0 && logsForDay.activities.length === 0 && logsForDay.sleep.length === 0 ? (
+                      <View style={styles.emptyState}>
+                        <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
+                        <Text style={styles.emptyTitle}>{t("noLogsThisWeek")}</Text>
                       </View>
-                      {dailyLogs!.activities.map((a: any, i: number) => (
-                        <View key={a.id || i} style={styles.logRow}>
-                          <View style={[styles.logDot, { backgroundColor: "#10B981" }]} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.logPrimary}>
-                              {a.type || t("activity")}
-                              {a.duration_minutes != null && (
-                                <Text style={styles.logMeta}>
-                                  {"  "}{t("minutesDuration", { min: a.duration_minutes })}
-                                </Text>
-                              )}
-                            </Text>
-                            <Text style={styles.logTime}>{formatLogTime(a.timestamp)}</Text>
+                    ) : (
+                      <>
+                        {/* Meals */}
+                        {logsForDay.meals.length > 0 && (
+                          <View style={styles.logSection}>
+                            <View style={styles.logSectionHeader}>
+                              <Ionicons name="restaurant-outline" size={15} color="#F59E0B" />
+                              <Text style={styles.logSectionTitle}>{t("meals")}</Text>
+                              <View style={styles.countPill}><Text style={styles.countPillText}>{logsForDay.meals.length}</Text></View>
+                            </View>
+                            {logsForDay.meals.map((m: any, i: number) => (
+                              <View key={m.id || i} style={styles.logRow}>
+                                <View style={[styles.logDot, { backgroundColor: "#F59E0B" }]} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.logPrimary}>
+                                    {m.foods || t("meal")}
+                                    {m.carbs != null && <Text style={styles.logMeta}>{"  "}{m.carbs}{t("carbsUnit")} {t("carbs")}</Text>}
+                                  </Text>
+                                  <Text style={styles.logTime}>{formatLogTime(m.timestamp)}</Text>
+                                </View>
+                              </View>
+                            ))}
                           </View>
-                        </View>
-                      ))}
-                    </View>
-                  )}
+                        )}
 
-                  {/* Sleep */}
-                  {(dailyLogs?.sleep?.length ?? 0) > 0 && (
-                    <View style={styles.card}>
-                      <View style={styles.cardHeader}>
-                        <Ionicons name="moon-outline" size={18} color="#8B5CF6" />
-                        <Text style={styles.cardTitle}>{t("sleep")}</Text>
-                        <View style={[styles.countPill, { backgroundColor: "#F5F3FF" }]}>
-                          <Text style={[styles.countPillText, { color: "#8B5CF6" }]}>{dailyLogs!.sleep.length}</Text>
-                        </View>
-                      </View>
-                      {dailyLogs!.sleep.map((s: any, i: number) => (
-                        <View key={s.id || i} style={styles.logRow}>
-                          <View style={[styles.logDot, { backgroundColor: "#8B5CF6" }]} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.logPrimary}>
-                              {t("hoursSlept", { hours: s.sleep_hours })}
-                              {s.notes && (
-                                <Text style={styles.logMeta}>{"  "}{s.notes}</Text>
-                              )}
-                            </Text>
-                            <Text style={styles.logTime}>{formatLogTime(s.timestamp)}</Text>
+                        {/* Activities */}
+                        {logsForDay.activities.length > 0 && (
+                          <View style={styles.logSection}>
+                            <View style={styles.logSectionHeader}>
+                              <Ionicons name="walk-outline" size={15} color="#10B981" />
+                              <Text style={styles.logSectionTitle}>{t("activity")}</Text>
+                              <View style={[styles.countPill, { backgroundColor: "#ECFDF5" }]}><Text style={[styles.countPillText, { color: "#10B981" }]}>{logsForDay.activities.length}</Text></View>
+                            </View>
+                            {logsForDay.activities.map((a: any, i: number) => (
+                              <View key={a.id || i} style={styles.logRow}>
+                                <View style={[styles.logDot, { backgroundColor: "#10B981" }]} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.logPrimary}>
+                                    {a.type || t("activity")}
+                                    {a.duration_minutes != null && <Text style={styles.logMeta}>{"  "}{t("minutesDuration", { min: a.duration_minutes })}</Text>}
+                                  </Text>
+                                  <Text style={styles.logTime}>{formatLogTime(a.timestamp)}</Text>
+                                </View>
+                              </View>
+                            ))}
                           </View>
-                        </View>
-                      ))}
-                    </View>
-                  )}
+                        )}
+
+                        {/* Sleep */}
+                        {logsForDay.sleep.length > 0 && (
+                          <View style={styles.logSection}>
+                            <View style={styles.logSectionHeader}>
+                              <Ionicons name="moon-outline" size={15} color="#8B5CF6" />
+                              <Text style={styles.logSectionTitle}>{t("sleep")}</Text>
+                              <View style={[styles.countPill, { backgroundColor: "#F5F3FF" }]}><Text style={[styles.countPillText, { color: "#8B5CF6" }]}>{logsForDay.sleep.length}</Text></View>
+                            </View>
+                            {logsForDay.sleep.map((s: any, i: number) => (
+                              <View key={s.id || i} style={styles.logRow}>
+                                <View style={[styles.logDot, { backgroundColor: "#8B5CF6" }]} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.logPrimary}>
+                                    {t("hoursSlept", { hours: s.sleep_hours })}
+                                    {s.notes && <Text style={styles.logMeta}>{"  "}{s.notes}</Text>}
+                                  </Text>
+                                  <Text style={styles.logTime}>{formatLogTime(s.timestamp)}</Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </>
+                    )}
+                  </View>
                 </>
               )}
             </>
@@ -747,4 +909,162 @@ const styles = StyleSheet.create({
   alertValue: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginTop: 2 },
   alertUnit: { fontSize: 12, fontWeight: "400", color: "#7A96B0" },
   alertTime: { fontSize: 11, color: "#7A96B0", textAlign: "right" },
+
+  dayBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#EBF3FA",
+    borderWidth: 1,
+    borderColor: "#D6E8F5",
+  },
+  dayBtnActive: {
+    backgroundColor: "#1A6FA8",
+    borderColor: "#1A6FA8",
+  },
+  dayBtnText: { fontSize: 12, fontWeight: "600", color: "#4A6480" },
+  dayBtnTextActive: { color: "#FFFFFF" },
+
+  dayNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    backgroundColor: "#EBF3FA",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  dayNavArrow: { padding: 8, borderRadius: 20 },
+  dayNavCenter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  dayNavLabel: { fontSize: 14, fontWeight: "600", color: "#0B1A2E" },
+  calModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  calModalBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    width: SCREEN_WIDTH - 48,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  calCloseBtn: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 10,
+    backgroundColor: "#EBF3FA",
+    borderRadius: 10,
+  },
+  calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
+  emptyChart: { alignItems: "center", justifyContent: "center", paddingVertical: 32, gap: 8 },
+  emptyChartText: { fontSize: 13, color: "#7A96B0", fontWeight: "500" },
+
+  accordionItem: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#D6E8F5",
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  accordionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#F4F9FD",
+    gap: 8,
+  },
+  accordionLabel: { fontSize: 13, fontWeight: "700", color: "#0B1A2E" },
+  accordionSub: { fontSize: 11, color: "#7A96B0", marginTop: 2 },
+
+  headerTabs: {
+    flexDirection: "row",
+    backgroundColor: "#1A6FA8",
+    paddingHorizontal: 12,
+    paddingBottom: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.15)",
+  },
+  headerTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  headerTabActive: {
+    borderBottomColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  headerTabText: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.7)" },
+  headerTabTextActive: { color: "#FFFFFF" },
+
+  logDayNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#EBF3FA",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 16,
+  },
+  logSection: {
+    marginBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#EBF3FA",
+    paddingTop: 12,
+  },
+  logSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  logSectionTitle: { fontSize: 13, fontWeight: "700", color: "#0B1A2E", flex: 1 },
+  menuBtn: { padding: 8 },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 100,
+    paddingRight: 12,
+  },
+  menuDropdown: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    width: 220,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 8,
+    overflow: "hidden",
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  menuItemActive: { backgroundColor: "#EBF3FA" },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
+  menuItemText: { flex: 1, fontSize: 14, fontWeight: "500", color: "#4A6480" },
+  menuItemTextActive: { color: "#1A6FA8", fontWeight: "700" },
 });

@@ -395,8 +395,14 @@ Reply in JSON format only:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode())
                 text   = result["choices"][0]["message"]["content"]
-                text   = text.strip().strip("```json").strip("```").strip()
-                return json.loads(text)
+                print(f"[Groq raw] {text[:200]}")
+                text   = text.strip()
+                if text.startswith("```"):
+                    text = text.split("```")[-2] if "```" in text[3:] else text[3:]
+                    text = text.lstrip("json").strip()
+                parsed = json.loads(text)
+                print(f"[Groq parsed] {parsed}")
+                return parsed
         except urllib.error.HTTPError as e:
             print(f"Groq advice error: {e.code} - {e.read().decode()}")
             return None
@@ -413,9 +419,9 @@ Reply in JSON format only:
     ) -> str | None:
         if patch_error:
             return "patch_error"
-        if current < 70 or predicted < 70:
+        if current < 90 or predicted < 90:
             return "low"
-        if current > 300 or predicted > 300:
+        if current > 170 or predicted > 170:
             return "high"
         return None
 
@@ -494,18 +500,16 @@ Reply in JSON format only:
             except Exception as e:
                 print(f"Prediction alert notification failed: {e}")
 
-        advice = None
-        if alert_type:
-            advice = self._get_ai_advice(
-                patient_name=patient_name,
-                current=current,
-                predicted=predicted,
-                trend=trend,
-                alert_type=alert_type,
-                hours=hours,
-                lang=lang,
-                lifestyle_ctx=lifestyle_ctx,
-            )
+        advice = self._get_ai_advice(
+            patient_name=patient_name,
+            current=current,
+            predicted=predicted,
+            trend=trend,
+            alert_type=alert_type or "normal",
+            hours=hours,
+            lang=lang,
+            lifestyle_ctx=lifestyle_ctx,
+        )
 
         return {
             "predicted_value": predicted,

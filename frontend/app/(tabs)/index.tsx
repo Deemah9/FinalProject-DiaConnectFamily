@@ -330,19 +330,24 @@ export default function HomeScreen() {
                 </View>
 
                 {/* Alert + AI Advice */}
-                {prediction.alert_type && (
+                {(prediction.alert_type || prediction.advice?.patient) && (
                   <View style={[
                     styles.predictionAlert,
                     prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
                     prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
                     prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+                    !prediction.alert_type                  && { backgroundColor: "#EBF3FA", borderColor: "#B8D0E8" },
                   ]}>
                     <Ionicons
-                      name={prediction.alert_type === "patch_error" ? "warning" : "alert-circle"}
+                      name={
+                        prediction.alert_type === "patch_error" ? "warning" :
+                        prediction.alert_type               ? "alert-circle" : "information-circle"
+                      }
                       size={18}
                       color={
                         prediction.alert_type === "low"  ? "#E07B00" :
-                        prediction.alert_type === "high" ? "#D32F2F" : "#6B7280"
+                        prediction.alert_type === "high" ? "#D32F2F" :
+                        prediction.alert_type === "patch_error" ? "#6B7280" : "#1A6FA8"
                       }
                     />
                     <Text style={[
@@ -350,8 +355,9 @@ export default function HomeScreen() {
                       prediction.alert_type === "low"         && { color: "#92400E" },
                       prediction.alert_type === "high"        && { color: "#991B1B" },
                       prediction.alert_type === "patch_error" && { color: "#374151" },
+                      !prediction.alert_type                  && { color: "#1A4A6B" },
                     ]}>
-                      {prediction.advice?.patient || t(`alert_${prediction.alert_type}`)}
+                      {prediction.advice?.patient || (prediction.alert_type ? t(`alert_${prediction.alert_type}`) : "")}
                     </Text>
                   </View>
                 )}

@@ -172,12 +172,6 @@ export default function FamilyHomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("quickActions")}</Text>
           <View style={styles.quickRow}>
-            <Pressable style={styles.quickCard} onPress={() => router.push("/family-patients" as any)}>
-              <View style={[styles.quickIcon, { backgroundColor: "#EFF6FF" }]}>
-                <Ionicons name="people-outline" size={22} color="#3B82F6" />
-              </View>
-              <Text style={styles.quickLabel}>{t("myPatients")}</Text>
-            </Pressable>
             <Pressable style={styles.quickCard} onPress={() => router.push("/family-join" as any)}>
               <View style={[styles.quickIcon, { backgroundColor: "#ECFDF5" }]}>
                 <Ionicons name="link-outline" size={22} color="#10B981" />

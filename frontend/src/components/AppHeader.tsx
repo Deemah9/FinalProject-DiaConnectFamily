@@ -7,10 +7,9 @@ export const HEADER_BG = "#1A6FA8";
 const SLOT_W = 80;
 
 interface AppHeaderProps {
-  /** Left slot — pass null to force empty, omit for default back-arrow */
   left?: React.ReactNode | null;
-  /** Right slot — pass null to force empty */
   right?: React.ReactNode | null;
+  bottom?: React.ReactNode;
 }
 
 /**
@@ -21,7 +20,7 @@ interface AppHeaderProps {
  * Both slots are always the same fixed width so the logo stays
  * perfectly centered regardless of what icons appear on either side.
  */
-export default function AppHeader({ left, right }: AppHeaderProps) {
+export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
   const leftNode =
     left === null
       ? <View style={styles.slot} />
@@ -38,28 +37,31 @@ export default function AppHeader({ left, right }: AppHeaderProps) {
 
   return (
     <View style={styles.bar}>
-      <View style={styles.slot}>{leftNode}</View>
-
-      <View style={styles.logo}>
-        <Ionicons name="heart-outline" size={26} color="#E8A317" />
-        <View style={{ marginLeft: 10 }}>
-          <Text style={styles.title}>DiaConnect</Text>
-          <Text style={styles.sub}>Family</Text>
+      <View style={styles.topRow}>
+        <View style={styles.slot}>{leftNode}</View>
+        <View style={styles.logo}>
+          <Ionicons name="heart-outline" size={26} color="#E8A317" />
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.title}>DiaConnect</Text>
+            <Text style={styles.sub}>Family</Text>
+          </View>
         </View>
+        <View style={[styles.slot, { alignItems: "flex-end" }]}>{rightNode}</View>
       </View>
-
-      <View style={[styles.slot, { alignItems: "flex-end" }]}>{rightNode}</View>
+      {bottom}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
+    backgroundColor: HEADER_BG,
+    paddingTop: 44,
+  },
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: HEADER_BG,
     paddingHorizontal: 12,
-    paddingTop: 44,
     paddingBottom: 10,
   },
   slot: {
