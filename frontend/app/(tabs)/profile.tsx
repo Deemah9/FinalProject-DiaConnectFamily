@@ -40,7 +40,6 @@ export default function ProfileScreen() {
 
   // ── Medical edit state ─────────────────────────────────────────────────────
   const [editMedical, setEditMedical]         = useState(false);
-  const [diagnosisYear, setDiagnosisYear]     = useState("");
   const [medications, setMedications]         = useState("");
   const [savingMedical, setSavingMedical]     = useState(false);
   const [errorMedical, setErrorMedical]       = useState("");
@@ -49,6 +48,7 @@ export default function ProfileScreen() {
   const [editLifestyle, setEditLifestyle]     = useState(false);
   const [activityLevel, setActivityLevel]     = useState("");
   const [sleepHours, setSleepHours]           = useState("");
+  const [dietType, setDietType]               = useState("");
   const [savingLifestyle, setSavingLifestyle] = useState(false);
   const [errorLifestyle, setErrorLifestyle]   = useState("");
 
@@ -64,7 +64,6 @@ export default function ProfileScreen() {
       setPhone(data?.phone || "");
 
       const med = data?.medical || data?.medical_info || data?.medicalInfo || {};
-      setDiagnosisYear(med?.diagnosis_year?.toString() || "");
       setMedications(
         Array.isArray(med?.medications)
           ? med.medications.join(", ")
@@ -78,6 +77,7 @@ export default function ProfileScreen() {
           ? String(life.sleep_hours)
           : ""
       );
+      setDietType(life?.diet_type || "");
     } catch (e: any) {
       console.log("ProfileScreen load error:", e);
     } finally {
@@ -111,7 +111,6 @@ export default function ProfileScreen() {
         .map((s) => s.trim())
         .filter(Boolean);
       await updateMedical({
-        diagnosis_year: diagnosisYear ? Number(diagnosisYear) : null,
         medications: medicationsArray,
       });
       await load();
@@ -130,6 +129,7 @@ export default function ProfileScreen() {
       await updateLifestyle({
         activity_level: activityLevel,
         sleep_hours: sleepHours ? Number(sleepHours) : null,
+        diet_type: dietType || null,
       });
       await load();
       setEditLifestyle(false);
@@ -154,6 +154,7 @@ export default function ProfileScreen() {
     : med?.medications || "--";
 
   const activityOptions = ["low", "moderate", "high"];
+  const dietOptions     = ["balanced", "low_carb", "keto", "vegetarian", "vegan", "other"];
 
   return (
     <View style={styles.container}>
@@ -177,9 +178,6 @@ export default function ProfileScreen() {
             {loading ? t("loading") : fullName}
           </Text>
           <Text style={styles.emailText}>{user?.email || "--"}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{user?.role || t("patient")}</Text>
-          </View>
         </View>
 
         {/* ── Basic Info ─────────────────────────────────────────────────── */}
@@ -230,7 +228,6 @@ export default function ProfileScreen() {
               <InfoRow label={t("lastName")}  value={user?.lastName  || "--"} />
               <InfoRow label={t("email")}     value={user?.email     || "--"} />
               <InfoRow label={t("phone")}     value={user?.phone     || "--"} />
-              <InfoRow label={t("role")}      value={user?.role      || "--"} />
             </>
           )}
         </View>
@@ -257,11 +254,6 @@ export default function ProfileScreen() {
 
           {editMedical ? (
             <>
-              <Field label={t("diagnosisYear")}>
-                <TextInput value={diagnosisYear} onChangeText={setDiagnosisYear}
-                  placeholder={t("diagnosisYearPlaceholder")} placeholderTextColor={MUTED}
-                  keyboardType="number-pad" style={styles.input} />
-              </Field>
               <Field label={t("medications")}>
                 <TextInput value={medications} onChangeText={setMedications}
                   placeholder={t("medicationsPlaceholder")} placeholderTextColor={MUTED}
@@ -276,7 +268,6 @@ export default function ProfileScreen() {
             </>
           ) : (
             <>
-              <InfoRow label={t("diagnosisYear")} value={med?.diagnosis_year?.toString() || "--"} />
               <InfoRow label={t("medications")}   value={medicationsDisplay} isMultiLine />
             </>
           )}
@@ -327,6 +318,24 @@ export default function ProfileScreen() {
                   placeholder={t("sleepHoursPlaceholder")} placeholderTextColor={MUTED}
                   keyboardType="numeric" style={styles.input} />
               </Field>
+              <Field label={t("dietType")}>
+                <View style={styles.optionsWrap}>
+                  {dietOptions.map((opt) => {
+                    const selected = dietType === opt;
+                    return (
+                      <Pressable
+                        key={opt}
+                        style={[styles.optionChip, selected && styles.optionChipSelected]}
+                        onPress={() => setDietType(opt)}
+                      >
+                        <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
+                          {t(`diet_${opt}`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Field>
               <SaveCancelRow
                 saving={savingLifestyle}
                 onSave={saveLifestyle}
@@ -347,6 +356,10 @@ export default function ProfileScreen() {
                   user?.sleep_hours?.toString() ||
                   "--"
                 }
+              />
+              <InfoRow
+                label={t("dietType")}
+                value={life?.diet_type ? t(`diet_${life.diet_type}`) : "--"}
               />
             </>
           )}
@@ -447,12 +460,12 @@ const styles = StyleSheet.create({
   // Avatar card
   avatarCard: {
     backgroundColor: "#F8FBFF",
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: BORDER,
     alignItems: "center",
-    paddingVertical: 28,
-    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     marginBottom: 16,
     shadowColor: "#000",
     shadowOpacity: 0.04,
@@ -462,43 +475,28 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    width: 82,
-    height: 82,
+    width: 60,
+    height: 60,
     borderRadius: 999,
     backgroundColor: "#DBEAFE",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   nameText: {
-    fontSize: 22,
+    fontSize: 17,
     fontWeight: "700",
     color: TEXT,
-    marginBottom: 4,
+    marginBottom: 2,
     textAlign: "center",
   },
 
   emailText: {
-    fontSize: 13,
-    color: MUTED,
-    marginBottom: 12,
-    textAlign: "center",
-  },
-
-  roleBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  roleBadgeText: {
     fontSize: 12,
-    color: PRIMARY,
-    fontWeight: "600",
+    color: MUTED,
+    marginBottom: 8,
+    textAlign: "center",
   },
 
   // Section card

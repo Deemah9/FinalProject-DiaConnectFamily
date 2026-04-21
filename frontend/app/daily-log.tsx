@@ -185,7 +185,7 @@ export default function DailyLogScreen() {
                 ? (item?.type || t("activity"))
                 : `${item?.sleep_hours || 0} ${t("hoursUnit")}`;
               const sub     = isMeal
-                ? `${item?.carbs || 0} ${t("carbsUnit")}`
+                ? `${item?.meal_type ? t(item.meal_type) + " · " : ""}${item?.carbs || 0} ${t("carbsUnit")}`
                 : isAct
                 ? `${item?.duration_minutes || 0} ${t("minUnit")}`
                 : (item?.notes || "");

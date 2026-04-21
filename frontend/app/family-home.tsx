@@ -100,6 +100,11 @@ export default function FamilyHomeScreen() {
     ? `${user.firstName} ${user.lastName}`
     : user?.firstName || t("user");
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    return hour < 12 ? t("goodMorning") : t("goodEvening");
+  };
+
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
       <AppHeader
@@ -121,7 +126,7 @@ export default function FamilyHomeScreen() {
         {/* Welcome */}
         <View style={styles.hero}>
           <Text style={styles.welcomeTitle}>
-            {loading ? t("loading") : t("familyWelcome", { name: fullName })}
+            {loading ? t("loading") : `${getGreeting()} ${fullName}`}
           </Text>
           <Text style={styles.welcomeSub}>{t("familyWelcomeSubtitle")}</Text>
         </View>
@@ -246,7 +251,7 @@ export default function FamilyHomeScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false} style={styles.drawerScroll}>
               <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
-              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/profile" as any))}>
+              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/family-profile" as any))}>
                 <Ionicons name="person-outline" size={17} color={Colors.primary} />
                 <Text style={styles.drawerItemText}>{t("openProfile")}</Text>
               </Pressable>

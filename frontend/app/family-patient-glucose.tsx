@@ -698,7 +698,9 @@ export default function FamilyPatientGlucoseScreen() {
                                     {m.foods || t("meal")}
                                     {m.carbs != null && <Text style={styles.logMeta}>{"  "}{m.carbs}{t("carbsUnit")} {t("carbs")}</Text>}
                                   </Text>
-                                  <Text style={styles.logTime}>{formatLogTime(m.timestamp)}</Text>
+                                  <Text style={styles.logTime}>
+                                    {m.meal_type ? `${t(m.meal_type)}  ·  ` : ""}{formatLogTime(m.timestamp)}
+                                  </Text>
                                 </View>
                               </View>
                             ))}

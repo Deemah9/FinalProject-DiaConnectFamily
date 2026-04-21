@@ -68,6 +68,7 @@ export default function HomeScreen() {
 
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [showReminder, setShowReminder] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -114,14 +115,20 @@ export default function HomeScreen() {
 
       const data = await getGlucoseReadings();
 
-      if (Array.isArray(data)) {
-        setGlucoseReadings(data);
-      } else if (Array.isArray(data?.items)) {
-        setGlucoseReadings(data.items);
-      } else if (Array.isArray(data?.readings)) {
-        setGlucoseReadings(data.readings);
-      } else {
-        setGlucoseReadings([]);
+      let readings: any[] = [];
+      if (Array.isArray(data)) readings = data;
+      else if (Array.isArray(data?.items)) readings = data.items;
+      else if (Array.isArray(data?.readings)) readings = data.readings;
+      setGlucoseReadings(readings);
+
+      // Check if last reading was 6+ hours ago
+      if (readings.length > 0) {
+        const latest = readings
+          .map((r: any) => new Date(r?.measuredAt || r?.timestamp || r?.createdAt || 0).getTime())
+          .filter((t: number) => t > 0)
+          .sort((a: number, b: number) => b - a)[0];
+        const hoursElapsed = (Date.now() - latest) / (1000 * 60 * 60);
+        if (hoursElapsed >= 6) setShowReminder(true);
       }
     } catch (error: any) {
       console.log("glucose fetch error:", error);
@@ -137,6 +144,10 @@ export default function HomeScreen() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || t("user");
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    return hour < 12 ? t("goodMorning") : t("goodEvening");
+  };
 
   const toLocalDateStr = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -206,9 +217,7 @@ export default function HomeScreen() {
           <Text style={styles.welcomeTitle}>
             {loadingUser
               ? t("loading")
-              : user?.role === "family_member"
-                ? t("familyWelcome", { name: fullName })
-                : `${t("welcomeBack")}, ${fullName}!`}
+              : `${getGreeting()} ${fullName}`}
           </Text>
           <Text style={styles.welcomeSub}>
             {errorUser
@@ -399,6 +408,29 @@ export default function HomeScreen() {
       <Pressable style={styles.fab} onPress={() => router.push("/add-glucose" as any)}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </Pressable>
+
+      {/* Glucose Reminder Modal */}
+      <Modal visible={showReminder} transparent animationType="fade" onRequestClose={() => setShowReminder(false)}>
+        <View style={styles.reminderBackdrop}>
+          <View style={styles.reminderBox}>
+            <View style={styles.reminderIconWrap}>
+              <Ionicons name="time-outline" size={30} color="#1A6FA8" />
+            </View>
+            <Text style={styles.reminderModalTitle}>{t("reminderTitle")}</Text>
+            <Text style={styles.reminderModalMsg}>{t("reminderMsg")}</Text>
+            <Pressable
+              style={styles.reminderAddBtn}
+              onPress={() => { setShowReminder(false); router.push("/add-glucose" as any); }}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.reminderAddText}>{t("addReading")}</Text>
+            </Pressable>
+            <Pressable style={styles.reminderDismiss} onPress={() => setShowReminder(false)}>
+              <Text style={styles.reminderDismissText}>{t("remindLater")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Language dropdown — rendered as Modal so it floats above all content */}
       <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
@@ -1293,4 +1325,30 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   },
+
+  reminderBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+  },
+  reminderBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 24,
+    padding: 24, width: "100%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+  },
+  reminderIconWrap: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: "#EBF3FA", alignItems: "center",
+    justifyContent: "center", marginBottom: 16,
+  },
+  reminderModalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 10, textAlign: "center" },
+  reminderModalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", lineHeight: 22, marginBottom: 24 },
+  reminderAddBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#1A6FA8", borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 24,
+    width: "100%", justifyContent: "center", marginBottom: 12,
+  },
+  reminderAddText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  reminderDismiss: { paddingVertical: 8 },
+  reminderDismissText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
 });
