@@ -125,6 +125,8 @@ export const addSleep = (data) => request("POST", "/daily-logs/sleep", data);
 
 export const getTodayLogs = () => request("GET", "/daily-logs/today");
 
+export const getLogsByDate = (date) => request("GET", `/daily-logs/by-date?date=${date}`);
+
 export const getDailyLogsSummary = (days = 7) =>
   request("GET", `/daily-logs/summary?days=${days}`);
 

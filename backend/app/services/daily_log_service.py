@@ -171,6 +171,56 @@ class DailyLogService:
         }
 
     # ==========================================
+    # Get Logs by Specific Date
+    # ==========================================
+
+    def get_by_date(self, user_id: str, date_str: str) -> dict:
+        """
+        Retrieve all events for a specific local date (YYYY-MM-DD).
+        Fetches all user docs and filters in Python to avoid composite index.
+        """
+        try:
+            y, m, d = map(int, date_str.split("-"))
+        except Exception:
+            return {"meals": [], "activities": [], "sleep": []}
+
+        day_start = datetime(y, m, d, 0, 0, 0, tzinfo=timezone.utc)
+        day_end   = datetime(y, m, d, 23, 59, 59, 999999, tzinfo=timezone.utc)
+
+        def in_range(doc_data: dict) -> bool:
+            ts = doc_data.get("timestamp")
+            if ts is None:
+                return False
+            if hasattr(ts, "tzinfo"):
+                ts = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+            else:
+                return False
+            return day_start <= ts <= day_end
+
+        meals = []
+        for doc in self.db.collection("meals").where("userId", "==", user_id).stream():
+            data = doc.to_dict()
+            if in_range(data):
+                data["id"] = doc.id
+                meals.append(data)
+
+        activities = []
+        for doc in self.db.collection("activities").where("userId", "==", user_id).stream():
+            data = doc.to_dict()
+            if in_range(data):
+                data["id"] = doc.id
+                activities.append(data)
+
+        sleep = []
+        for doc in self.db.collection("sleep_logs").where("userId", "==", user_id).stream():
+            data = doc.to_dict()
+            if in_range(data):
+                data["id"] = doc.id
+                sleep.append(data)
+
+        return {"meals": meals, "activities": activities, "sleep": sleep}
+
+    # ==========================================
     # Get Period Summary
     # ==========================================
 

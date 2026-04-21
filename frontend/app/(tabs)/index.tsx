@@ -392,33 +392,13 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Quick Actions — small square buttons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("quickActions")}</Text>
-
-          <View style={styles.quickRow}>
-            {[
-              { icon: "flash-outline",      bg: "#EFF6FF", color: "#3B82F6", label: t("quickCheck"),   route: "/glucose-history" },
-              { icon: "restaurant-outline", bg: "#FFF7ED", color: "#F59E0B", label: t("addMeal"),     route: "/add-meal"        },
-              { icon: "walk-outline",       bg: "#ECFDF5", color: "#10B981", label: t("addActivity"), route: "/add-activity"    },
-              { icon: "moon-outline",       bg: "#EEF2FF", color: "#1A6FA8", label: t("addSleep"),    route: "/add-sleep"       },
-            ].map(({ icon, bg, color, label, route }) => (
-              <Pressable
-                key={route}
-                style={styles.quickSquare}
-                onPress={() => router.push(route as any)}
-              >
-                <View style={[styles.quickSquareIcon, { backgroundColor: bg }]}>
-                  <Ionicons name={icon as any} size={22} color={color} />
-                </View>
-                <Text style={styles.quickSquareLabel} numberOfLines={1}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={{ height: 24 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* FAB — Add Glucose */}
+      <Pressable style={styles.fab} onPress={() => router.push("/add-glucose" as any)}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </Pressable>
 
       {/* Language dropdown — rendered as Modal so it floats above all content */}
       <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
@@ -695,43 +675,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // Quick Actions — compact square buttons
-  quickRow: {
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "space-between",
-  },
 
-  quickSquare: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    alignItems: "center",
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-
-  quickSquareIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-
-  quickSquareLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#1E3A52",
-    textAlign: "center",
+  fab: {
+    position: "absolute", bottom: 32, right: 24,
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: "#1A6FA8",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1A6FA8", shadowOpacity: 0.4,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
 
   alertCard: {

@@ -27,6 +27,10 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const touch = (field: string) => setTouched((p) => ({ ...p, [field]: true }));
+  const showErr = (field: string) => !!(touched[field] && errors[field]);
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
@@ -45,6 +49,7 @@ export default function Login() {
 
   async function onLogin() {
     setGeneralError("");
+    setTouched({ email: true, password: true });
     if (!canSubmit) return;
 
     try {
@@ -91,14 +96,15 @@ export default function Login() {
             <TextInput
               value={email}
               onChangeText={setEmail}
+              onBlur={() => touch("email")}
               placeholder={t("email")}
               placeholderTextColor={Colors.textMutedOnDark}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              style={[styles.input, !!errors.email && styles.inputErr]}
+              style={[styles.input, showErr("email") && styles.inputErr]}
             />
-            {!!errors.email && (
+            {showErr("email") && (
               <Text style={styles.errText}>{errors.email}</Text>
             )}
           </View>
@@ -108,14 +114,15 @@ export default function Login() {
             <TextInput
               value={password}
               onChangeText={setPassword}
+              onBlur={() => touch("password")}
               placeholder={t("password")}
               placeholderTextColor={Colors.textMutedOnDark}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
-              style={[styles.input, !!errors.password && styles.inputErr]}
+              style={[styles.input, showErr("password") && styles.inputErr]}
             />
-            {!!errors.password && (
+            {showErr("password") && (
               <Text style={styles.errText}>{errors.password}</Text>
             )}
           </View>

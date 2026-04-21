@@ -3,8 +3,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,6 +35,7 @@ export default function GlucoseHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -132,24 +133,20 @@ export default function GlucoseHistoryScreen() {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert(t("deleteReading"), t("deleteReadingConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("delete"), style: "destructive",
-        onPress: async () => {
-          try {
-            setDeletingId(id);
-            await deleteGlucose(id);
-            setReadings((prev) => prev.filter((r) => r.id !== id));
-          } catch (e: any) {
-            setErrorMsg(e?.message || "Failed to delete reading");
-          } finally {
-            setDeletingId(null);
-          }
-        },
-      },
-    ]);
+  const handleDelete = (id: string) => setConfirmId(id);
+
+  const confirmDelete = async () => {
+    if (!confirmId) return;
+    try {
+      setDeletingId(confirmId);
+      setConfirmId(null);
+      await deleteGlucose(confirmId);
+      setReadings((prev) => prev.filter((r) => r.id !== confirmId));
+    } catch (e: any) {
+      setErrorMsg(e?.message || "Failed to delete reading");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const visible = showAll ? dayReadings : dayReadings.slice(0, 5);
@@ -157,6 +154,28 @@ export default function GlucoseHistoryScreen() {
   return (
     <View style={styles.container}>
       <AppHeader />
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={!!confirmId} transparent animationType="fade" onRequestClose={() => setConfirmId(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#D32F2F" />
+            </View>
+            <Text style={styles.modalTitle}>{t("deleteReading")}</Text>
+            <Text style={styles.modalMsg}>{t("deleteReadingConfirm")}</Text>
+            <View style={styles.modalBtns}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setConfirmId(null)}>
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable style={styles.modalDeleteBtn} onPress={confirmDelete}>
+                <Text style={styles.modalDeleteText}>{t("delete")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.content}>
 
         <View style={styles.heroRow}>
@@ -164,16 +183,10 @@ export default function GlucoseHistoryScreen() {
             <Text style={styles.screenTitle}>{t("glucoseHistory")}</Text>
             <Text style={styles.screenSub}>{t("trackReadingsTime")}</Text>
           </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable style={styles.statsBtn} onPress={() => router.push("/glucose-stats" as any)}>
-              <Ionicons name="bar-chart-outline" size={16} color="#1A6FA8" />
-              <Text style={styles.statsBtnText}>{t("stats")}</Text>
-            </Pressable>
-            <Pressable style={styles.addBtn} onPress={() => router.push("/add-glucose" as any)}>
-              <Ionicons name="add-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.addBtnText}>{t("add")}</Text>
-            </Pressable>
-          </View>
+          <Pressable style={styles.statsBtn} onPress={() => router.push("/glucose-stats" as any)}>
+            <Ionicons name="bar-chart-outline" size={16} color="#1A6FA8" />
+            <Text style={styles.statsBtnText}>{t("stats")}</Text>
+          </Pressable>
         </View>
 
         {!!errorMsg && (
@@ -291,8 +304,12 @@ export default function GlucoseHistoryScreen() {
           )}
         </View>
 
-        <View style={{ height: 24 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      <Pressable style={styles.fab} onPress={() => router.push("/add-glucose" as any)}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </Pressable>
     </View>
   );
 }
@@ -315,12 +332,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#D6E8F5",
   },
   statsBtnText: { color: "#1A6FA8", fontSize: 14, fontWeight: "600" },
-  addBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 14, backgroundColor: "#1A6FA8",
+  fab: {
+    position: "absolute", bottom: 32, right: 24,
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: "#1A6FA8",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1A6FA8", shadowOpacity: 0.4,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
-  addBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
 
   errorBox: {
     marginBottom: 16, backgroundColor: "#FDEDED",
@@ -382,4 +401,34 @@ const styles = StyleSheet.create({
     paddingVertical: 10, marginTop: 4,
   },
   showMoreText: { fontSize: 13, color: "#1A6FA8", fontWeight: "600" },
+
+  modalBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+  },
+  modalBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 24,
+    padding: 24, width: "100%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+  },
+  modalIconWrap: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: "#FDEDED", alignItems: "center",
+    justifyContent: "center", marginBottom: 16,
+  },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 8 },
+  modalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+  modalCancelBtn: {
+    flex: 1, height: 48, borderRadius: 14,
+    borderWidth: 1, borderColor: "#D6E8F5",
+    alignItems: "center", justifyContent: "center",
+  },
+  modalCancelText: { fontSize: 15, fontWeight: "600", color: "#4A6480" },
+  modalDeleteBtn: {
+    flex: 1, height: 48, borderRadius: 14,
+    backgroundColor: "#D32F2F",
+    alignItems: "center", justifyContent: "center",
+  },
+  modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 });
