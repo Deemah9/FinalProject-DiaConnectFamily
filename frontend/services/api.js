@@ -143,6 +143,12 @@ export const getAlerts = (limit = 20) =>
 export const getPatientAlerts = (patientId, limit = 20) =>
   request("GET", `/alerts/patient/${patientId}?limit=${limit}`);
 
+export const markAlertRead = (patientId, alertId) =>
+  request("PATCH", `/alerts/patient/${patientId}/${alertId}/read`);
+
+export const markAllAlertsRead = (patientId) =>
+  request("PATCH", `/alerts/patient/${patientId}/read-all`);
+
 // ==========================================
 // Family Connection APIs
 // ==========================================

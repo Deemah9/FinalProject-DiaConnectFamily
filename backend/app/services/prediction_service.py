@@ -472,7 +472,19 @@ Reply in JSON format only:
         last_was_outlier = raw_last is not None and raw_last != cleaned_readings[-1]["value"]
         current          = raw_last if raw_last is not None else feature_matrix[-1, 0]
 
-        predicted   = self._predict_lstm(feature_matrix, user_id=user_id, hours=hours)
+        # Auto-adjust prediction horizon based on elapsed time since last reading.
+        # If the last reading was N hours ago, we need N+hours steps to reach
+        # "hours from now" rather than "hours from last reading".
+        predict_hours = hours
+        last_ts = cleaned_readings[-1].get("measuredAt")
+        if last_ts is not None and hasattr(last_ts, "tzinfo"):
+            if last_ts.tzinfo is None:
+                last_ts = last_ts.replace(tzinfo=timezone.utc)
+            hours_elapsed = max(0.0, (datetime.now(timezone.utc) - last_ts).total_seconds() / 3600)
+            predict_hours = max(1, round(hours_elapsed) + hours)
+            print(f"[Prediction] Last reading {hours_elapsed:.1f}h ago → predicting {predict_hours} steps ahead")
+
+        predicted   = self._predict_lstm(feature_matrix, user_id=user_id, hours=predict_hours)
         trend       = self._calculate_trend(current, predicted)
         patch_error = last_was_outlier
         alert_type  = self._get_alert_type(current, predicted, patch_error)

@@ -14,9 +14,11 @@ class AlertResponse(BaseModel):
     value: the glucose reading that triggered the alert.
     readingId: the ID of the glucose reading that caused it.
     createdAt: when the alert was stored.
+    read: whether the family member has marked this alert as read.
     """
     id: str
     type: Literal["high", "low"]
     value: int
     readingId: str
     createdAt: datetime
+    read: bool = False

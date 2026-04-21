@@ -252,6 +252,7 @@ const resources = {
       noReadingsThisDay: "No readings recorded for this day",
       showMore: "Show more",
       showLess: "Show less",
+      showPreviousAlerts: "Show previous alerts",
       trend: "Glucose Trend",
       addFirstReading: "Add your first glucose reading",
 
@@ -325,6 +326,7 @@ const resources = {
       loadingAlerts: "Loading alerts...",
       noAlerts: "No alerts",
       noAlertsSub: "Your glucose levels are in range",
+      markAsRead: "Mark as read",
       highGlucose: "High Glucose",
       lowGlucose: "Low Glucose",
 
@@ -594,6 +596,7 @@ const resources = {
       noReadingsThisDay: "لا توجد قراءات مسجلة لهذا اليوم",
       showMore: "عرض المزيد",
       showLess: "عرض أقل",
+      showPreviousAlerts: "عرض الإشعارات السابقة",
       trend: "مؤشر الجلوكوز",
       addFirstReading: "أضف قراءة السكر الأولى",
 
@@ -667,6 +670,7 @@ const resources = {
       loadingAlerts: "جارٍ تحميل التنبيهات...",
       noAlerts: "لا توجد تنبيهات",
       noAlertsSub: "مستويات السكر في النطاق الطبيعي",
+      markAsRead: "تمييز كمقروء",
       highGlucose: "ارتفاع السكر",
       lowGlucose: "انخفاض السكر",
 
@@ -936,6 +940,7 @@ const resources = {
       noReadingsThisDay: "אין קריאות מוקלטות ליום זה",
       showMore: "הצג עוד",
       showLess: "הצג פחות",
+      showPreviousAlerts: "הצג התראות קודמות",
       trend: "מגמת גלוקוז",
       addFirstReading: "הוסף את קריאת הגלוקוז הראשונה שלך",
 
@@ -1009,6 +1014,7 @@ const resources = {
       loadingAlerts: "טוען התראות...",
       noAlerts: "אין התראות",
       noAlertsSub: "רמות הגלוקוז שלך בטווח התקין",
+      markAsRead: "סמן כנקרא",
       highGlucose: "גלוקוז גבוה",
       lowGlucose: "גלוקוז נמוך",
 

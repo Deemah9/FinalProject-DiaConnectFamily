@@ -16,7 +16,9 @@ import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientAlerts, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
+import { getPatientAlerts, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, markAllAlertsRead, updateProfile, viewWithCode } from "@/services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -52,6 +54,7 @@ export default function FamilyPatientGlucoseScreen() {
 
   const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "alerts">("glucose");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [readings, setReadings] = useState<any[]>([]);
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,12 +67,20 @@ export default function FamilyPatientGlucoseScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedLogDate, setSelectedLogDate] = useState<string | null>(null);
   const [showAllReadings, setShowAllReadings] = useState(false);
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       load();
     }, [patientId])
   );
+
+  useEffect(() => {
+    if (!patientId) return;
+    loadPrediction();
+    const id = setInterval(() => loadPrediction(), 15 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [patientId]);
 
   const load = async () => {
     try {
@@ -286,11 +297,18 @@ export default function FamilyPatientGlucoseScreen() {
   return (
     <View style={styles.container}>
       <AppHeader
-        right={!familyCode ? (
-          <Pressable style={styles.menuBtn} onPress={() => setMenuOpen(true)}>
-            <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
-          </Pressable>
-        ) : null}
+        right={
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable style={styles.topBarBtn} onPress={() => setLangOpen((v) => !v)}>
+              <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            {!familyCode && (
+              <Pressable style={styles.topBarBtn} onPress={() => setMenuOpen(true)}>
+                <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </View>
+        }
       />
 
       {/* Dropdown Menu */}
@@ -320,6 +338,38 @@ export default function FamilyPatientGlucoseScreen() {
           </Pressable>
         </Modal>
       )}
+
+      {/* Language Modal */}
+      <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
+        <Pressable style={{ flex: 1 }} onPress={() => setLangOpen(false)}>
+          <View style={styles.langDropdown}>
+            {([
+              { code: "en", label: "English" },
+              { code: "ar", label: "العربية" },
+              { code: "he", label: "עברית" },
+            ] as const).map(({ code, label }, index, arr) => {
+              const active = i18n.language === code;
+              return (
+                <Pressable
+                  key={code}
+                  style={[styles.langOption, index < arr.length - 1 && styles.langOptionBorder, active && styles.langOptionActive]}
+                  onPress={async () => {
+                    setLangOpen(false);
+                    if (i18n.language === code) return;
+                    await AsyncStorage.setItem("app_lang", code);
+                    await i18n.changeLanguage(code);
+                    await applyRtlIfNeeded(code);
+                    updateProfile({ language: code }).catch(() => {});
+                  }}
+                >
+                  <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>{label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#1A6FA8" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
 
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#1A6FA8" />
@@ -714,6 +764,19 @@ export default function FamilyPatientGlucoseScreen() {
               <View style={styles.cardHeader}>
                 <Ionicons name="notifications-outline" size={18} color="#1A6FA8" />
                 <Text style={styles.cardTitle}>{t("glucoseAlerts")}</Text>
+                {alerts.some((a: any) => !a.read) && (
+                  <Pressable
+                    style={styles.alertReadAllBtn}
+                    onPress={async () => {
+                      try {
+                        await markAllAlertsRead(patientId);
+                        setAlerts((prev: any[]) => prev.map((a) => ({ ...a, read: true })));
+                      } catch {}
+                    }}
+                  >
+                    <Text style={styles.alertReadAllText}>{t("markAsRead")}</Text>
+                  </Pressable>
+                )}
               </View>
 
               {loadingAlerts ? (
@@ -725,30 +788,40 @@ export default function FamilyPatientGlucoseScreen() {
                   <Text style={{ color: "#7A96B0", fontSize: 13, marginTop: 4 }}>{t("noAlertsSub")}</Text>
                 </View>
               ) : (
-                alerts.map((alert: any, idx: number) => {
-                  const isHigh = alert.type === "high";
-                  const color = isHigh ? "#D32F2F" : "#E07B00";
-                  const bg    = isHigh ? "#FDEDED" : "#FEF3E2";
-                  const label = isHigh ? t("highGlucose") : t("lowGlucose");
-                  const raw   = alert.createdAt || "";
-                  const time  = raw ? new Date(raw).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "--";
-                  return (
-                    <View key={alert.id || idx} style={[styles.alertRow, { backgroundColor: bg }]}>
-                      <Ionicons
-                        name={isHigh ? "arrow-up-circle" : "arrow-down-circle"}
-                        size={22}
-                        color={color}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.alertLabel, { color }]}>{label}</Text>
-                        <Text style={styles.alertValue}>
-                          {alert.value} <Text style={styles.alertUnit}>{t("mgdL")}</Text>
-                        </Text>
+                <>
+                  {(showAllAlerts ? alerts : alerts.slice(0, 5)).map((alert: any, idx: number) => {
+                    const isHigh = alert.type === "high";
+                    const isRead = !!alert.read;
+                    const color  = isHigh ? "#D32F2F" : "#E07B00";
+                    const bg     = isRead ? "#F8FAFC" : (isHigh ? "#FDEDED" : "#FEF3E2");
+                    const label  = isHigh ? t("highGlucose") : t("lowGlucose");
+                    const raw    = alert.createdAt || "";
+                    const time   = raw ? new Date(raw).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "--";
+                    return (
+                      <View key={alert.id || idx} style={[styles.alertRow, { backgroundColor: bg }]}>
+                        <Ionicons name={isHigh ? "arrow-up-circle" : "arrow-down-circle"} size={22} color={isRead ? "#94A3B8" : color} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <Text style={[styles.alertLabel, { color: isRead ? "#94A3B8" : color }]}>{label}</Text>
+                            {!isRead && <View style={styles.alertUnreadDot} />}
+                          </View>
+                          <Text style={[styles.alertValue, isRead && { color: "#94A3B8" }]}>
+                            {alert.value} <Text style={styles.alertUnit}>{t("mgdL")}</Text>
+                          </Text>
+                        </View>
+                        <Text style={styles.alertTime}>{time}</Text>
                       </View>
-                      <Text style={styles.alertTime}>{time}</Text>
-                    </View>
-                  );
-                })
+                    );
+                  })}
+                  {alerts.length > 5 && (
+                    <Pressable style={styles.showMoreBtn} onPress={() => setShowAllAlerts((v) => !v)}>
+                      <Text style={styles.showMoreText}>
+                        {showAllAlerts ? t("showLess") : t("showPreviousAlerts")}
+                      </Text>
+                      <Ionicons name={showAllAlerts ? "chevron-up" : "chevron-down"} size={14} color="#1A6FA8" />
+                    </Pressable>
+                  )}
+                </>
               )}
             </View>
           )}
@@ -939,6 +1012,13 @@ const styles = StyleSheet.create({
   alertValue: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginTop: 2 },
   alertUnit: { fontSize: 12, fontWeight: "400", color: "#7A96B0" },
   alertTime: { fontSize: 11, color: "#7A96B0", textAlign: "right" },
+  alertUnreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#1A6FA8" },
+  alertReadBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#EBF3FA" },
+  alertReadBtnText: { fontSize: 11, color: "#1A6FA8", fontWeight: "600" },
+  alertReadAllBtn: { marginLeft: "auto" as any, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: "#EBF3FA" },
+  alertReadAllText: { fontSize: 12, color: "#1A6FA8", fontWeight: "600" },
+  showMoreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 4 },
+  showMoreText: { fontSize: 13, color: "#1A6FA8", fontWeight: "600" },
 
   dayBtn: {
     paddingHorizontal: 14,
@@ -1078,6 +1158,19 @@ const styles = StyleSheet.create({
     borderTopColor: "#EBF3FA",
   },
   readMoreText: { fontSize: 13, fontWeight: "600", color: "#1A6FA8" },
+  topBarBtn: { padding: 8 },
+  langDropdown: {
+    position: "absolute", top: 60, right: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14, borderWidth: 1, borderColor: "#D6E8F5",
+    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
+    minWidth: 150, overflow: "hidden",
+  },
+  langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  langOptionBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
+  langOptionActive: { backgroundColor: "#EBF3FA" },
+  langOptionText: { fontSize: 14, color: "#0B1A2E" },
+  langOptionTextActive: { fontWeight: "700", color: "#1A6FA8" },
   menuBtn: { padding: 8 },
   menuBackdrop: {
     flex: 1,
@@ -1085,11 +1178,14 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     alignItems: "flex-end",
     paddingTop: 100,
-    paddingRight: 12,
+    paddingRight: 0,
   },
   menuDropdown: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
     width: 220,
     shadowColor: "#000",
     shadowOpacity: 0.12,

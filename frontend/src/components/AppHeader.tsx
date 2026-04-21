@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const HEADER_BG = "#1A6FA8";
 const SLOT_W = 80;
@@ -21,6 +22,8 @@ interface AppHeaderProps {
  * perfectly centered regardless of what icons appear on either side.
  */
 export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
+  const { top } = useSafeAreaInsets();
+
   const leftNode =
     left === null
       ? <View style={styles.slot} />
@@ -36,7 +39,7 @@ export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
       : right ?? <View style={styles.slot} />;
 
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { paddingTop: top + 8 }]}>
       <View style={styles.topRow}>
         <View style={styles.slot}>{leftNode}</View>
         <View style={styles.logo}>
@@ -56,7 +59,6 @@ export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
 const styles = StyleSheet.create({
   bar: {
     backgroundColor: HEADER_BG,
-    paddingTop: 44,
   },
   topRow: {
     flexDirection: "row",
