@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
@@ -8,6 +9,8 @@ from app.utils.security import (
     hash_password, verify_password, create_access_token
 )
 from app.models.user import User
+from app.models.password_reset_token import PasswordResetToken
+from app.services.email_service import send_password_reset_email
 from app.middleware.dependencies import get_current_user
 
 # ==========================================
@@ -292,3 +295,247 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         lastName=data.get("lastName"),
         phone=data.get("phone"),
     )
+
+
+# ==========================================
+# Forgot Password
+# ==========================================
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(request: ForgotPasswordRequest):
+    """
+    Send a password reset email if the account exists.
+    Always returns 200 so we don't reveal whether an email is registered.
+    """
+    user_data = get_user_by_email(request.email)
+
+    if user_data:
+        token = PasswordResetToken.create(
+            user_id=user_data["userId"],
+            email=request.email,
+        )
+        try:
+            send_password_reset_email(to_email=request.email, token=token)
+        except Exception as e:
+            print(f"[email error] {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send reset email. Check SMTP configuration."
+            )
+
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(request: ResetPasswordRequest):
+    """
+    Verify the reset token and update the user's password.
+    """
+    if len(request.new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long"
+        )
+
+    token_data = PasswordResetToken.find_valid(request.token)
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link. Please request a new one."
+        )
+
+    hashed = hash_password(request.new_password)
+    db.collection("users").document(token_data["userId"]).update({
+        "password": hashed
+    })
+
+    PasswordResetToken.mark_used(token_data["docId"])
+
+    return {"message": "Password updated successfully. You can now log in."}
+
+
+# ==========================================
+# Reset Redirect — universal HTML bridge
+# ==========================================
+
+@router.get("/reset-redirect", response_class=HTMLResponse)
+async def reset_redirect(token: str):
+    """
+    Serves a full password reset form in the browser.
+    Works from any device without needing the app.
+    """
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DiaConnect — Reset Password</title>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: Arial, sans-serif;
+      background: #1A6FA8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }}
+    .card {{
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 28px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }}
+    h1 {{ color: #1A6FA8; font-size: 22px; margin-bottom: 6px; }}
+    .subtitle {{
+      color: #888; font-size: 13px; margin-bottom: 24px;
+    }}
+    label {{
+      display: block;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }}
+    input {{
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid #ddd;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border 0.2s;
+    }}
+    input:focus {{ border-color: #1A6FA8; }}
+    input.err {{ border-color: #DC2626; }}
+    .btn {{
+      width: 100%;
+      padding: 16px;
+      background: #1A6FA8;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+    }}
+    .btn:disabled {{ opacity: 0.6; cursor: not-allowed; }}
+    .error {{
+      background: #FEE2E2;
+      color: #DC2626;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }}
+    .success {{
+      background: #DCFCE7;
+      color: #166534;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      display: none;
+    }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>&#10084; DiaConnect Family</h1>
+    <p class="subtitle">Enter your new password below</p>
+
+    <div id="error-box" class="error"></div>
+    <div id="success-box" class="success">
+      &#10003; Password updated! You can now log in to the app.
+    </div>
+
+    <div id="form-area">
+      <label>New Password</label>
+      <input type="password" id="pw1" placeholder="Min 6 characters"/>
+
+      <label>Confirm Password</label>
+      <input type="password" id="pw2" placeholder="Repeat password"/>
+
+      <button class="btn" id="submit-btn" onclick="submitReset()">
+        Reset Password
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    async function submitReset() {{
+      const pw1 = document.getElementById('pw1').value;
+      const pw2 = document.getElementById('pw2').value;
+      const errBox = document.getElementById('error-box');
+      const btn = document.getElementById('submit-btn');
+
+      errBox.style.display = 'none';
+      document.getElementById('pw1').classList.remove('err');
+      document.getElementById('pw2').classList.remove('err');
+
+      if (pw1.length < 6) {{
+        errBox.textContent = 'Password must be at least 6 characters.';
+        errBox.style.display = 'block';
+        document.getElementById('pw1').classList.add('err');
+        return;
+      }}
+      if (pw1 !== pw2) {{
+        errBox.textContent = 'Passwords do not match.';
+        errBox.style.display = 'block';
+        document.getElementById('pw2').classList.add('err');
+        return;
+      }}
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {{
+        const res = await fetch('/auth/reset-password', {{
+          method: 'POST',
+          headers: {{'Content-Type': 'application/json'}},
+          body: JSON.stringify({{
+            token: '{token}',
+            new_password: pw1
+          }})
+        }});
+
+        const data = await res.json();
+
+        if (res.ok) {{
+          document.getElementById('form-area').style.display = 'none';
+          document.getElementById('success-box').style.display = 'block';
+        }} else {{
+          errBox.textContent = data.detail || 'Something went wrong.';
+          errBox.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Reset Password';
+        }}
+      }} catch (e) {{
+        errBox.textContent = 'Network error. Please try again.';
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Reset Password';
+      }}
+    }}
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)

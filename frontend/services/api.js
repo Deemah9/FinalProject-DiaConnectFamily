@@ -76,6 +76,12 @@ export const logout = async () => {
   await AsyncStorage.removeItem("role");
 };
 
+export const forgotPassword = (email) =>
+  request("POST", "/auth/forgot-password", { email });
+
+export const resetPassword = (token, new_password) =>
+  request("POST", "/auth/reset-password", { token, new_password });
+
 // ==========================================
 // User Profile APIs
 // ==========================================
