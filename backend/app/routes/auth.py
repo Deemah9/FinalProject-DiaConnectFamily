@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import socket
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -310,8 +312,44 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+def _get_lan_ip() -> str:
+    """Detect the machine's LAN IP by opening a UDP socket."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+
+
+def _build_base_url(http_request: Request) -> str:
+    """
+    Return the best available base URL for the reset link.
+    Priority:
+      1. BACKEND_URL from .env — if it is a publicly reachable URL.
+      2. Machine's LAN IP (auto-detected) — works for any device on
+         the same WiFi without any manual configuration.
+    """
+    env_url = os.getenv("BACKEND_URL", "").rstrip("/")
+    is_public = env_url.startswith("https://") or (
+        env_url.startswith("http://")
+        and "localhost" not in env_url
+        and "127.0.0.1" not in env_url
+        and "10.0.2.2" not in env_url
+    )
+    if is_public:
+        return env_url
+
+    port = http_request.url.port or 8000
+    lan_ip = _get_lan_ip()
+    return f"http://{lan_ip}:{port}"
+
+
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
-async def forgot_password(request: ForgotPasswordRequest):
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    http_request: Request,
+):
     """
     Send a password reset email if the account exists.
     Always returns 200 so we don't reveal whether an email is registered.
@@ -323,8 +361,13 @@ async def forgot_password(request: ForgotPasswordRequest):
             user_id=user_data["userId"],
             email=request.email,
         )
+        base_url = _build_base_url(http_request)
         try:
-            send_password_reset_email(to_email=request.email, token=token)
+            send_password_reset_email(
+                to_email=request.email,
+                token=token,
+                base_url=base_url,
+            )
         except Exception as e:
             print(f"[email error] {e}")
             raise HTTPException(
@@ -332,7 +375,9 @@ async def forgot_password(request: ForgotPasswordRequest):
                 detail="Failed to send reset email. Check SMTP configuration."
             )
 
-    return {"message": "If that email is registered, a reset link has been sent."}
+    return {
+        "message": "If that email is registered, a reset link has been sent."
+    }
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)

@@ -118,26 +118,8 @@ def login(email: str, password: str) -> tuple[str, str]:
 
     with httpx.Client(timeout=15) as client:
 
-        # ── First attempt ────────────────────────────────────────
-        resp = client.post(
-            f"{active_url}/llu/auth/login",
-            json=payload,
-            headers=LLU_HEADERS,
-        )
-        resp.raise_for_status()
-        body = resp.json()
-
-        # ── Regional redirect ─────────────────────────────────────
-        # status=2 means our account lives on a different regional server.
-        if body.get("status") == 2:
-            region = body.get("data", {}).get("region", "")
-            regional_url = REGION_URLS.get(region)
-            if not regional_url:
-                raise ValueError(
-                    f"LibreView requested redirect to unknown region: "
-                    f"'{region}'"
-                )
-            active_url = regional_url
+        # Follow up to 3 regional redirects before giving up
+        for attempt in range(3):
             resp = client.post(
                 f"{active_url}/llu/auth/login",
                 json=payload,
@@ -145,37 +127,74 @@ def login(email: str, password: str) -> tuple[str, str]:
             )
             resp.raise_for_status()
             body = resp.json()
+            data = body.get("data", {})
+            status_code = body.get("status", -1)
 
-        # ── Error check ───────────────────────────────────────────
-        status_code = body.get("status", -1)
-
-        if status_code != 0:
-            error_msg = (
-                body.get("error", {}).get("message")
-                or f"LibreView login failed with status {status_code}"
+            # Redirect requested — status=2 OR status=0 with redirect flag
+            needs_redirect = (
+                status_code == 2
+                or data.get("redirect") is True
             )
-            raise ValueError(error_msg)
 
-        # ── Extract token ─────────────────────────────────────────
-        token = (
-            body.get("data", {})
-                .get("authTicket", {})
-                .get("token")
+            if needs_redirect:
+                region = data.get("region", "")
+                regional_url = REGION_URLS.get(region)
+                if not regional_url:
+                    raise ValueError(
+                        "LibreView requested redirect to unknown"
+                        f" region: '{region}'"
+                    )
+                active_url = regional_url
+                continue  # retry on the regional server
+
+            # ── Error check ───────────────────────────────────────
+            if status_code != 0:
+                error_msg = (
+                    body.get("error", {}).get("message")
+                    or f"LibreView login failed with status {status_code}"
+                )
+                raise ValueError(error_msg)
+
+            # ── Terms of Service step ─────────────────────────────
+            step = data.get("step", {})
+            if step:
+                step_type = step.get("type", "unknown")
+                raise ValueError(
+                    f"LibreView requires action (step: '{step_type}'). "
+                    "Open the LibreView app, accept any pending "
+                    "Terms & Conditions, then try again."
+                )
+
+            # ── Extract token ─────────────────────────────────────
+            token = data.get("authTicket", {}).get("token")
+            if not token:
+                token = data.get("user", {}).get("token")
+
+            if not token:
+                raise ValueError(
+                    "LibreView login succeeded but no token was returned. "
+                    f"Response data keys: {list(data.keys())}"
+                )
+
+            # Also extract the user's own ID (used as fallback patientId)
+            user_id = data.get("user", {}).get("id")
+
+            return token, active_url, user_id
+
+        raise ValueError(
+            "LibreView redirect loop exceeded — "
+            "could not resolve regional server."
         )
-        if not token:
-            raise ValueError(
-                "LibreView login succeeded but no token was returned. "
-                "The API response shape may have changed."
-            )
-
-        return token, active_url
+        return None, active_url, None  # unreachable, satisfies type checker
 
 
 # ==========================================
 # Fetch Connections
 # ==========================================
 
-def fetch_connections(token: str, base_url: str) -> list[str]:
+def fetch_connections(
+    token: str, base_url: str, self_id: str = None
+) -> list[str]:
     """
     Retrieve the list of patient IDs linked to this LibreView account.
 
@@ -212,6 +231,12 @@ def fetch_connections(token: str, base_url: str) -> list[str]:
             f"{base_url}/llu/connections",
             headers=headers,
         )
+
+        # 403 = standalone patient account with no LLU followers.
+        # Fall back to fetching the patient's own readings using their user ID.
+        if resp.status_code == 403:
+            return [self_id] if self_id else []
+
         resp.raise_for_status()
         body = resp.json()
 
@@ -280,6 +305,12 @@ def fetch_graph(
             f"{base_url}/llu/connections/{patient_id}/graph",
             headers=headers,
         )
+
+        # 403 = this account is not a follower of this patient.
+        # The LLU graph API only works for follower accounts.
+        if resp.status_code == 403:
+            return []
+
         resp.raise_for_status()
         body = resp.json()
 
@@ -308,28 +339,78 @@ def fetch_graph(
 
 
 # ==========================================
+# Fetch Patient's Own Logbook
+# ==========================================
+
+def fetch_logbook(token: str, base_url: str) -> list[dict]:
+    """
+    Fetch the logged-in patient's own glucose readings from their logbook.
+    Used when the account has no LLU follower connections.
+
+    Endpoint: GET /llu/logbook
+    Returns the same normalised list as fetch_graph.
+    """
+    headers = {**LLU_HEADERS, "Authorization": f"Bearer {token}"}
+
+    with httpx.Client(timeout=15) as client:
+        resp = client.get(
+            f"{base_url}/llu/logbook",
+            headers=headers,
+        )
+
+        if resp.status_code in (403, 404):
+            return []
+
+        resp.raise_for_status()
+        body = resp.json()
+
+    if body.get("status") != 0:
+        return []
+
+    raw_readings = body.get("data") or []
+    normalised = []
+
+    for entry in raw_readings:
+        value_mgdl = _extract_mgdl(entry)
+        measured_at = _parse_timestamp(entry.get("FactoryTimestamp"))
+
+        if value_mgdl is None or measured_at is None:
+            continue
+
+        normalised.append({
+            "value":      value_mgdl,
+            "measuredAt": measured_at,
+        })
+
+    return normalised
+
+
+# ==========================================
 # Full Sync Flow
 # ==========================================
 
 def sync(email: str, password: str) -> list[dict]:
     """
-    Full sync: login → fetch connections → fetch all readings.
+    Full sync: login → try follower connections → fallback to own logbook.
 
-    This is the single entry point called by the route.
-    Returns a flat list of normalised reading dicts:
-        [{ "value": int, "measuredAt": datetime }, ...]
-
-    If the account has no connections (standalone patient with no
-    linked family viewers), an empty list is returned. In future
-    this could fall back to the patient's own logbook endpoint.
+    Flow:
+      1. Login and get token + user_id.
+      2. Fetch LLU connections (follower accounts).
+      3. If connections found → fetch graph for each patient.
+      4. If no connections (standalone patient) → fetch own logbook.
     """
-    token, base_url = login(email, password)
-    patient_ids = fetch_connections(token, base_url)
+    token, base_url, _ = login(email, password)
+    patient_ids = fetch_connections(token, base_url, self_id=None)
 
     all_readings: list[dict] = []
-    for pid in patient_ids:
-        readings = fetch_graph(token, base_url, pid)
-        all_readings.extend(readings)
+
+    if patient_ids:
+        for pid in patient_ids:
+            readings = fetch_graph(token, base_url, pid)
+            all_readings.extend(readings)
+    else:
+        # Standalone patient account — fetch their own logbook
+        all_readings = fetch_logbook(token, base_url)
 
     return all_readings
 
