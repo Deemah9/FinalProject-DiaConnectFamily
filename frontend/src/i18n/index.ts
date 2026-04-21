@@ -352,6 +352,12 @@ const resources = {
       // Delete
       deleteReading: "Delete Reading",
       deleteReadingConfirm: "Are you sure you want to delete this reading?",
+      deleteMeal: "Delete Meal",
+      deleteMealConfirm: "Are you sure you want to delete this meal?",
+      deleteActivity: "Delete Activity",
+      deleteActivityConfirm: "Are you sure you want to delete this activity?",
+      deleteSleep: "Delete Sleep Log",
+      deleteSleepConfirm: "Are you sure you want to delete this sleep log?",
       delete: "Delete",
       back: "Back",
 
@@ -715,6 +721,12 @@ const resources = {
       // Delete
       deleteReading: "حذف القراءة",
       deleteReadingConfirm: "هل أنت متأكد من حذف هذه القراءة؟",
+      deleteMeal: "حذف الوجبة",
+      deleteMealConfirm: "هل أنت متأكد من حذف هذه الوجبة؟",
+      deleteActivity: "حذف النشاط",
+      deleteActivityConfirm: "هل أنت متأكد من حذف هذا النشاط؟",
+      deleteSleep: "حذف سجل النوم",
+      deleteSleepConfirm: "هل أنت متأكد من حذف سجل النوم هذا؟",
       delete: "حذف",
       back: "رجوع",
 
@@ -1078,6 +1090,12 @@ const resources = {
       // Delete
       deleteReading: "מחק קריאה",
       deleteReadingConfirm: "האם אתה בטוח שברצונך למחוק קריאה זו?",
+      deleteMeal: "מחק ארוחה",
+      deleteMealConfirm: "האם אתה בטוח שברצונך למחוק ארוחה זו?",
+      deleteActivity: "מחק פעילות",
+      deleteActivityConfirm: "האם אתה בטוח שברצונך למחוק פעילות זו?",
+      deleteSleep: "מחק יומן שינה",
+      deleteSleepConfirm: "האם אתה בטוח שברצונך למחוק יומן שינה זה?",
       delete: "מחק",
       back: "חזרה",
 

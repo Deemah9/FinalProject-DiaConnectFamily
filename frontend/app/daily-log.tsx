@@ -14,7 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
-import { getTodayLogs, getLogsByDate } from "@/services/api";
+import { getTodayLogs, getLogsByDate, deleteMeal, deleteActivity, deleteSleep } from "@/services/api";
 
 const toLocalDateStr = (d: Date) => {
   const y = d.getFullYear();
@@ -56,6 +56,8 @@ export default function DailyLogScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
+  const [confirmItem, setConfirmItem] = useState<{ id: string; type: "meal" | "activity" | "sleep" } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isToday = selectedDate === todayStr;
   const canNext = selectedDate < todayStr;
@@ -103,6 +105,35 @@ export default function DailyLogScreen() {
     return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
   })();
 
+  const confirmDelete = async () => {
+    if (!confirmItem) return;
+    const { id, type } = confirmItem;
+    try {
+      setDeletingId(id);
+      setConfirmItem(null);
+      if (type === "meal") await deleteMeal(id);
+      else if (type === "activity") await deleteActivity(id);
+      else await deleteSleep(id);
+      await loadDailyLogs(selectedDate);
+    } catch (e: any) {
+      setErrorMsg(e?.message || "Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteTitle = confirmItem?.type === "meal"
+    ? t("deleteMeal")
+    : confirmItem?.type === "activity"
+    ? t("deleteActivity")
+    : t("deleteSleep");
+
+  const deleteMsg = confirmItem?.type === "meal"
+    ? t("deleteMealConfirm")
+    : confirmItem?.type === "activity"
+    ? t("deleteActivityConfirm")
+    : t("deleteSleepConfirm");
+
   const FAB_ACTIONS = [
     { label: t("addMeal"),     icon: "restaurant-outline", color: MEAL_COLOR,  bg: MEAL_BG,  route: "/add-meal"      },
     { label: t("addActivity"), icon: "walk-outline",       color: ACT_COLOR,   bg: ACT_BG,   route: "/add-activity"  },
@@ -112,6 +143,27 @@ export default function DailyLogScreen() {
   return (
     <View style={styles.container}>
       <AppHeader />
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={!!confirmItem} transparent animationType="fade" onRequestClose={() => setConfirmItem(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#D32F2F" />
+            </View>
+            <Text style={styles.modalTitle}>{deleteTitle}</Text>
+            <Text style={styles.modalMsg}>{deleteMsg}</Text>
+            <View style={styles.modalBtns}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setConfirmItem(null)}>
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable style={styles.modalDeleteBtn} onPress={confirmDelete}>
+                <Text style={styles.modalDeleteText}>{t("delete")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
@@ -206,8 +258,22 @@ export default function DailyLogScreen() {
                   <View style={[styles.timelineCard, { borderLeftColor: color }]}>
                     <View style={styles.timelineCardTop}>
                       <Text style={styles.timelineTitle}>{title}</Text>
-                      <View style={[styles.timeBadge, { backgroundColor: bg }]}>
-                        <Text style={[styles.timeBadgeText, { color }]}>{time}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <View style={[styles.timeBadge, { backgroundColor: bg }]}>
+                          <Text style={[styles.timeBadgeText, { color }]}>{time}</Text>
+                        </View>
+                        <Pressable
+                          onPress={() => setConfirmItem({ id: item.id, type: item._type as "meal" | "activity" | "sleep" })}
+                          disabled={deletingId === item.id}
+                          style={styles.deleteBtn}
+                          hitSlop={8}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={16}
+                            color={deletingId === item.id ? "#B8D0E8" : "#94A3B8"}
+                          />
+                        </Pressable>
                       </View>
                     </View>
                     {!!sub && <Text style={styles.timelineSub}>{sub}</Text>}
@@ -348,4 +414,35 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   fabActionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: "#0B1A2E" },
+
+  modalBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+  },
+  modalBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 24,
+    padding: 24, width: "100%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+  },
+  modalIconWrap: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: "#FDEDED", alignItems: "center",
+    justifyContent: "center", marginBottom: 16,
+  },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 8 },
+  modalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+  modalCancelBtn: {
+    flex: 1, height: 48, borderRadius: 14,
+    borderWidth: 1, borderColor: "#D6E8F5",
+    alignItems: "center", justifyContent: "center",
+  },
+  modalCancelText: { fontSize: 15, fontWeight: "600", color: "#4A6480" },
+  modalDeleteBtn: {
+    flex: 1, height: 48, borderRadius: 14,
+    backgroundColor: "#D32F2F",
+    alignItems: "center", justifyContent: "center",
+  },
+  modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  deleteBtn: { padding: 4, alignItems: "center", justifyContent: "center" },
 });
