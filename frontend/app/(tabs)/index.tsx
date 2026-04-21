@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -68,6 +68,10 @@ export default function HomeScreen() {
 
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -133,36 +137,51 @@ export default function HomeScreen() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || t("user");
 
-  const role = user?.role || t("patient");
+
+  const toLocalDateStr = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+  const shiftDay = (dateStr: string, delta: number) => {
+    const [y, m, day] = dateStr.split("-").map(Number);
+    return toLocalDateStr(new Date(y, m - 1, day + delta));
+  };
+
+  const todayStr = toLocalDateStr(new Date());
+  const canNext = selectedDateStr < todayStr;
+
+  const chartReadings = useMemo(() => {
+    return [...glucoseReadings]
+      .filter((g) => {
+        if (Number(g?.value) <= 0) return false;
+        const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
+        const d = new Date(raw);
+        return !Number.isNaN(d.getTime()) && toLocalDateStr(d) === selectedDateStr;
+      })
+      .sort((a, b) => {
+        const ta = new Date(a?.measuredAt || a?.timestamp || a?.createdAt || "").getTime();
+        const tb = new Date(b?.measuredAt || b?.timestamp || b?.createdAt || "").getTime();
+        return ta - tb;
+      });
+  }, [glucoseReadings, selectedDateStr]);
+
+  const selectedLabel = useMemo(() => {
+    if (selectedDateStr === todayStr) return t("today");
+    const yesterday = toLocalDateStr(new Date(Date.now() - 86_400_000));
+    if (selectedDateStr === yesterday) return t("yesterday");
+    const [y, m, day] = selectedDateStr.split("-").map(Number);
+    return new Date(y, m - 1, day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  }, [selectedDateStr, t]);
 
   const values = glucoseReadings
     .map((g) => Number(g?.value || 0))
     .filter((v) => !Number.isNaN(v) && v > 0);
 
   const latest = values.length > 0 ? values[0] : "--";
-
-  // Today's readings only, oldest → newest for the chart
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const chartReadings = [...glucoseReadings]
-    .filter((g) => {
-      if (Number(g?.value) <= 0) return false;
-      const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
-      const d = new Date(raw);
-      return !Number.isNaN(d.getTime()) && d >= todayStart;
-    })
-    .reverse();
-
-  const chartWidth = Dimensions.get("window").width - 64; // card padding
+  const chartWidth = Dimensions.get("window").width - 64;
 
   const latestStatus =
     typeof latest === "number"
-      ? latest < 70
-        ? t("low")
-        : latest > 180
-          ? t("high")
-          : t("normal")
+      ? latest < 70 ? t("low") : latest > 180 ? t("high") : t("normal")
       : "--";
 
   return (
@@ -200,74 +219,6 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Role Badge */}
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleBadgeText}>{role}</Text>
-        </View>
-
-        {/* Today's Overview — chart first */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("todaysOverview")}</Text>
-
-          <View style={styles.overviewCard}>
-            {/* Latest reading row */}
-            <View style={styles.latestRow}>
-              <View>
-                <Text style={styles.overviewTitle}>{t("bloodGlucose")}</Text>
-                <Text style={styles.overviewSub}>
-                  {errorGlucose ? errorGlucose : t("trackReadings")}
-                </Text>
-              </View>
-              <View style={styles.latestPill}>
-                <Text style={styles.latestValue}>
-                  {loadingGlucose ? "--" : latest}
-                </Text>
-                <Text style={styles.latestUnit}>{t("mgdL")}</Text>
-                <View style={[
-                  styles.statusBadge,
-                  typeof latest === "number" && latest < 70 && { backgroundColor: "#FEF3E2" },
-                  typeof latest === "number" && latest >= 70 && latest <= 180 && { backgroundColor: "#E6F7F2" },
-                  typeof latest === "number" && latest > 180 && { backgroundColor: "#FDEDED" },
-                ]}>
-                  <Text style={[
-                    styles.statusBadgeText,
-                    typeof latest === "number" && latest < 70 && { color: "#E07B00" },
-                    typeof latest === "number" && latest >= 70 && latest <= 180 && { color: "#0D9E6E" },
-                    typeof latest === "number" && latest > 180 && { color: "#D32F2F" },
-                  ]}>{latestStatus}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Glucose Trend Chart */}
-            {chartReadings.length > 0 ? (
-              <View style={styles.trendWrap}>
-                <GlucoseTrendChart readings={chartReadings} width={chartWidth} />
-                {/* Legend */}
-                <View style={styles.trendLegend}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#F59E0B" }]} />
-                    <Text style={styles.legendText}>{t("low")}</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#22C55E" }]} />
-                    <Text style={styles.legendText}>{t("normal")}</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
-                    <Text style={[styles.legendText, { color: "#EF4444" }]}>{t("high")}</Text>
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.trendEmpty}>
-                <Ionicons name="stats-chart-outline" size={32} color="#B8D0E8" />
-                <Text style={styles.trendEmptyText}>{t("noReadingsYet")}</Text>
-              </View>
-            )}
-
-          </View>
-        </View>
 
         {/* AI Prediction Card */}
         <View style={styles.section}>
@@ -368,6 +319,79 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Glucose Trend — chart with day navigator */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("todaysOverview")}</Text>
+
+          <View style={styles.overviewCard}>
+            <View style={styles.latestRow}>
+              <View>
+                <Text style={styles.overviewTitle}>{t("bloodGlucose")}</Text>
+                <Text style={styles.overviewSub}>
+                  {errorGlucose ? errorGlucose : t("trackReadings")}
+                </Text>
+              </View>
+              <View style={styles.latestPill}>
+                <Text style={styles.latestValue}>{loadingGlucose ? "--" : latest}</Text>
+                <Text style={styles.latestUnit}>{t("mgdL")}</Text>
+                <View style={[
+                  styles.statusBadge,
+                  typeof latest === "number" && latest < 70 && { backgroundColor: "#FEF3E2" },
+                  typeof latest === "number" && latest >= 70 && latest <= 180 && { backgroundColor: "#E6F7F2" },
+                  typeof latest === "number" && latest > 180 && { backgroundColor: "#FDEDED" },
+                ]}>
+                  <Text style={[
+                    styles.statusBadgeText,
+                    typeof latest === "number" && latest < 70 && { color: "#E07B00" },
+                    typeof latest === "number" && latest >= 70 && latest <= 180 && { color: "#0D9E6E" },
+                    typeof latest === "number" && latest > 180 && { color: "#D32F2F" },
+                  ]}>{latestStatus}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Day Navigator */}
+            <View style={styles.dayNav}>
+              <Pressable style={styles.navArrow} onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}>
+                <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+              </Pressable>
+              <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+              <Pressable
+                style={[styles.navArrow, !canNext && { opacity: 0.3 }]}
+                onPress={() => canNext && setSelectedDateStr((d) => shiftDay(d, 1))}
+                disabled={!canNext}
+              >
+                <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+              </Pressable>
+            </View>
+
+            {chartReadings.length > 0 ? (
+              <View style={styles.trendWrap}>
+                <GlucoseTrendChart readings={chartReadings} width={chartWidth} />
+                <View style={styles.trendLegend}>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: "#F59E0B" }]} />
+                    <Text style={styles.legendText}>{t("low")}</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: "#22C55E" }]} />
+                    <Text style={styles.legendText}>{t("normal")}</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
+                    <Text style={[styles.legendText, { color: "#EF4444" }]}>{t("high")}</Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.trendEmpty}>
+                <Ionicons name="stats-chart-outline" size={32} color="#B8D0E8" />
+                <Text style={styles.trendEmptyText}>{t("noReadingsYet")}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
         {/* Quick Actions — small square buttons */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("quickActions")}</Text>
@@ -390,50 +414,6 @@ export default function HomeScreen() {
                 <Text style={styles.quickSquareLabel} numberOfLines={1}>{label}</Text>
               </Pressable>
             ))}
-          </View>
-        </View>
-
-        {/* Alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("alerts")}</Text>
-
-          <View style={styles.alertCard}>
-            <View style={[styles.alertIconCircle, { backgroundColor: "#FFFBEB" }]}>
-              <Ionicons name="notifications-outline" size={20} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.alertMainTitle}>{t("medicationReminder")}</Text>
-              <Text style={styles.alertMainSub}>{t("eveningDose")}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Recent Alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("recentAlerts")}</Text>
-
-          <View style={styles.recentList}>
-            {/* Reminder — light green */}
-            <View style={styles.reminderCard}>
-              <View style={styles.reminderIconCircle}>
-                <Ionicons name="alarm-outline" size={20} color="#16A34A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.reminderTitle}>{t("reminder")}</Text>
-                <Text style={styles.reminderSub}>{t("measureAfterLunch")}</Text>
-              </View>
-            </View>
-
-            {/* Tip — light blue */}
-            <View style={styles.tipCard}>
-              <View style={styles.tipIconCircle}>
-                <Ionicons name="bulb-outline" size={20} color="#2563EB" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.tipTitle}>{t("tip")}</Text>
-                <Text style={styles.tipSub}>{t("drinkWater")}</Text>
-              </View>
-            </View>
           </View>
         </View>
 
@@ -670,7 +650,7 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-    marginTop: 28,
+    marginTop: 12,
     marginBottom: 16,
   },
 
@@ -879,6 +859,8 @@ const styles = StyleSheet.create({
 
   trendWrap: {
     marginTop: 8,
+    minHeight: 200,
+    justifyContent: "center",
   },
 
   trendLabel: {
@@ -922,7 +904,8 @@ const styles = StyleSheet.create({
 
   trendEmpty: {
     alignItems: "center",
-    paddingVertical: 24,
+    justifyContent: "center",
+    minHeight: 200,
     gap: 8,
   },
 
@@ -1344,6 +1327,14 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
   },
+  dayNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#EBF3FA", borderRadius: 14,
+    paddingVertical: 10, paddingHorizontal: 8,
+    marginBottom: 14,
+  },
+  navArrow: { padding: 6 },
+  dayNavLabel: { flex: 1, textAlign: "center", fontSize: 14, fontWeight: "700", color: "#0B1A2E" },
   predictionAlertText: {
     fontSize: 13,
     flex: 1,

@@ -30,6 +30,16 @@ def get_alerts(limit: int = 20, current_user: dict = Depends(get_current_user)):
 
 
 # ==========================================
+# PATCH /alerts/read-all  (patient)
+# ==========================================
+
+@router.patch("/read-all")
+def mark_all_alerts_read(current_user: dict = Depends(get_current_user)):
+    alert_service.mark_all_as_read(current_user["sub"])
+    return {"ok": True}
+
+
+# ==========================================
 # GET /alerts/patient/{patient_id}  (family)
 # ==========================================
 

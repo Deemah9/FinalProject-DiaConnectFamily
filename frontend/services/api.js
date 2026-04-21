@@ -149,6 +149,12 @@ export const markAlertRead = (patientId, alertId) =>
 export const markAllAlertsRead = (patientId) =>
   request("PATCH", `/alerts/patient/${patientId}/read-all`);
 
+export const markAllMyAlertsRead = () =>
+  request("PATCH", `/alerts/read-all`);
+
+export const markMyAlertRead = (alertId) =>
+  request("PATCH", `/alerts/${alertId}/read`);
+
 // ==========================================
 // Family Connection APIs
 // ==========================================
