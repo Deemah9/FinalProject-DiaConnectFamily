@@ -120,9 +120,12 @@ export default function GlucoseTrendChart({
   const xIdxSet = new Set<number>();
   for (let i = 0; i < parsed.length; i += step) xIdxSet.add(i);
   xIdxSet.add(parsed.length - 1);
-  const xLabels = Array.from(xIdxSet).sort((a, b) => a - b).map((idx) => ({
-    label: points[idx].label, x: points[idx].x,
-  }));
+  const LABEL_HALF = 26;
+  const xLabels = Array.from(xIdxSet).sort((a, b) => a - b).map((idx) => {
+    const rawX = points[idx].x;
+    const x = Math.min(Math.max(rawX, padL + LABEL_HALF), width - padR - LABEL_HALF);
+    return { label: points[idx].label, x };
+  });
 
   const last = points[points.length - 1];
   const lastColor = last.v < LOW ? "#F59E0B" : last.v > HIGH ? "#EF4444" : "#22C55E";
@@ -231,7 +234,7 @@ export default function GlucoseTrendChart({
         {xLabels.map(({ label, x }, i) => (
           <SvgText
             key={i} x={x} y={H - 6} fontSize={9.5} fill="#9CA3AF"
-            textAnchor={i === 0 ? "start" : i === xLabels.length - 1 ? "end" : "middle"}
+            textAnchor="middle"
           >
             {label}
           </SvgText>

@@ -538,7 +538,7 @@ export default function FamilyPatientGlucoseScreen() {
                   </Modal>
 
                   {chartReadings.length >= 2 ? (
-                    <GlucoseTrendChart readings={chartReadings} width={SCREEN_WIDTH - 80} />
+                    <GlucoseTrendChart readings={chartReadings} width={SCREEN_WIDTH - 88} />
                   ) : (
                     <View style={styles.emptyChart}>
                       <Ionicons name="analytics-outline" size={36} color="#B8D0E8" />
@@ -1038,14 +1038,15 @@ const styles = StyleSheet.create({
   dayNav: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 14,
     backgroundColor: "#EBF3FA",
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    marginBottom: 10,
+    alignSelf: "center",
+    width: "70%",
   },
-  dayNavArrow: { padding: 8, borderRadius: 20 },
+  dayNavArrow: { padding: 4 },
   dayNavCenter: {
     flex: 1,
     flexDirection: "row",
@@ -1053,7 +1054,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  dayNavLabel: { fontSize: 14, fontWeight: "600", color: "#0B1A2E" },
+  dayNavLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
   calModalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
