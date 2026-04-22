@@ -409,6 +409,58 @@ async def reset_password(request: ResetPasswordRequest):
 
 
 # ==========================================
+# Change Password (authenticated)
+# ==========================================
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Change password for the currently authenticated user.
+    Verifies current password before applying the update.
+    """
+    if len(request.new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 6 characters long."
+        )
+
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password and confirmation do not match."
+        )
+
+    user_id = current_user["sub"]
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found."
+        )
+
+    user_data = doc.to_dict()
+    if not verify_password(request.current_password, user_data["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect."
+        )
+
+    hashed = hash_password(request.new_password)
+    db.collection("users").document(user_id).update({"password": hashed})
+
+    return {"message": "Password updated successfully."}
+
+
+# ==========================================
 # Reset Redirect — universal HTML bridge
 # ==========================================
 

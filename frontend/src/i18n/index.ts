@@ -74,6 +74,11 @@ const resources = {
       resetPasswordSuccess: "Password updated! You can now log in.",
       resetTokenMissing: "Invalid or missing reset token.",
       backToLogin: "Back to Login",
+      changePassword: "Change Password",
+      changePasswordTitle: "Change Password",
+      currentPassword: "Current Password",
+      changePasswordSuccess: "Password changed successfully.",
+      changingPassword: "Changing...",
 
       // Menu / Drawer
       menu: "Menu",
@@ -412,6 +417,11 @@ const resources = {
       resetPasswordSuccess: "تم تحديث كلمة المرور! يمكنك الآن تسجيل الدخول.",
       resetTokenMissing: "رابط إعادة التعيين غير صالح أو مفقود.",
       backToLogin: "العودة لتسجيل الدخول",
+      changePassword: "تغيير كلمة السر",
+      changePasswordTitle: "تغيير كلمة السر",
+      currentPassword: "كلمة السر الحالية",
+      changePasswordSuccess: "تم تغيير كلمة السر بنجاح",
+      changingPassword: "جارٍ التغيير...",
 
       // Menu / Drawer
       menu: "القائمة",
@@ -750,6 +760,11 @@ const resources = {
       resetPasswordSuccess: "הסיסמה עודכנה! כעת תוכל להתחבר.",
       resetTokenMissing: "קישור איפוס לא תקין או חסר.",
       backToLogin: "חזרה להתחברות",
+      changePassword: "שנה סיסמה",
+      changePasswordTitle: "שנה סיסמה",
+      currentPassword: "סיסמה נוכחית",
+      changePasswordSuccess: "הסיסמה שונתה בהצלחה",
+      changingPassword: "משנה...",
 
       // Menu / Drawer
       menu: "תפריט",

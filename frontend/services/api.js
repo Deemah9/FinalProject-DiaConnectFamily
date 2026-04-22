@@ -82,6 +82,13 @@ export const forgotPassword = (email) =>
 export const resetPassword = (token, new_password) =>
   request("POST", "/auth/reset-password", { token, new_password });
 
+export const changePassword = (current_password, new_password, confirm_password) =>
+  request("POST", "/auth/change-password", {
+    current_password,
+    new_password,
+    confirm_password,
+  });
+
 // ==========================================
 // User Profile APIs
 // ==========================================
