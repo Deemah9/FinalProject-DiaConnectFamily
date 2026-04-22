@@ -30,7 +30,7 @@ GLUCOSE_MIN = 40.0
 GLUCOSE_MAX = 400.0
 
 N_PATIENTS = 100
-HOURS_PER_PATIENT = 24 * 30   # 30 days per patient → 720 readings
+STEPS_PER_PATIENT = 24 * 30 * 2   # 30 days × 24h × 2 → reading every 30 min = 1440 steps
 EPOCHS = 60
 BATCH_SIZE = 256
 
@@ -41,20 +41,23 @@ BATCH_SIZE = 256
 
 def generate_patient(seed: int) -> np.ndarray:
     """
-    Simulate one virtual patient for HOURS_PER_PATIENT hours.
-    Returns array shape (HOURS_PER_PATIENT, 5):
+    Simulate one virtual patient at 30-minute resolution for STEPS_PER_PATIENT steps.
+    Returns array shape (STEPS_PER_PATIENT, 5):
       [glucose, hour_of_day, carbs_2h, activity_2h, sleep_hours]
+
+    Using 30-min steps matches the real patient reading frequency so the
+    frozen LSTM learns temporal patterns at the correct time scale.
     """
     rng = np.random.default_rng(seed)
 
     # Each virtual patient has slightly different physiology
     base_glucose        = rng.uniform(85, 145)    # fasting baseline
-    carb_sensitivity    = rng.uniform(0.4, 1.2)   # mg/dL per gram of carbs
-    exercise_effect     = rng.uniform(0.8, 2.0)   # mg/dL per minute of activity
-    reversion_rate      = rng.uniform(0.08, 0.20) # how fast glucose reverts to base
-    noise_std           = rng.uniform(2.0, 6.0)   # measurement noise
+    carb_sensitivity    = rng.uniform(0.3, 0.9)   # mg/dL per gram (per 30-min step)
+    exercise_effect     = rng.uniform(0.4, 1.0)   # mg/dL per activity minute (per 30-min step)
+    reversion_rate      = rng.uniform(0.04, 0.10) # per 30-min step (half of hourly rate)
+    noise_std           = rng.uniform(1.5, 4.0)   # smaller per step at 30-min resolution
 
-    n = HOURS_PER_PATIENT
+    n = STEPS_PER_PATIENT
     glucose       = np.zeros(n, dtype=np.float32)
     carbs_2h      = np.zeros(n, dtype=np.float32)
     activity_2h   = np.zeros(n, dtype=np.float32)
@@ -62,50 +65,53 @@ def generate_patient(seed: int) -> np.ndarray:
 
     glucose[0] = base_glucose + rng.normal(0, 5)
 
-    # Meal carbs and timing per day (randomised per patient day)
-    for hour in range(1, n):
-        h = hour % 24   # hour of day 0-23
+    for step in range(1, n):
+        # hour_of_day as float (0.0–23.5 in 0.5 increments)
+        h_float = (step % 48) * 0.5      # 0.0, 0.5, 1.0 … 23.5
+        h_int   = int(h_float)           # integer hour for meal/activity timing
 
         # ── Circadian / dawn phenomenon (peaks ~7am) ──────────────────────
-        circadian = 6 * np.sin(2 * np.pi * (h - 5) / 24)
+        circadian = 6 * np.sin(2 * np.pi * (h_float - 5) / 24)
 
-        # ── Meal effect ───────────────────────────────────────────────────
+        # ── Meal effect (one spike per meal window, 30-min slot) ──────────
         meal_carbs = 0.0
-        if h in [7, 8] and rng.random() < 0.90:            # breakfast
+        slot = step % 48   # 30-min slot within the day (0–47)
+        if slot in [14, 15] and rng.random() < 0.90:       # 7:00–8:00 breakfast
             meal_carbs = rng.uniform(25, 65)
-        elif h in [12, 13] and rng.random() < 0.85:        # lunch
+        elif slot in [24, 25] and rng.random() < 0.85:     # 12:00–12:30 lunch
             meal_carbs = rng.uniform(40, 90)
-        elif h in [18, 19] and rng.random() < 0.90:        # dinner
+        elif slot in [36, 37] and rng.random() < 0.90:     # 18:00–18:30 dinner
             meal_carbs = rng.uniform(30, 80)
-        elif h in [10, 15] and rng.random() < 0.30:        # snack
+        elif slot in [20, 30] and rng.random() < 0.30:     # 10:00 / 15:00 snack
             meal_carbs = rng.uniform(10, 30)
 
-        meal_spike = meal_carbs * carb_sensitivity
-        carbs_2h[hour] = meal_carbs
+        meal_spike    = meal_carbs * carb_sensitivity
+        carbs_2h[step] = meal_carbs
 
         # ── Exercise effect ───────────────────────────────────────────────
         act_min = 0.0
-        if h in [6, 7, 16, 17] and rng.random() < 0.25:
+        if slot in [12, 13, 32, 33] and rng.random() < 0.25:   # 6–7 am / 4–5 pm
             act_min = rng.uniform(20, 60)
-        activity_2h[hour] = act_min
+        activity_2h[step] = act_min
         activity_drop = act_min * exercise_effect
 
-        # ── Sleep hours (set once per morning) ───────────────────────────
-        if h == 7:
-            sleep_h[hour] = rng.uniform(5.0, 9.0)
+        # ── Sleep hours (set once per morning at 7:00) ───────────────────
+        if slot == 14:
+            sleep_h[step] = rng.uniform(5.0, 9.0)
         else:
-            sleep_h[hour] = sleep_h[hour - 1]
+            sleep_h[step] = sleep_h[step - 1]
 
         # ── Previous glucose decay toward baseline ────────────────────────
-        prev = glucose[hour - 1]
+        prev      = glucose[step - 1]
         reversion = reversion_rate * (base_glucose + circadian - prev)
 
         # ── Combine ───────────────────────────────────────────────────────
-        noise = rng.normal(0, noise_std)
-        glucose[hour] = prev + reversion + meal_spike - activity_drop + noise
-        glucose[hour] = float(np.clip(glucose[hour], GLUCOSE_MIN, GLUCOSE_MAX))
+        noise          = rng.normal(0, noise_std)
+        glucose[step]  = prev + reversion + meal_spike - activity_drop + noise
+        glucose[step]  = float(np.clip(glucose[step], GLUCOSE_MIN, GLUCOSE_MAX))
 
-    hours_of_day = (np.arange(n) % 24).astype(np.float32)
+    # hour_of_day stored as float 0.0–23.5 matching real patient timestamps
+    hours_of_day = ((np.arange(n) % 48) * 0.5).astype(np.float32)
     return np.stack([glucose, hours_of_day, carbs_2h, activity_2h, sleep_h], axis=1)
 
 
@@ -151,7 +157,7 @@ def main():
         all_X.append(X)
         all_y.append(y)
         if (i + 1) % 20 == 0:
-            print(f"  {i + 1}/{N_PATIENTS} patients done")
+            print(f"  {i + 1}/{N_PATIENTS} patients done  (steps each: {STEPS_PER_PATIENT})")
 
     X_train = np.concatenate(all_X, axis=0)
     y_train = np.concatenate(all_y, axis=0)

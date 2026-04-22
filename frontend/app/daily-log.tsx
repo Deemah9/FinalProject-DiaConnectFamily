@@ -14,7 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
-import { getTodayLogs, getLogsByDate, deleteMeal, deleteActivity, deleteSleep } from "@/services/api";
+import { getLogsByDate, deleteMeal, deleteActivity, deleteSleep } from "@/services/api";
 
 const toLocalDateStr = (d: Date) => {
   const y = d.getFullYear();
@@ -66,9 +66,7 @@ export default function DailyLogScreen() {
     try {
       setLoading(true);
       setErrorMsg("");
-      const data = date === todayStr
-        ? await getTodayLogs()
-        : await getLogsByDate(date);
+      const data = await getLogsByDate(date);
       setLogs(data || {});
     } catch (error: any) {
       setErrorMsg(error?.message || "Failed to load daily logs");

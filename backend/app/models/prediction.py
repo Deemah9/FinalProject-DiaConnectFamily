@@ -36,6 +36,9 @@ class PredictionResponse(BaseModel):
     hours: int = 1
     trend: Optional[str] = None
     alert_type: Optional[str] = None
+    probability: Optional[int] = None
+    prob_up: Optional[int] = None
+    prob_down: Optional[int] = None
     advice: Optional[PredictionAdvice] = None
     readings_used: int = 0
     message: Optional[str] = None

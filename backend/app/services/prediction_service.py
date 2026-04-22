@@ -198,6 +198,20 @@ class PredictionService:
             return "falling"
         return "stable"
 
+    def _calculate_probability(self, current: float, predicted: float, sigma: float) -> tuple[int, int]:
+        """
+        Returns (prob_up, prob_down) as percentages [0..100].
+        prob_up  = Φ((predicted - current) / σ)   — probability glucose rises
+        prob_down = 1 - prob_up                    — probability glucose falls
+        """
+        from math import erf, sqrt
+        sigma = max(1.0, sigma)
+        z = (predicted - current) / sigma
+        prob_up = (1.0 + erf(z / sqrt(2))) / 2.0
+        prob_up   = int(min(99, max(1, round(prob_up * 100))))
+        prob_down = 100 - prob_up
+        return prob_up, prob_down
+
     # ==========================================
     # Detect Patch Error
     # ==========================================
@@ -262,7 +276,11 @@ class PredictionService:
     # ==========================================
 
     def _predict_lstm(
-        self, feature_matrix: np.ndarray, user_id: str, hours: int = 1
+        self,
+        feature_matrix: np.ndarray,
+        user_id: str,
+        hours: int = 1,
+        seed_override: np.ndarray | None = None,
     ) -> float:
         import tensorflow as tf
         tf.random.set_seed(42)
@@ -288,10 +306,25 @@ class PredictionService:
         X_train = np.concatenate(X_aug)
         y_train = np.concatenate(y_aug)
 
+        # ── Train / validation split (80 / 20) ───────────────────────────
+        split = max(1, int(len(X) * 0.8))
+        X_raw_train, X_val = X[:split], X[split:]
+        y_raw_train, y_val = y[:split], y[split:]
+
+        # Augment only the training split
+        X_aug, y_aug = [X_raw_train], [y_raw_train]
+        for _ in range(AUGMENT_COPIES - 1):
+            noise = np.random.normal(0, 0.01, X_raw_train.shape).astype(np.float32)
+            X_aug.append(X_raw_train + noise)
+            y_aug.append(y_raw_train)
+        X_train = np.concatenate(X_aug)
+        y_train = np.concatenate(y_aug)
+
         # ── Load or retrieve cached fine-tuned model ──────────────────────
         cache = PredictionService._model_cache.get(user_id)
         if cache and cache["n_readings"] == n:
             model = cache["model"]
+            sigma = cache["sigma"]
         else:
             model = self._get_base_model()
 
@@ -303,12 +336,35 @@ class PredictionService:
             )
             model.fit(X_train, y_train, epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
 
-            PredictionService._model_cache[user_id] = {"model": model, "n_readings": n}
+            # Compute validation RMSE (mg/dL) as σ — unseen data → unbiased estimate
+            if len(X_val) > 0:
+                y_pred_val = model.predict(X_val, verbose=0).flatten()
+                y_true_mg  = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                y_pred_mg  = np.clip(y_pred_val, 0.0, 1.0) * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
+            else:
+                # Fallback to training RMSE when too few samples for a val split
+                y_pred_tr  = model.predict(X_raw_train, verbose=0).flatten()
+                y_true_mg  = y_raw_train * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                y_pred_mg  = np.clip(y_pred_tr, 0.0, 1.0) * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
+            sigma = max(1.0, sigma)
+            print(f"[Prediction] σ (val RMSE) = {sigma:.1f} mg/dL")
+
+            PredictionService._model_cache[user_id] = {"model": model, "n_readings": n, "sigma": sigma}
 
         # ── Recursive prediction ──────────────────────────────────────────
-        seq           = list(scaled[-SEQUENCE_LENGTH:])
-        last_hour_raw = feature_matrix[-1, 1]
-        last_context  = scaled[-1, 2:].copy()   # [carbs, activity, sleep] normalised
+        # seed_override lets predict() inject a virtual "now" row that carries
+        # upcoming carbs/activity without polluting the training sequences.
+        if seed_override is not None:
+            seed_scaled   = self._normalise(seed_override)
+            seq           = list(seed_scaled[-SEQUENCE_LENGTH:])
+            last_hour_raw = seed_override[-1, 1]
+            last_context  = seed_scaled[-1, 2:].copy()
+        else:
+            seq           = list(scaled[-SEQUENCE_LENGTH:])
+            last_hour_raw = feature_matrix[-1, 1]
+            last_context  = scaled[-1, 2:].copy()   # [carbs, activity, sleep] normalised
 
         predicted_norm = 0.0
         for step in range(hours):
@@ -320,7 +376,7 @@ class PredictionService:
             next_row  = np.concatenate([[predicted_norm, next_hour], last_context])
             seq.append(next_row)
 
-        return round(self._denormalise_glucose(predicted_norm), 1)
+        return round(self._denormalise_glucose(predicted_norm), 1), sigma
 
     # ==========================================
     # AI Advice via Groq
@@ -484,10 +540,66 @@ Reply in JSON format only:
             predict_hours = max(1, round(hours_elapsed) + hours)
             print(f"[Prediction] Last reading {hours_elapsed:.1f}h ago → predicting {predict_hours} steps ahead")
 
-        predicted   = self._predict_lstm(feature_matrix, user_id=user_id, hours=predict_hours)
-        trend       = self._calculate_trend(current, predicted)
-        patch_error = last_was_outlier
-        alert_type  = self._get_alert_type(current, predicted, patch_error)
+            MAX_STALE_HOURS = 3
+            if hours_elapsed > MAX_STALE_HOURS:
+                stale_msg = {
+                    "ar": f"آخر قراءة منذ {round(hours_elapsed)} ساعة — أضف قراءة جديدة للحصول على تنبؤ دقيق.",
+                    "en": f"Last reading was {round(hours_elapsed)} hours ago — add a new reading for an accurate prediction.",
+                    "he": f"הקריאה האחרונה לפני {round(hours_elapsed)} שעות — הוסף קריאה חדשה לתחזית מדויקת.",
+                }
+                return {
+                    "predicted_value": None,
+                    "hours":           hours,
+                    "trend":           None,
+                    "alert_type":      None,
+                    "probability":     None,
+                    "prob_up":         None,
+                    "prob_down":       None,
+                    "advice":          None,
+                    "readings_used":   len(cleaned_readings),
+                    "message":         stale_msg.get(lang, stale_msg["en"]),
+                }
+
+            # Build a virtual "now" row carrying upcoming carbs/activity so the
+            # forecast updates immediately when the patient logs a meal or activity.
+            # This row enters the LSTM sequence directly — unlike the old approach
+            # of modifying feature_matrix[-1] it does NOT corrupt training data.
+            upcoming_carbs = sum(
+                m["carbs"] for m in log_ctx["meals"]
+                if m["ts"] > last_ts
+            )
+            upcoming_activity = sum(
+                a["minutes"] for a in log_ctx["activities"]
+                if a["ts"] > last_ts
+            )
+            if upcoming_carbs > 0 or upcoming_activity > 0:
+                now = datetime.now(timezone.utc)
+                now_hour = float(now.hour) + float(now.minute) / 60.0
+                _, last_carbs, last_activity, last_sleep = self._context_for_reading(
+                    cleaned_readings[-1], log_ctx, sleep_bl
+                )
+                virtual_row = np.array([[
+                    current,
+                    now_hour,
+                    last_carbs + upcoming_carbs,
+                    last_activity + upcoming_activity,
+                    last_sleep,
+                ]], dtype=np.float32)
+                seed_matrix = np.vstack([feature_matrix, virtual_row])
+                print(f"[Prediction] Virtual now-row: +{upcoming_carbs:.0f}g carbs, +{upcoming_activity:.0f} min activity")
+            else:
+                seed_matrix = None
+        else:
+            seed_matrix = None
+
+        predicted, sigma = self._predict_lstm(
+            feature_matrix, user_id=user_id, hours=predict_hours, seed_override=seed_matrix
+        )
+        trend             = self._calculate_trend(current, predicted)
+        prob_up, prob_down = self._calculate_probability(current, predicted, sigma)
+        probability       = prob_up if trend == "rising" else prob_down if trend == "falling" else max(prob_up, prob_down)
+        patch_error       = last_was_outlier
+        alert_type        = self._get_alert_type(current, predicted, patch_error)
 
         _, last_carbs, last_activity, last_sleep = self._context_for_reading(
             cleaned_readings[-1], log_ctx, sleep_bl
@@ -512,22 +624,27 @@ Reply in JSON format only:
             except Exception as e:
                 print(f"Prediction alert notification failed: {e}")
 
-        advice = self._get_ai_advice(
-            patient_name=patient_name,
-            current=current,
-            predicted=predicted,
-            trend=trend,
-            alert_type=alert_type or "normal",
-            hours=hours,
-            lang=lang,
-            lifestyle_ctx=lifestyle_ctx,
-        )
+        advice = None
+        if alert_type:
+            advice = self._get_ai_advice(
+                patient_name=patient_name,
+                current=current,
+                predicted=predicted,
+                trend=trend,
+                alert_type=alert_type,
+                hours=hours,
+                lang=lang,
+                lifestyle_ctx=lifestyle_ctx,
+            )
 
         return {
             "predicted_value": predicted,
             "hours":           hours,
             "trend":           trend,
             "alert_type":      alert_type,
+            "probability":     probability,
+            "prob_up":         prob_up,
+            "prob_down":       prob_down,
             "advice":          advice,
             "readings_used":   len(rows),
             "message":         None,

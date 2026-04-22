@@ -127,48 +127,11 @@ class DailyLogService:
 
     def get_today(self, user_id: str) -> dict:
         """
-        Retrieve all events from the last 24 hours for a specific user.
-        Uses timestamp-based filtering instead of date-based for accuracy.
-        This ensures events like late-night meals appear in the
-        correct context.
+        Retrieve all events for today's UTC calendar date.
+        Delegates to get_by_date to keep filtering logic in one place.
         """
-        since = datetime.now(timezone.utc) - timedelta(hours=24)
-
-        # Fetch meals
-        meals = []
-        for doc in self.db.collection("meals") \
-                .where("userId", "==", user_id) \
-                .where("timestamp", ">=", since) \
-                .stream():
-            data = doc.to_dict()
-            data["id"] = doc.id
-            meals.append(data)
-
-        # Fetch activities
-        activities = []
-        for doc in self.db.collection("activities") \
-                .where("userId", "==", user_id) \
-                .where("timestamp", ">=", since) \
-                .stream():
-            data = doc.to_dict()
-            data["id"] = doc.id
-            activities.append(data)
-
-        # Fetch sleep logs
-        sleep = []
-        for doc in self.db.collection("sleep_logs") \
-                .where("userId", "==", user_id) \
-                .where("timestamp", ">=", since) \
-                .stream():
-            data = doc.to_dict()
-            data["id"] = doc.id
-            sleep.append(data)
-
-        return {
-            "meals": meals,
-            "activities": activities,
-            "sleep": sleep
-        }
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return self.get_by_date(user_id, today)
 
     # ==========================================
     # Get Logs by Specific Date

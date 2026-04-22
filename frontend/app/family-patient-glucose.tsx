@@ -436,6 +436,17 @@ export default function FamilyPatientGlucoseScreen() {
                     ) : null}
                   </View>
 
+                  {/* Probability Row */}
+                  {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, marginBottom: 2 }}>
+                      <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
+                      <Text style={{ fontSize: 13, color: "#4A6480" }}>
+                        <Text style={{ fontWeight: "700", color: "#1A6FA8" }}>{prediction.probability}%</Text>
+                        {"  "}{t(`prob_${prediction.trend}`)}
+                      </Text>
+                    </View>
+                  )}
+
                   {(prediction.alert_type || prediction.advice?.family) && (
                     <View style={[
                       styles.adviceBox,

@@ -282,6 +282,9 @@ const resources = {
       trend_falling: "Falling",
       trend_stable: "Stable",
       alert_patch_error_short: "Sensor Error",
+      prob_rising: "probability of glucose rise",
+      prob_falling: "probability of glucose drop",
+      prob_stable: "probability of stability",
 
       // Add Glucose
       addGlucoseDesc: "Add a new glucose reading manually",
@@ -651,6 +654,9 @@ const resources = {
       trend_falling: "هابط",
       trend_stable: "مستقر",
       alert_patch_error_short: "خطأ في الجهاز",
+      prob_rising: "احتمال ارتفاع السكر",
+      prob_falling: "احتمال انخفاض السكر",
+      prob_stable: "احتمال استقرار السكر",
 
       // Add Glucose
       addGlucoseDesc: "إضافة قراءة سكر يدوياً",
@@ -1020,6 +1026,9 @@ const resources = {
       trend_falling: "יורד",
       trend_stable: "יציב",
       alert_patch_error_short: "שגיאת חיישן",
+      prob_rising: "סיכוי לעלייה בגלוקוז",
+      prob_falling: "סיכוי לירידה בגלוקוז",
+      prob_stable: "סיכוי ליציבות",
 
       // Add Glucose
       addGlucoseDesc: "הוסף קריאת גלוקוז חדשה ידנית",

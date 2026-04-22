@@ -289,6 +289,17 @@ export default function HomeScreen() {
                   )}
                 </View>
 
+                {/* Probability Row */}
+                {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
+                  <View style={styles.probRow}>
+                    <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
+                    <Text style={styles.probText}>
+                      <Text style={styles.probValue}>{prediction.probability}%</Text>
+                      {"  "}{t(`prob_${prediction.trend}`)}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Alert + AI Advice */}
                 {(prediction.alert_type || prediction.advice?.patient) && (
                   <View style={[
@@ -1297,6 +1308,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+  },
+  probRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingHorizontal: 2,
+  },
+  probText: {
+    fontSize: 13,
+    color: "#4A6480",
+  },
+  probValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1A6FA8",
   },
   trendBadgeText: {
     fontSize: 13,
