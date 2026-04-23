@@ -49,7 +49,7 @@ export default function GlucoseTrendChart({
   readings: any[];
   width: number;
 }) {
-  const HIGH = 140;
+  const HIGH = 170;
   const LOW  = 70;
   const H    = 220;
   const padL = 8;

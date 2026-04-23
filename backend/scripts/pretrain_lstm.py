@@ -24,8 +24,8 @@ MODELS_DIR.mkdir(exist_ok=True)
 MODEL_PATH = str(MODELS_DIR / "base_model.keras")
 
 # Must match prediction_service.py constants
-SEQUENCE_LENGTH = 5
-N_FEATURES = 5          # glucose, hour, carbs_2h, activity_2h, sleep
+SEQUENCE_LENGTH = 12
+N_FEATURES = 6          # glucose, hour, carbs_30min, carbs_2h, activity_2h, sleep
 GLUCOSE_MIN = 40.0
 GLUCOSE_MAX = 600.0
 
@@ -58,17 +58,16 @@ def generate_patient(seed: int) -> np.ndarray:
     noise_std           = rng.uniform(1.5, 4.0)   # smaller per step at 30-min resolution
 
     n = STEPS_PER_PATIENT
-    glucose       = np.zeros(n, dtype=np.float32)
-    carbs_2h      = np.zeros(n, dtype=np.float32)
-    activity_2h   = np.zeros(n, dtype=np.float32)
-    sleep_h       = np.full(n, 7.0, dtype=np.float32)
+    glucose      = np.zeros(n, dtype=np.float32)
+    meal_at_step = np.zeros(n, dtype=np.float32)  # carbs eaten at each 30-min step
+    activity_2h  = np.zeros(n, dtype=np.float32)
+    sleep_h      = np.full(n, 7.0, dtype=np.float32)
 
     glucose[0] = base_glucose + rng.normal(0, 5)
 
     for step in range(1, n):
         # hour_of_day as float (0.0–23.5 in 0.5 increments)
         h_float = (step % 48) * 0.5      # 0.0, 0.5, 1.0 … 23.5
-        h_int   = int(h_float)           # integer hour for meal/activity timing
 
         # ── Circadian / dawn phenomenon (peaks ~7am) ──────────────────────
         circadian = 6 * np.sin(2 * np.pi * (h_float - 5) / 24)
@@ -85,8 +84,8 @@ def generate_patient(seed: int) -> np.ndarray:
         elif slot in [20, 30] and rng.random() < 0.30:     # 10:00 / 15:00 snack
             meal_carbs = rng.uniform(10, 30)
 
-        meal_spike    = meal_carbs * carb_sensitivity
-        carbs_2h[step] = meal_carbs
+        meal_spike       = meal_carbs * carb_sensitivity
+        meal_at_step[step] = meal_carbs
 
         # ── Exercise effect ───────────────────────────────────────────────
         act_min = 0.0
@@ -110,9 +109,17 @@ def generate_patient(seed: int) -> np.ndarray:
         glucose[step]  = prev + reversion + meal_spike - activity_drop + noise
         glucose[step]  = float(np.clip(glucose[step], GLUCOSE_MIN, GLUCOSE_MAX))
 
+    # ── Split carbs into two time windows ────────────────────────────────
+    # carbs_30min: meal eaten at this exact 30-min step (still absorbing → glucose rising)
+    # carbs_2h:    sum of meals eaten 30 min–2 h ago (absorption mostly done)
+    carbs_30min = meal_at_step.copy()
+    carbs_2h    = np.zeros(n, dtype=np.float32)
+    for i in range(1, n):
+        carbs_2h[i] = meal_at_step[max(0, i - 4):i].sum()   # steps 1–4 back = 30–120 min ago
+
     # hour_of_day stored as float 0.0–23.5 matching real patient timestamps
     hours_of_day = ((np.arange(n) % 48) * 0.5).astype(np.float32)
-    return np.stack([glucose, hours_of_day, carbs_2h, activity_2h, sleep_h], axis=1)
+    return np.stack([glucose, hours_of_day, carbs_30min, carbs_2h, activity_2h, sleep_h], axis=1)
 
 
 # ==========================================
@@ -124,12 +131,13 @@ def build_sequences(data: np.ndarray):
     Normalise features and build (X, y) pairs with sliding window.
     Fixed glucose range (GLUCOSE_MIN–GLUCOSE_MAX) matches prediction_service.py.
     """
-    g_norm  = (data[:, 0] - GLUCOSE_MIN) / (GLUCOSE_MAX - GLUCOSE_MIN)
-    h_norm  = data[:, 1] / 24.0
-    c_norm  = np.clip(data[:, 2] / 150.0, 0.0, 1.0)
-    a_norm  = np.clip(data[:, 3] / 120.0, 0.0, 1.0)
-    s_norm  = np.clip(data[:, 4] / 12.0,  0.0, 1.0)
-    scaled  = np.stack([g_norm, h_norm, c_norm, a_norm, s_norm], axis=1)
+    g_norm   = (data[:, 0] - GLUCOSE_MIN) / (GLUCOSE_MAX - GLUCOSE_MIN)
+    h_norm   = data[:, 1] / 24.0
+    c30_norm = np.clip(data[:, 2] / 100.0, 0.0, 1.0)   # carbs_30min
+    c2h_norm = np.clip(data[:, 3] / 150.0, 0.0, 1.0)   # carbs_2h
+    a_norm   = np.clip(data[:, 4] / 120.0, 0.0, 1.0)
+    s_norm   = np.clip(data[:, 5] / 12.0,  0.0, 1.0)
+    scaled   = np.stack([g_norm, h_norm, c30_norm, c2h_norm, a_norm, s_norm], axis=1)
 
     X, y = [], []
     for i in range(len(data) - SEQUENCE_LENGTH):

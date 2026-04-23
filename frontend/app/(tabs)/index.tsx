@@ -192,7 +192,7 @@ export default function HomeScreen() {
 
   const latestStatus =
     typeof latest === "number"
-      ? latest < 70 ? t("low") : latest > 180 ? t("high") : t("normal")
+      ? latest < 70 ? t("low") : latest > 170 ? t("high") : t("normal")
       : "--";
 
   return (
@@ -357,14 +357,14 @@ export default function HomeScreen() {
                 <View style={[
                   styles.statusBadge,
                   typeof latest === "number" && latest < 70 && { backgroundColor: "#FEF3E2" },
-                  typeof latest === "number" && latest >= 70 && latest <= 180 && { backgroundColor: "#E6F7F2" },
-                  typeof latest === "number" && latest > 180 && { backgroundColor: "#FDEDED" },
+                  typeof latest === "number" && latest >= 70 && latest <= 170 && { backgroundColor: "#E6F7F2" },
+                  typeof latest === "number" && latest > 170 && { backgroundColor: "#FDEDED" },
                 ]}>
                   <Text style={[
                     styles.statusBadgeText,
                     typeof latest === "number" && latest < 70 && { color: "#E07B00" },
-                    typeof latest === "number" && latest >= 70 && latest <= 180 && { color: "#0D9E6E" },
-                    typeof latest === "number" && latest > 180 && { color: "#D32F2F" },
+                    typeof latest === "number" && latest >= 70 && latest <= 170 && { color: "#0D9E6E" },
+                    typeof latest === "number" && latest > 170 && { color: "#D32F2F" },
                   ]}>{latestStatus}</Text>
                 </View>
               </View>

@@ -24,13 +24,13 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const getStatusColor = (value: number) => {
   if (value < 70) return "#E07B00";
-  if (value > 180) return "#D32F2F";
+  if (value > 170) return "#D32F2F";
   return "#0D9E6E";
 };
 
 const getStatusBg = (value: number) => {
   if (value < 70) return "#FEF3E2";
-  if (value > 180) return "#FDEDED";
+  if (value > 170) return "#FDEDED";
   return "#E6F7F2";
 };
 
@@ -619,7 +619,7 @@ export default function FamilyPatientGlucoseScreen() {
                     const color = getStatusColor(value);
                     const bg    = getStatusBg(value);
                     const raw   = item?.measuredAt || item?.timestamp || item?.createdAt || "";
-                    const statusLabel = value < 70 ? t("low") : value > 180 ? t("high") : t("normal");
+                    const statusLabel = value < 70 ? t("low") : value > 170 ? t("high") : t("normal");
                     return (
                       <View key={item?.id || idx} style={styles.readingRow}>
                         <View style={[styles.readingIndicator, { backgroundColor: color }]} />

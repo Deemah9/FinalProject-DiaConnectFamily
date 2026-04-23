@@ -122,9 +122,9 @@ export default function GlucoseHistoryScreen() {
   const canPrev = !!selectedDateStr;
   const canNext = selectedDateStr ? selectedDateStr < todayStr : false;
 
-  const getStatusColor = (v: number) => v < 70 ? "#E07B00" : v > 180 ? "#D32F2F" : "#0D9E6E";
-  const getStatusBg   = (v: number) => v < 70 ? "#FEF3E2" : v > 180 ? "#FDEDED" : "#E6F7F2";
-  const getStatus     = (v: number) => v < 70 ? t("low") : v > 180 ? t("high") : t("normal");
+  const getStatusColor = (v: number) => v < 70 ? "#E07B00" : v > 170 ? "#D32F2F" : "#0D9E6E";
+  const getStatusBg   = (v: number) => v < 70 ? "#FEF3E2" : v > 170 ? "#FDEDED" : "#E6F7F2";
+  const getStatus     = (v: number) => v < 70 ? t("low") : v > 170 ? t("high") : t("normal");
 
   const formatTime = (raw: string) => {
     if (!raw) return "--";

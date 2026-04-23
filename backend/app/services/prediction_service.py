@@ -1,7 +1,7 @@
 """
 Glucose Prediction Service — v2 (pre-trained base model + per-patient fine-tuning)
 
-Features per reading: glucose, hour_of_day, carbs_last_2h, activity_last_2h, sleep_hours.
+Features per reading: glucose, hour_of_day, carbs_30min, carbs_2h, activity_last_2h, sleep_hours.
 
 Pre-training:  run scripts/pretrain_lstm.py once → saves models/base_model.keras
 Inference:     load base model → freeze LSTM → fine-tune Dense layers on patient
@@ -32,8 +32,8 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # ==========================================
 
 MIN_READINGS        = 10            # lowered — fine-tuning works with fewer samples
-SEQUENCE_LENGTH     = 5             # (was 10) — more training samples per patient
-N_FEATURES          = 5             # glucose, hour, carbs_2h, activity_2h, sleep
+SEQUENCE_LENGTH     = 12            # 12 × 30-min steps = 6 hours of context window
+N_FEATURES          = 6             # glucose, hour, carbs_30min, carbs_2h, activity_2h, sleep
 GLUCOSE_MIN         = 40.0          # fixed scaler lower bound
 GLUCOSE_MAX         = 600.0         # fixed scaler upper bound (raised to cover extreme hyperglycemia)
 PATCH_ERROR_THRESHOLD = 40          # % deviation → patch error
@@ -141,29 +141,39 @@ class PredictionService:
 
     def _context_for_reading(
         self, reading: dict, log_ctx: dict, sleep_baseline: float
-    ) -> tuple[float, float, float, float]:
+    ) -> tuple[float, float, float, float, float]:
+        """
+        Returns (hour, carbs_30min, carbs_2h, activity_2h, sleep_hours).
+        carbs_30min: carbs eaten in the last 30 min — glucose still rising.
+        carbs_2h:    carbs eaten 30 min–2 h ago — absorption mostly done.
+        """
         ts = reading.get("measuredAt")
         if ts is None:
-            return 12.0, 0.0, 0.0, sleep_baseline
+            return 12.0, 0.0, 0.0, 0.0, sleep_baseline
         if hasattr(ts, "tzinfo") and ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
 
-        window_start = ts - timedelta(hours=2)
-        hour = float(ts.hour)
+        window_2h_start  = ts - timedelta(hours=2)
+        window_30m_start = ts - timedelta(minutes=30)
+        hour = float(ts.hour) + float(ts.minute) / 60.0
 
+        carbs_30min = sum(
+            m["carbs"] for m in log_ctx["meals"]
+            if window_30m_start <= m["ts"] <= ts
+        )
         carbs_2h = sum(
             m["carbs"] for m in log_ctx["meals"]
-            if window_start <= m["ts"] <= ts
+            if window_2h_start <= m["ts"] < window_30m_start
         )
         activity_2h = sum(
             a["minutes"] for a in log_ctx["activities"]
-            if window_start <= a["ts"] <= ts
+            if window_2h_start <= a["ts"] <= ts
         )
 
         past_sleep = [s for s in log_ctx["sleep_logs"] if s["ts"] <= ts]
         sleep_hours = past_sleep[-1]["hours"] if past_sleep else sleep_baseline
 
-        return hour, carbs_2h, activity_2h, sleep_hours
+        return hour, carbs_30min, carbs_2h, activity_2h, sleep_hours
 
     # ==========================================
     # Remove Outliers
@@ -245,12 +255,13 @@ class PredictionService:
 
     @staticmethod
     def _normalise(feature_matrix: np.ndarray) -> np.ndarray:
-        g_norm = (feature_matrix[:, 0] - GLUCOSE_MIN) / (GLUCOSE_MAX - GLUCOSE_MIN)
-        h_norm = feature_matrix[:, 1] / 24.0
-        c_norm = np.clip(feature_matrix[:, 2] / 150.0, 0.0, 1.0)
-        a_norm = np.clip(feature_matrix[:, 3] / 120.0, 0.0, 1.0)
-        s_norm = np.clip(feature_matrix[:, 4] / 12.0,  0.0, 1.0)
-        return np.stack([g_norm, h_norm, c_norm, a_norm, s_norm], axis=1)
+        g_norm   = (feature_matrix[:, 0] - GLUCOSE_MIN) / (GLUCOSE_MAX - GLUCOSE_MIN)
+        h_norm   = feature_matrix[:, 1] / 24.0
+        c30_norm = np.clip(feature_matrix[:, 2] / 100.0, 0.0, 1.0)   # carbs_30min, max ~100g
+        c2h_norm = np.clip(feature_matrix[:, 3] / 150.0, 0.0, 1.0)   # carbs_2h,    max ~150g
+        a_norm   = np.clip(feature_matrix[:, 4] / 120.0, 0.0, 1.0)
+        s_norm   = np.clip(feature_matrix[:, 5] / 12.0,  0.0, 1.0)
+        return np.stack([g_norm, h_norm, c30_norm, c2h_norm, a_norm, s_norm], axis=1)
 
     @staticmethod
     def _denormalise_glucose(val: float) -> float:
@@ -506,7 +517,7 @@ Reply in JSON format only:
     ) -> str | None:
         if patch_error:
             return "patch_error"
-        if current < 90 or predicted < 90:
+        if current < 70 or predicted < 70:
             return "low"
         if current > 170 or predicted > 170:
             return "high"
@@ -550,8 +561,8 @@ Reply in JSON format only:
 
         rows = []
         for r in cleaned_readings:
-            hour, carbs, activity, sleep = self._context_for_reading(r, log_ctx, sleep_bl)
-            rows.append([r["value"], hour, carbs, activity, sleep])
+            hour, c30, c2h, activity, sleep = self._context_for_reading(r, log_ctx, sleep_bl)
+            rows.append([r["value"], hour, c30, c2h, activity, sleep])
 
         feature_matrix = np.array(rows, dtype=np.float32)
 
@@ -600,33 +611,24 @@ Reply in JSON format only:
                 }
 
 
-            # Build a virtual "now" row carrying upcoming carbs/activity so the
-            # forecast updates immediately when the patient logs a meal or activity.
-            # This row enters the LSTM sequence directly — unlike the old approach
-            # of modifying feature_matrix[-1] it does NOT corrupt training data.
-            upcoming_carbs = sum(
-                m["carbs"] for m in log_ctx["meals"]
-                if m["ts"] > last_ts
+            # Build a virtual "now" row when the meal/activity context has changed
+            # since the last reading. Uses _context_for_reading at current time so
+            # carbs_30min correctly reflects meals eaten in the last 30 minutes.
+            now = datetime.now(timezone.utc)
+            now_reading = {"measuredAt": now, "value": current}
+            _, c30_now, c2h_now, act_now, sleep_now = self._context_for_reading(
+                now_reading, log_ctx, sleep_bl
             )
-            upcoming_activity = sum(
-                a["minutes"] for a in log_ctx["activities"]
-                if a["ts"] > last_ts
+            _, c30_last, c2h_last, act_last, _ = self._context_for_reading(
+                cleaned_readings[-1], log_ctx, sleep_bl
             )
-            if upcoming_carbs > 0 or upcoming_activity > 0:
-                now = datetime.now(timezone.utc)
+            if c30_now != c30_last or c2h_now != c2h_last or act_now > act_last:
                 now_hour = float(now.hour) + float(now.minute) / 60.0
-                _, last_carbs, last_activity, last_sleep = self._context_for_reading(
-                    cleaned_readings[-1], log_ctx, sleep_bl
-                )
                 virtual_row = np.array([[
-                    current,
-                    now_hour,
-                    last_carbs + upcoming_carbs,
-                    last_activity + upcoming_activity,
-                    last_sleep,
+                    current, now_hour, c30_now, c2h_now, act_now, sleep_now,
                 ]], dtype=np.float32)
                 seed_matrix = np.vstack([feature_matrix, virtual_row])
-                print(f"[Prediction] Virtual now-row: +{upcoming_carbs:.0f}g carbs, +{upcoming_activity:.0f} min activity")
+                print(f"[Prediction] Virtual now-row: carbs_30min={c30_now:.0f}g, carbs_2h={c2h_now:.0f}g, activity={act_now:.0f}min")
             else:
                 seed_matrix = None
         else:
@@ -641,11 +643,11 @@ Reply in JSON format only:
         patch_error       = last_was_outlier
         alert_type        = self._get_alert_type(current, predicted, patch_error)
 
-        _, last_carbs, last_activity, last_sleep = self._context_for_reading(
+        _, last_c30, last_c2h, last_activity, last_sleep = self._context_for_reading(
             cleaned_readings[-1], log_ctx, sleep_bl
         )
         lifestyle_ctx = {
-            "carbs_2h":       last_carbs,
+            "carbs_2h":       last_c30 + last_c2h,
             "activity_2h":    last_activity,
             "sleep_hours":    last_sleep,
             "activity_level": profile["activity_level"],
