@@ -27,7 +27,7 @@ MODEL_PATH = str(MODELS_DIR / "base_model.keras")
 SEQUENCE_LENGTH = 5
 N_FEATURES = 5          # glucose, hour, carbs_2h, activity_2h, sleep
 GLUCOSE_MIN = 40.0
-GLUCOSE_MAX = 400.0
+GLUCOSE_MAX = 600.0
 
 N_PATIENTS = 100
 STEPS_PER_PATIENT = 24 * 30 * 2   # 30 days × 24h × 2 → reading every 30 min = 1440 steps
@@ -51,7 +51,7 @@ def generate_patient(seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
 
     # Each virtual patient has slightly different physiology
-    base_glucose        = rng.uniform(85, 145)    # fasting baseline
+    base_glucose        = rng.uniform(85, 400)    # fasting baseline — covers normal to severe hyperglycemia
     carb_sensitivity    = rng.uniform(0.3, 0.9)   # mg/dL per gram (per 30-min step)
     exercise_effect     = rng.uniform(0.4, 1.0)   # mg/dL per activity minute (per 30-min step)
     reversion_rate      = rng.uniform(0.04, 0.10) # per 30-min step (half of hourly rate)

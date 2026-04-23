@@ -35,7 +35,7 @@ MIN_READINGS        = 10            # lowered — fine-tuning works with fewer s
 SEQUENCE_LENGTH     = 5             # (was 10) — more training samples per patient
 N_FEATURES          = 5             # glucose, hour, carbs_2h, activity_2h, sleep
 GLUCOSE_MIN         = 40.0          # fixed scaler lower bound
-GLUCOSE_MAX         = 400.0         # fixed scaler upper bound
+GLUCOSE_MAX         = 600.0         # fixed scaler upper bound (raised to cover extreme hyperglycemia)
 PATCH_ERROR_THRESHOLD = 40          # % deviation → patch error
 CGM_MAX_CHANGE      = 30
 MANUAL_MAX_CHANGE   = 80
@@ -174,10 +174,28 @@ class PredictionService:
             return readings
         cleaned = [readings[0]]
         for i in range(1, len(readings)):
-            current   = readings[i]
-            prev_val  = cleaned[-1]["value"]
-            curr_val  = current["value"]
-            max_change = CGM_MAX_CHANGE if current.get("source") == "libreview" else MANUAL_MAX_CHANGE
+            current  = readings[i]
+            prev     = cleaned[-1]
+            prev_val = prev["value"]
+            curr_val = current["value"]
+
+            base_max = CGM_MAX_CHANGE if current.get("source") == "libreview" else MANUAL_MAX_CHANGE
+
+            # Scale the threshold by elapsed time so a long gap (e.g. 12 hours)
+            # doesn't falsely flag a legitimate reading as an outlier.
+            prev_ts = prev.get("measuredAt")
+            curr_ts = current.get("measuredAt")
+            if prev_ts and curr_ts:
+                if hasattr(prev_ts, "tzinfo") and prev_ts.tzinfo is None:
+                    prev_ts = prev_ts.replace(tzinfo=timezone.utc)
+                if hasattr(curr_ts, "tzinfo") and curr_ts.tzinfo is None:
+                    curr_ts = curr_ts.replace(tzinfo=timezone.utc)
+                hours_gap = abs((curr_ts - prev_ts).total_seconds()) / 3600
+                # base_max is defined per ~30-min interval; scale linearly with time
+                max_change = base_max * max(1.0, hours_gap / 0.5)
+            else:
+                max_change = base_max
+
             if abs(curr_val - prev_val) > max_change:
                 fixed = dict(current)
                 fixed["value"] = prev_val
@@ -334,7 +352,20 @@ class PredictionService:
                 optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
                 loss="mse",
             )
-            model.fit(X_train, y_train, epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
+
+            # Recency weights: newer sequences get exponentially higher weight.
+            # e^0 (oldest) … e^3 ≈ 20× (newest) — half-weight lost every ~2h for 24 readings.
+            raw_w  = np.exp(np.linspace(0, 3, len(X_raw_train))).astype(np.float32)
+            aug_w  = np.concatenate([raw_w] * AUGMENT_COPIES)
+            aug_w  = aug_w / aug_w.mean()   # keep average weight = 1 so LR stays calibrated
+
+            model.fit(
+                X_train, y_train,
+                sample_weight=aug_w,
+                epochs=FINETUNE_EPOCHS,
+                batch_size=8,
+                verbose=0,
+            )
 
             # Compute validation RMSE (mg/dL) as σ — unseen data → unbiased estimate
             if len(X_val) > 0:
@@ -528,17 +559,25 @@ Reply in JSON format only:
         last_was_outlier = raw_last is not None and raw_last != cleaned_readings[-1]["value"]
         current          = raw_last if raw_last is not None else feature_matrix[-1, 0]
 
-        # Auto-adjust prediction horizon based on elapsed time since last reading.
-        # If the last reading was N hours ago, we need N+hours steps to reach
-        # "hours from now" rather than "hours from last reading".
+        # Always predict exactly 1 hour ahead from the last reading.
+        # Multi-step recursive prediction compounds errors — keeping it at 1 step
+        # gives the most reliable result. If the reading is old, we add a note
+        # to the message so the user knows to add a fresh reading.
         predict_hours = hours
+        stale_note = None
         last_ts = cleaned_readings[-1].get("measuredAt")
         if last_ts is not None and hasattr(last_ts, "tzinfo"):
             if last_ts.tzinfo is None:
                 last_ts = last_ts.replace(tzinfo=timezone.utc)
             hours_elapsed = max(0.0, (datetime.now(timezone.utc) - last_ts).total_seconds() / 3600)
-            predict_hours = max(1, round(hours_elapsed) + hours)
-            print(f"[Prediction] Last reading {hours_elapsed:.1f}h ago → predicting {predict_hours} steps ahead")
+            print(f"[Prediction] Last reading {hours_elapsed:.1f}h ago → predicting {predict_hours} step ahead")
+            if hours_elapsed >= 2.0:
+                elapsed_str = f"{round(hours_elapsed)}"
+                stale_note = {
+                    "ar": f"آخر قراءة منذ {elapsed_str} ساعة — أضف قراءة جديدة للحصول على تنبؤ محدّث.",
+                    "en": f"Last reading was {elapsed_str}h ago — add a new reading for a fresher prediction.",
+                    "he": f"הקריאה האחרונה לפני {elapsed_str} שעות — הוסף קריאה חדשה לתחזית מעודכנת.",
+                }
 
             MAX_STALE_HOURS = 3
             if hours_elapsed > MAX_STALE_HOURS:
@@ -559,6 +598,7 @@ Reply in JSON format only:
                     "readings_used":   len(cleaned_readings),
                     "message":         stale_msg.get(lang, stale_msg["en"]),
                 }
+
 
             # Build a virtual "now" row carrying upcoming carbs/activity so the
             # forecast updates immediately when the patient logs a meal or activity.
@@ -647,7 +687,7 @@ Reply in JSON format only:
             "prob_down":       prob_down,
             "advice":          advice,
             "readings_used":   len(rows),
-            "message":         None,
+            "message":         stale_note.get(lang, stale_note["en"]) if stale_note else None,
         }
 
 
