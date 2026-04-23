@@ -43,3 +43,4 @@ app-example
 # generated native folders (Expo prebuild generates these inside frontend/)
 ios/
 android/
+.claude/
