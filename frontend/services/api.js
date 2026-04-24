@@ -119,6 +119,12 @@ export const deleteGlucose = (id) => request("DELETE", `/glucose/${id}`);
 export const getGlucoseStats = (days = 7) =>
   request("GET", `/glucose/stats?days=${days}`);
 
+export const getGlucosePrediction = (hours = 1, lang = "ar") =>
+  request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
+
+export const getPatientPrediction = (patientId, hours = 1, lang = "ar") =>
+  request("GET", `/glucose/predict/family?patient_id=${patientId}&hours=${hours}&lang=${lang}`);
+
 // ==========================================
 // Daily Logs APIs
 // ==========================================
@@ -131,6 +137,8 @@ export const addActivity = (data) =>
 export const addSleep = (data) => request("POST", "/daily-logs/sleep", data);
 
 export const getTodayLogs = () => request("GET", "/daily-logs/today");
+
+export const getLogsByDate = (date) => request("GET", `/daily-logs/by-date?date=${date}`);
 
 export const getDailyLogsSummary = (days = 7) =>
   request("GET", `/daily-logs/summary?days=${days}`);
@@ -146,6 +154,21 @@ export const deleteSleep = (id) =>
 
 export const getAlerts = (limit = 20) =>
   request("GET", `/alerts/?limit=${limit}`);
+
+export const getPatientAlerts = (patientId, limit = 20) =>
+  request("GET", `/alerts/patient/${patientId}?limit=${limit}`);
+
+export const markAlertRead = (patientId, alertId) =>
+  request("PATCH", `/alerts/patient/${patientId}/${alertId}/read`);
+
+export const markAllAlertsRead = (patientId) =>
+  request("PATCH", `/alerts/patient/${patientId}/read-all`);
+
+export const markAllMyAlertsRead = () =>
+  request("PATCH", `/alerts/read-all`);
+
+export const markMyAlertRead = (alertId) =>
+  request("PATCH", `/alerts/${alertId}/read`);
 
 // ==========================================
 // Family Connection APIs

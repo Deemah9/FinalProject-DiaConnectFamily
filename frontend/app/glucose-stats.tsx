@@ -65,13 +65,6 @@ export default function GlucoseStatsScreen() {
             <Text style={styles.screenTitle}>{t("glucoseStats")}</Text>
             <Text style={styles.screenSub}>{t("glucoseStatsSub")}</Text>
           </View>
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back-outline" size={16} color="#1A6FA8" />
-            <Text style={styles.backBtnText}>{t("back")}</Text>
-          </Pressable>
         </View>
 
         {/* Day filter */}
@@ -252,18 +245,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   screenSub: { color: "#4A6480", fontSize: 14 },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-  },
-  backBtnText: { color: "#1A6FA8", fontSize: 14, fontWeight: "600" },
 
   // Day filter
   filterRow: {

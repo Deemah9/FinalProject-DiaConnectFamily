@@ -33,6 +33,10 @@ export default function SignUp() {
 
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const touch = (field: string) => setTouched((p) => ({ ...p, [field]: true }));
+  const showErr = (field: string) => !!(touched[field] && errors[field]);
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
@@ -58,6 +62,7 @@ export default function SignUp() {
 
   async function onSignUp() {
     setGeneralError("");
+    setTouched({ firstName: true, lastName: true, email: true, password: true, confirmPassword: true });
     if (!canSubmit) return;
 
     try {
@@ -115,30 +120,32 @@ export default function SignUp() {
           <View style={styles.nameRow}>
             <View style={{ flex: 1 }}>
               <TextInput
-                style={[styles.input, !!errors.firstName && styles.inputErr]}
+                style={[styles.input, showErr("firstName") && styles.inputErr]}
                 placeholder={t("firstName")}
                 placeholderTextColor={Colors.textMutedOnDark}
                 value={firstName}
                 onChangeText={setFirstName}
+                onBlur={() => touch("firstName")}
                 autoCapitalize="words"
                 autoCorrect={false}
               />
-              {!!errors.firstName && (
+              {showErr("firstName") && (
                 <Text style={styles.errText}>{errors.firstName}</Text>
               )}
             </View>
 
             <View style={{ flex: 1 }}>
               <TextInput
-                style={[styles.input, !!errors.lastName && styles.inputErr]}
+                style={[styles.input, showErr("lastName") && styles.inputErr]}
                 placeholder={t("lastName")}
                 placeholderTextColor={Colors.textMutedOnDark}
                 value={lastName}
                 onChangeText={setLastName}
+                onBlur={() => touch("lastName")}
                 autoCapitalize="words"
                 autoCorrect={false}
               />
-              {!!errors.lastName && (
+              {showErr("lastName") && (
                 <Text style={styles.errText}>{errors.lastName}</Text>
               )}
             </View>
@@ -146,7 +153,7 @@ export default function SignUp() {
 
           <View>
             <TextInput
-              style={[styles.input, !!errors.email && styles.inputErr]}
+              style={[styles.input, showErr("email") && styles.inputErr]}
               placeholder={t("email")}
               placeholderTextColor={Colors.textMutedOnDark}
               keyboardType="email-address"
@@ -154,15 +161,16 @@ export default function SignUp() {
               autoCorrect={false}
               value={email}
               onChangeText={setEmail}
+              onBlur={() => touch("email")}
             />
-            {!!errors.email && (
+            {showErr("email") && (
               <Text style={styles.errText}>{errors.email}</Text>
             )}
           </View>
 
           <View>
             <TextInput
-              style={[styles.input, !!errors.password && styles.inputErr]}
+              style={[styles.input, showErr("password") && styles.inputErr]}
               placeholder={t("password")}
               placeholderTextColor={Colors.textMutedOnDark}
               secureTextEntry
@@ -170,18 +178,16 @@ export default function SignUp() {
               autoCorrect={false}
               value={password}
               onChangeText={setPassword}
+              onBlur={() => touch("password")}
             />
-            {!!errors.password && (
+            {showErr("password") && (
               <Text style={styles.errText}>{errors.password}</Text>
             )}
           </View>
 
           <View>
             <TextInput
-              style={[
-                styles.input,
-                !!errors.confirmPassword && styles.inputErr,
-              ]}
+              style={[styles.input, showErr("confirmPassword") && styles.inputErr]}
               placeholder={t("confirmPassword")}
               placeholderTextColor={Colors.textMutedOnDark}
               secureTextEntry
@@ -189,8 +195,9 @@ export default function SignUp() {
               autoCorrect={false}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
+              onBlur={() => touch("confirmPassword")}
             />
-            {!!errors.confirmPassword && (
+            {showErr("confirmPassword") && (
               <Text style={styles.errText}>{errors.confirmPassword}</Text>
             )}
           </View>

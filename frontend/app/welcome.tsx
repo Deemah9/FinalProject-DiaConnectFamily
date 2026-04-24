@@ -1,68 +1,55 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
 import { setAppLanguage } from "@/src/i18n";
 
-type Lang = "en" | "ar" | "he";
-const LANGS: Lang[] = ["en", "ar", "he"];
-
-function normalizeLang(lng?: string): Lang {
-  const base = (lng || "en").split("-")[0].toLowerCase();
-  return base === "ar" || base === "he" || base === "en" ? (base as Lang) : "en";
-}
+const LANG_OPTIONS = [
+  { code: "en" as const, label: "English" },
+  { code: "ar" as const, label: "العربية" },
+  { code: "he" as const, label: "עברית" },
+];
 
 export default function WelcomeScreen() {
   const { t, i18n } = useTranslation();
-
-  // ✅ State يضمن أن الزر يتلوّن فورًا حتى لو i18n ما عمل rerender بسرعة
-  const [selected, setSelected] = useState<Lang>(() => normalizeLang(i18n.language));
-
-  // ✅ تابع تغيّر اللغة من i18next
-  useEffect(() => {
-    const onChanged = (lng: string) => setSelected(normalizeLang(lng));
-    i18n.on("languageChanged", onChanged);
-    return () => {
-      i18n.off("languageChanged", onChanged);
-    };
-  }, [i18n]);
-
-  const current = useMemo(() => normalizeLang(i18n.language), [i18n.language]);
-
-  async function pick(lng: Lang) {
-    setSelected(lng); // ✅ لون فوري
-    try {
-      await setAppLanguage(lng); // يحفظ + يغير + RTL (وقد يعمل Reload عند الحاجة)
-    } catch {
-      // رجّعها لو صار خطأ
-      setSelected(current);
-    }
-  }
+  const [langOpen, setLangOpen] = useState(false);
 
   return (
     <View style={styles.container}>
-      {/* Language pills */}
-      <View style={styles.langRow}>
-        {LANGS.map((lng) => {
-          const active = selected === lng;
-          return (
-            <Pressable
-              key={lng}
-              onPress={() => pick(lng)}
-              style={[styles.langPill, active && styles.langPillActive]}
-            >
-              <Text style={[styles.langText, active && styles.langTextActive]}>
-                {lng.toUpperCase()}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Language button */}
+      <Pressable style={styles.langBtn} onPress={() => setLangOpen(true)}>
+        <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+      </Pressable>
+
+      {/* Language dropdown modal */}
+      <Modal visible={langOpen} transparent animationType="fade" onRequestClose={() => setLangOpen(false)}>
+        <Pressable style={{ flex: 1 }} onPress={() => setLangOpen(false)}>
+          <View style={styles.langDropdown}>
+            {LANG_OPTIONS.map(({ code, label }, idx, arr) => {
+              const active = i18n.language === code;
+              return (
+                <Pressable
+                  key={code}
+                  style={[styles.langOption, idx < arr.length - 1 && styles.langOptionBorder, active && styles.langOptionActive]}
+                  onPress={async () => {
+                    setLangOpen(false);
+                    if (i18n.language === code) return;
+                    await setAppLanguage(code);
+                  }}
+                >
+                  <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>{label}</Text>
+                  {active && <Ionicons name="checkmark" size={14} color="#1A6FA8" />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Brand */}
       <View style={styles.brand} pointerEvents="none">
@@ -110,36 +97,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
 
-  langRow: {
+  langBtn: {
     position: "absolute",
-    top: 48,
-    left: 16,
-    flexDirection: "row",
-    gap: 10,
+    top: 52,
+    right: 20,
     zIndex: 10,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
-  langPill: {
-    height: 34,
-    minWidth: 46,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
+  langDropdown: {
+    position: "absolute", top: 96, right: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14, borderWidth: 1, borderColor: "#D6E8F5",
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, elevation: 8,
+    minWidth: 150, overflow: "hidden",
   },
-  langPillActive: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.white,
-  },
-  langText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  langTextActive: { color: Colors.primary },
+  langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  langOptionBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
+  langOptionActive: { backgroundColor: "#EBF3FA" },
+  langOptionText: { fontSize: 14, color: "#0B1A2E" },
+  langOptionTextActive: { fontWeight: "700", color: "#1A6FA8" },
 
   brand: {
     marginTop: 30,

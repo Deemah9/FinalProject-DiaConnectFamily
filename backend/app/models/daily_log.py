@@ -18,6 +18,8 @@ class MealCreate(BaseEvent):
                        description="Carbohydrate amount in grams")
     foods: Optional[str] = Field(None,
                                  description="Food description (optional)")
+    meal_type: Optional[str] = Field(None,
+                                     description="Meal type: breakfast, lunch, dinner, snack")
     notes: Optional[str] = Field(None,
                                  description="Additional notes (optional)")
 
@@ -30,6 +32,7 @@ class MealResponse(BaseModel):
     id: str
     carbs: int
     foods: Optional[str]
+    meal_type: Optional[str] = None
     notes: Optional[str]
     timestamp: datetime
     createdAt: datetime

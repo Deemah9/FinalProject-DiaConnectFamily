@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -21,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getGlucoseReadings, getProfile, updateProfile } from "@/services/api";
+import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile } from "@/services/api";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
@@ -66,12 +66,33 @@ export default function HomeScreen() {
   const [loadingGlucose, setLoadingGlucose] = useState(true);
   const [errorGlucose, setErrorGlucose] = useState("");
 
+  const [prediction, setPrediction] = useState<any>(null);
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [showReminder, setShowReminder] = useState(false);
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  });
+
   useFocusEffect(
     useCallback(() => {
       loadUser();
       loadGlucose();
+      loadPrediction();
     }, []),
   );
+
+  const loadPrediction = async () => {
+    try {
+      setLoadingPrediction(true);
+      const data = await getGlucosePrediction(1, i18n.language);
+      setPrediction(data);
+    } catch {
+      setPrediction(null);
+    } finally {
+      setLoadingPrediction(false);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -94,14 +115,20 @@ export default function HomeScreen() {
 
       const data = await getGlucoseReadings();
 
-      if (Array.isArray(data)) {
-        setGlucoseReadings(data);
-      } else if (Array.isArray(data?.items)) {
-        setGlucoseReadings(data.items);
-      } else if (Array.isArray(data?.readings)) {
-        setGlucoseReadings(data.readings);
-      } else {
-        setGlucoseReadings([]);
+      let readings: any[] = [];
+      if (Array.isArray(data)) readings = data;
+      else if (Array.isArray(data?.items)) readings = data.items;
+      else if (Array.isArray(data?.readings)) readings = data.readings;
+      setGlucoseReadings(readings);
+
+      // Check if last reading was 6+ hours ago
+      if (readings.length > 0) {
+        const latest = readings
+          .map((r: any) => new Date(r?.measuredAt || r?.timestamp || r?.createdAt || 0).getTime())
+          .filter((t: number) => t > 0)
+          .sort((a: number, b: number) => b - a)[0];
+        const hoursElapsed = (Date.now() - latest) / (1000 * 60 * 60);
+        if (hoursElapsed >= 6) setShowReminder(true);
       }
     } catch (error: any) {
       console.log("glucose fetch error:", error);
@@ -117,36 +144,55 @@ export default function HomeScreen() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || t("user");
 
-  const role = user?.role || t("patient");
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    return hour < 12 ? t("goodMorning") : t("goodEvening");
+  };
+
+  const toLocalDateStr = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+  const shiftDay = (dateStr: string, delta: number) => {
+    const [y, m, day] = dateStr.split("-").map(Number);
+    return toLocalDateStr(new Date(y, m - 1, day + delta));
+  };
+
+  const todayStr = toLocalDateStr(new Date());
+  const canNext = selectedDateStr < todayStr;
+
+  const chartReadings = useMemo(() => {
+    return [...glucoseReadings]
+      .filter((g) => {
+        if (Number(g?.value) <= 0) return false;
+        const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
+        const d = new Date(raw);
+        return !Number.isNaN(d.getTime()) && toLocalDateStr(d) === selectedDateStr;
+      })
+      .sort((a, b) => {
+        const ta = new Date(a?.measuredAt || a?.timestamp || a?.createdAt || "").getTime();
+        const tb = new Date(b?.measuredAt || b?.timestamp || b?.createdAt || "").getTime();
+        return ta - tb;
+      });
+  }, [glucoseReadings, selectedDateStr]);
+
+  const selectedLabel = useMemo(() => {
+    if (selectedDateStr === todayStr) return t("today");
+    const yesterday = toLocalDateStr(new Date(Date.now() - 86_400_000));
+    if (selectedDateStr === yesterday) return t("yesterday");
+    const [y, m, day] = selectedDateStr.split("-").map(Number);
+    return new Date(y, m - 1, day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  }, [selectedDateStr, t]);
 
   const values = glucoseReadings
     .map((g) => Number(g?.value || 0))
     .filter((v) => !Number.isNaN(v) && v > 0);
 
   const latest = values.length > 0 ? values[0] : "--";
-
-  // Today's readings only, oldest → newest for the chart
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const chartReadings = [...glucoseReadings]
-    .filter((g) => {
-      if (Number(g?.value) <= 0) return false;
-      const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
-      const d = new Date(raw);
-      return !Number.isNaN(d.getTime()) && d >= todayStart;
-    })
-    .reverse();
-
-  const chartWidth = Dimensions.get("window").width - 64; // card padding
+  const chartWidth = Dimensions.get("window").width - 64;
 
   const latestStatus =
     typeof latest === "number"
-      ? latest < 70
-        ? t("low")
-        : latest > 180
-          ? t("high")
-          : t("normal")
+      ? latest < 70 ? t("low") : latest > 170 ? t("high") : t("normal")
       : "--";
 
   return (
@@ -171,9 +217,7 @@ export default function HomeScreen() {
           <Text style={styles.welcomeTitle}>
             {loadingUser
               ? t("loading")
-              : user?.role === "family_member"
-                ? t("familyWelcome", { name: fullName })
-                : `${t("welcomeBack")}, ${fullName}!`}
+              : `${getGreeting()} ${fullName}`}
           </Text>
           <Text style={styles.welcomeSub}>
             {errorUser
@@ -184,17 +228,122 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Role Badge */}
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleBadgeText}>{role}</Text>
+
+        {/* AI Prediction Card */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("predictionTitle")}</Text>
+          <View style={styles.predictionCard}>
+            <View style={styles.predictionHeader}>
+              <Ionicons name="analytics-outline" size={20} color={Colors.primary} />
+              <Text style={styles.predictionLabel}>{t("predictionSubtitle")}</Text>
+            </View>
+
+            {loadingPrediction ? (
+              <Text style={styles.predictionLoading}>{t("predictionLoading")}</Text>
+            ) : prediction?.message ? (
+              <Text style={styles.predictionInsufficient}>{prediction.message}</Text>
+            ) : prediction?.predicted_value != null ? (
+              <>
+                {/* Value + Trend Badge Row */}
+                <View style={styles.predictionValueRow}>
+                  <View>
+                    <Text style={styles.predictionValue}>
+                      {Math.round(prediction.predicted_value)}
+                      <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
+                    </Text>
+                  </View>
+
+                  {(prediction.trend || prediction.alert_type === "patch_error") && (
+                    <View style={[
+                      styles.trendBadge,
+                      prediction.alert_type === "patch_error" ? { backgroundColor: "#FEF3C7" } :
+                      prediction.trend === "rising"  ? { backgroundColor: "#FEE2E2" } :
+                      prediction.trend === "falling" ? { backgroundColor: "#FEF3C7" } :
+                                                       { backgroundColor: "#D1FAE5" },
+                    ]}>
+                      <Ionicons
+                        name={
+                          prediction.alert_type === "patch_error" ? "warning"       :
+                          prediction.trend === "rising"            ? "trending-up"   :
+                          prediction.trend === "falling"           ? "trending-down" : "remove"
+                        }
+                        size={18}
+                        color={
+                          prediction.alert_type === "patch_error" ? "#D97706" :
+                          prediction.trend === "rising"            ? "#DC2626" :
+                          prediction.trend === "falling"           ? "#D97706" : "#059669"
+                        }
+                      />
+                      <Text style={[
+                        styles.trendBadgeText,
+                        prediction.alert_type === "patch_error" ? { color: "#92400E" } :
+                        prediction.trend === "rising"            ? { color: "#DC2626" } :
+                        prediction.trend === "falling"           ? { color: "#D97706" } :
+                                                                   { color: "#059669" },
+                      ]}>
+                        {prediction.alert_type === "patch_error"
+                          ? t("alert_patch_error_short")
+                          : t(`trend_${prediction.trend}`)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Probability Row */}
+                {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
+                  <View style={styles.probRow}>
+                    <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
+                    <Text style={styles.probText}>
+                      <Text style={styles.probValue}>{prediction.probability}%</Text>
+                      {"  "}{t(`prob_${prediction.trend}`)}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Alert + AI Advice */}
+                {(prediction.alert_type || prediction.advice?.patient) && (
+                  <View style={[
+                    styles.predictionAlert,
+                    prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
+                    prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
+                    prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+                    !prediction.alert_type                  && { backgroundColor: "#EBF3FA", borderColor: "#B8D0E8" },
+                  ]}>
+                    <Ionicons
+                      name={
+                        prediction.alert_type === "patch_error" ? "warning" :
+                        prediction.alert_type               ? "alert-circle" : "information-circle"
+                      }
+                      size={18}
+                      color={
+                        prediction.alert_type === "low"  ? "#E07B00" :
+                        prediction.alert_type === "high" ? "#D32F2F" :
+                        prediction.alert_type === "patch_error" ? "#6B7280" : "#1A6FA8"
+                      }
+                    />
+                    <Text style={[
+                      styles.predictionAlertText,
+                      prediction.alert_type === "low"         && { color: "#92400E" },
+                      prediction.alert_type === "high"        && { color: "#991B1B" },
+                      prediction.alert_type === "patch_error" && { color: "#374151" },
+                      !prediction.alert_type                  && { color: "#1A4A6B" },
+                    ]}>
+                      {prediction.advice?.patient || (prediction.alert_type ? t(`alert_${prediction.alert_type}`) : "")}
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text style={styles.predictionInsufficient}>{t("predictionUnavailable")}</Text>
+            )}
+          </View>
         </View>
 
-        {/* Today's Overview — chart first */}
+        {/* Glucose Trend — chart with day navigator */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("todaysOverview")}</Text>
 
           <View style={styles.overviewCard}>
-            {/* Latest reading row */}
             <View style={styles.latestRow}>
               <View>
                 <Text style={styles.overviewTitle}>{t("bloodGlucose")}</Text>
@@ -203,31 +352,42 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.latestPill}>
-                <Text style={styles.latestValue}>
-                  {loadingGlucose ? "--" : latest}
-                </Text>
+                <Text style={styles.latestValue}>{loadingGlucose ? "--" : latest}</Text>
                 <Text style={styles.latestUnit}>{t("mgdL")}</Text>
                 <View style={[
                   styles.statusBadge,
                   typeof latest === "number" && latest < 70 && { backgroundColor: "#FEF3E2" },
-                  typeof latest === "number" && latest >= 70 && latest <= 180 && { backgroundColor: "#E6F7F2" },
-                  typeof latest === "number" && latest > 180 && { backgroundColor: "#FDEDED" },
+                  typeof latest === "number" && latest >= 70 && latest <= 170 && { backgroundColor: "#E6F7F2" },
+                  typeof latest === "number" && latest > 170 && { backgroundColor: "#FDEDED" },
                 ]}>
                   <Text style={[
                     styles.statusBadgeText,
                     typeof latest === "number" && latest < 70 && { color: "#E07B00" },
-                    typeof latest === "number" && latest >= 70 && latest <= 180 && { color: "#0D9E6E" },
-                    typeof latest === "number" && latest > 180 && { color: "#D32F2F" },
+                    typeof latest === "number" && latest >= 70 && latest <= 170 && { color: "#0D9E6E" },
+                    typeof latest === "number" && latest > 170 && { color: "#D32F2F" },
                   ]}>{latestStatus}</Text>
                 </View>
               </View>
             </View>
 
-            {/* Glucose Trend Chart */}
+            {/* Day Navigator */}
+            <View style={styles.dayNav}>
+              <Pressable style={styles.navArrow} onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}>
+                <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+              </Pressable>
+              <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+              <Pressable
+                style={[styles.navArrow, !canNext && { opacity: 0.3 }]}
+                onPress={() => canNext && setSelectedDateStr((d) => shiftDay(d, 1))}
+                disabled={!canNext}
+              >
+                <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+              </Pressable>
+            </View>
+
             {chartReadings.length > 0 ? (
               <View style={styles.trendWrap}>
                 <GlucoseTrendChart readings={chartReadings} width={chartWidth} />
-                {/* Legend */}
                 <View style={styles.trendLegend}>
                   <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: "#F59E0B" }]} />
@@ -249,81 +409,39 @@ export default function HomeScreen() {
                 <Text style={styles.trendEmptyText}>{t("noReadingsYet")}</Text>
               </View>
             )}
-
           </View>
         </View>
 
-        {/* Quick Actions — small square buttons */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("quickActions")}</Text>
-
-          <View style={styles.quickRow}>
-            {[
-              { icon: "flash-outline",      bg: "#EFF6FF", color: "#3B82F6", label: t("quickCheck"),   route: "/glucose-history" },
-              { icon: "restaurant-outline", bg: "#FFF7ED", color: "#F59E0B", label: t("addMeal"),     route: "/add-meal"        },
-              { icon: "walk-outline",       bg: "#ECFDF5", color: "#10B981", label: t("addActivity"), route: "/add-activity"    },
-              { icon: "moon-outline",       bg: "#EEF2FF", color: "#1A6FA8", label: t("addSleep"),    route: "/add-sleep"       },
-            ].map(({ icon, bg, color, label, route }) => (
-              <Pressable
-                key={route}
-                style={styles.quickSquare}
-                onPress={() => router.push(route as any)}
-              >
-                <View style={[styles.quickSquareIcon, { backgroundColor: bg }]}>
-                  <Ionicons name={icon as any} size={22} color={color} />
-                </View>
-                <Text style={styles.quickSquareLabel} numberOfLines={1}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("alerts")}</Text>
-
-          <View style={styles.alertCard}>
-            <View style={[styles.alertIconCircle, { backgroundColor: "#FFFBEB" }]}>
-              <Ionicons name="notifications-outline" size={20} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.alertMainTitle}>{t("medicationReminder")}</Text>
-              <Text style={styles.alertMainSub}>{t("eveningDose")}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Recent Alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("recentAlerts")}</Text>
-
-          <View style={styles.recentList}>
-            {/* Reminder — light green */}
-            <View style={styles.reminderCard}>
-              <View style={styles.reminderIconCircle}>
-                <Ionicons name="alarm-outline" size={20} color="#16A34A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.reminderTitle}>{t("reminder")}</Text>
-                <Text style={styles.reminderSub}>{t("measureAfterLunch")}</Text>
-              </View>
-            </View>
-
-            {/* Tip — light blue */}
-            <View style={styles.tipCard}>
-              <View style={styles.tipIconCircle}>
-                <Ionicons name="bulb-outline" size={20} color="#2563EB" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.tipTitle}>{t("tip")}</Text>
-                <Text style={styles.tipSub}>{t("drinkWater")}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View style={{ height: 24 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* FAB — Add Glucose */}
+      <Pressable style={styles.fab} onPress={() => router.push("/add-glucose" as any)}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </Pressable>
+
+      {/* Glucose Reminder Modal */}
+      <Modal visible={showReminder} transparent animationType="fade" onRequestClose={() => setShowReminder(false)}>
+        <View style={styles.reminderBackdrop}>
+          <View style={styles.reminderBox}>
+            <View style={styles.reminderIconWrap}>
+              <Ionicons name="time-outline" size={30} color="#1A6FA8" />
+            </View>
+            <Text style={styles.reminderModalTitle}>{t("reminderTitle")}</Text>
+            <Text style={styles.reminderModalMsg}>{t("reminderMsg")}</Text>
+            <Pressable
+              style={styles.reminderAddBtn}
+              onPress={() => { setShowReminder(false); router.push("/add-glucose" as any); }}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.reminderAddText}>{t("addReading")}</Text>
+            </Pressable>
+            <Pressable style={styles.reminderDismiss} onPress={() => setShowReminder(false)}>
+              <Text style={styles.reminderDismissText}>{t("remindLater")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Language dropdown — rendered as Modal so it floats above all content */}
       <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
@@ -555,7 +673,7 @@ const styles = StyleSheet.create({
   },
 
   hero: {
-    marginTop: 28,
+    marginTop: 12,
     marginBottom: 16,
   },
 
@@ -600,43 +718,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // Quick Actions — compact square buttons
-  quickRow: {
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "space-between",
-  },
 
-  quickSquare: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    alignItems: "center",
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-
-  quickSquareIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-
-  quickSquareLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#1E3A52",
-    textAlign: "center",
+  fab: {
+    position: "absolute", bottom: 32, right: 24,
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: "#1A6FA8",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1A6FA8", shadowOpacity: 0.4,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
 
   alertCard: {
@@ -764,6 +853,8 @@ const styles = StyleSheet.create({
 
   trendWrap: {
     marginTop: 8,
+    minHeight: 200,
+    justifyContent: "center",
   },
 
   trendLabel: {
@@ -807,7 +898,8 @@ const styles = StyleSheet.create({
 
   trendEmpty: {
     alignItems: "center",
-    paddingVertical: 24,
+    justifyContent: "center",
+    minHeight: 200,
     gap: 8,
   },
 
@@ -1158,4 +1250,133 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1A6FA8",
   },
+
+  // Prediction Card
+  predictionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  predictionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  predictionLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+  },
+  predictionLoading: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: "center",
+    paddingVertical: 8,
+  },
+  predictionInsufficient: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: "center",
+    paddingVertical: 8,
+    lineHeight: 20,
+  },
+  predictionValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  predictionValue: {
+    fontSize: 40,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+  predictionUnit: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    fontWeight: "400",
+  },
+  trendBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  probRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingHorizontal: 2,
+  },
+  probText: {
+    fontSize: 13,
+    color: "#4A6480",
+  },
+  probValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1A6FA8",
+  },
+  trendBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  predictionAlert: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+  },
+  dayNav: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#EBF3FA", borderRadius: 10,
+    paddingVertical: 6, paddingHorizontal: 6,
+    marginBottom: 10,
+    alignSelf: "center",
+    width: "70%",
+  },
+  navArrow: { padding: 4 },
+  dayNavLabel: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
+  predictionAlertText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 20,
+  },
+
+  reminderBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+  },
+  reminderBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 24,
+    padding: 24, width: "100%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+  },
+  reminderIconWrap: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: "#EBF3FA", alignItems: "center",
+    justifyContent: "center", marginBottom: 16,
+  },
+  reminderModalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 10, textAlign: "center" },
+  reminderModalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", lineHeight: 22, marginBottom: 24 },
+  reminderAddBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#1A6FA8", borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 24,
+    width: "100%", justifyContent: "center", marginBottom: 12,
+  },
+  reminderAddText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  reminderDismiss: { paddingVertical: 8 },
+  reminderDismissText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
 });

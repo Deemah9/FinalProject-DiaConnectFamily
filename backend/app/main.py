@@ -5,6 +5,7 @@ from app.routes import glucose
 from app.routes import daily_logs
 from app.routes import alerts
 from app.routes import family
+from app.routes import prediction
 from app.routes import libreview
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -40,6 +41,7 @@ app.include_router(glucose.router)
 app.include_router(daily_logs.router)
 app.include_router(alerts.router)
 app.include_router(family.router)
+app.include_router(prediction.router)
 app.include_router(libreview.router)
 
 

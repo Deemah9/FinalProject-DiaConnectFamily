@@ -101,6 +101,20 @@ def get_today(
 
 
 # ==========================================
+# GET /daily-logs/by-date
+# ==========================================
+
+@router.get("/by-date", response_model=TodaySummaryResponse)
+def get_by_date(
+    date: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Retrieve all events for a specific date (YYYY-MM-DD) for the current user.
+    """
+    return daily_log_service.get_by_date(user_id=current_user["sub"], date_str=date)
+
+
 # GET /daily-logs/summary
 # ==========================================
 

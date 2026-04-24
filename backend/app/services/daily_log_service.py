@@ -127,48 +127,61 @@ class DailyLogService:
 
     def get_today(self, user_id: str) -> dict:
         """
-        Retrieve all events from the last 24 hours for a specific user.
-        Uses timestamp-based filtering instead of date-based for accuracy.
-        This ensures events like late-night meals appear in the
-        correct context.
+        Retrieve all events for today's UTC calendar date.
+        Delegates to get_by_date to keep filtering logic in one place.
         """
-        since = datetime.now(timezone.utc) - timedelta(hours=24)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return self.get_by_date(user_id, today)
 
-        # Fetch meals
+    # ==========================================
+    # Get Logs by Specific Date
+    # ==========================================
+
+    def get_by_date(self, user_id: str, date_str: str) -> dict:
+        """
+        Retrieve all events for a specific local date (YYYY-MM-DD).
+        Fetches all user docs and filters in Python to avoid composite index.
+        """
+        try:
+            y, m, d = map(int, date_str.split("-"))
+        except Exception:
+            return {"meals": [], "activities": [], "sleep": []}
+
+        day_start = datetime(y, m, d, 0, 0, 0, tzinfo=timezone.utc)
+        day_end   = datetime(y, m, d, 23, 59, 59, 999999, tzinfo=timezone.utc)
+
+        def in_range(doc_data: dict) -> bool:
+            ts = doc_data.get("timestamp")
+            if ts is None:
+                return False
+            if hasattr(ts, "tzinfo"):
+                ts = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+            else:
+                return False
+            return day_start <= ts <= day_end
+
         meals = []
-        for doc in self.db.collection("meals") \
-                .where("userId", "==", user_id) \
-                .where("timestamp", ">=", since) \
-                .stream():
+        for doc in self.db.collection("meals").where("userId", "==", user_id).stream():
             data = doc.to_dict()
-            data["id"] = doc.id
-            meals.append(data)
+            if in_range(data):
+                data["id"] = doc.id
+                meals.append(data)
 
-        # Fetch activities
         activities = []
-        for doc in self.db.collection("activities") \
-                .where("userId", "==", user_id) \
-                .where("timestamp", ">=", since) \
-                .stream():
+        for doc in self.db.collection("activities").where("userId", "==", user_id).stream():
             data = doc.to_dict()
-            data["id"] = doc.id
-            activities.append(data)
+            if in_range(data):
+                data["id"] = doc.id
+                activities.append(data)
 
-        # Fetch sleep logs
         sleep = []
-        for doc in self.db.collection("sleep_logs") \
-                .where("userId", "==", user_id) \
-                .where("timestamp", ">=", since) \
-                .stream():
+        for doc in self.db.collection("sleep_logs").where("userId", "==", user_id).stream():
             data = doc.to_dict()
-            data["id"] = doc.id
-            sleep.append(data)
+            if in_range(data):
+                data["id"] = doc.id
+                sleep.append(data)
 
-        return {
-            "meals": meals,
-            "activities": activities,
-            "sleep": sleep
-        }
+        return {"meals": meals, "activities": activities, "sleep": sleep}
 
     # ==========================================
     # Get Period Summary
