@@ -132,6 +132,13 @@ export default function Login() {
               {loading ? t("loading") : t("login")}
             </Text>
           </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/forgot-password")}
+            style={{ alignSelf: "center", marginTop: Spacing.sm }}
+          >
+            <Text style={styles.forgotLink}>{t("forgotPassword")}</Text>
+          </Pressable>
         </View>
         <Link href="/signup" asChild>
           <Pressable style={{ marginTop: Spacing.lg }}>
@@ -232,4 +239,9 @@ const styles = StyleSheet.create({
 
   link: { color: Colors.linkText, fontSize: 13, textAlign: "center" },
   linkBold: { fontWeight: "700", textDecorationLine: "underline" },
+  forgotLink: {
+    color: Colors.textMutedOnDark,
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
 });
