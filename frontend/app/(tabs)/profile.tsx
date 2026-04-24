@@ -13,6 +13,7 @@ import {
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
 import { getProfile, updateLifestyle, updateMedical, updateProfile } from "@/services/api";
+import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 const PRIMARY   = "#1A6FA8";
@@ -365,6 +366,16 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* ── Change Password ────────────────────────────────────── */}
+        <Pressable
+          style={styles.changePwBtn}
+          onPress={() => router.push("/change-password")}
+        >
+          <Ionicons name="lock-closed-outline" size={18} color={PRIMARY} />
+          <Text style={styles.changePwBtnText}>{t("changePassword")}</Text>
+          <Ionicons name="chevron-forward" size={16} color={PRIMARY} />
+        </Pressable>
+
         <View style={{ height: 32 }} />
       </ScrollView>
     </View>
@@ -685,5 +696,25 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: "#FFFFFF",
     ...Typography.button,
+  },
+
+  changePwBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#EEF4FF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+
+  changePwBtnText: {
+    flex: 1,
+    color: PRIMARY,
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

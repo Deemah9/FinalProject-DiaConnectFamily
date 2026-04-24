@@ -1,16 +1,20 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ==========================================
 # Configuration
 # ==========================================
 
-# Secret key for JWT signing
-# In production, this should be stored in environment variables (.env)
-# Generate with: openssl rand -hex 32
-SECRET_KEY = "f926236257f57ceab0e9449fc3e58ef84fd4e5659878c8083383adc18368cf4e"
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "f926236257f57ceab0e9449fc3e58ef84fd4e5659878c8083383adc18368cf4e"
+)
 
 # JWT algorithm
 ALGORITHM = "HS256"

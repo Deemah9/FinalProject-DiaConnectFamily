@@ -71,6 +71,63 @@ class GlucoseService:
         return result
 
     # ==========================================
+    # Import Reading from LibreView
+    # ==========================================
+
+    def create_reading_from_import(
+        self,
+        user_id: str,
+        value: int,
+        measured_at: datetime,
+        source: str = "libreview",
+    ) -> dict | None:
+        """
+        Save a glucose reading imported from an external source (LibreView).
+
+        Bypasses GlucoseCreate validation intentionally:
+        - value is already normalised to int mg/dL by the caller.
+        - measuredAt is historical, no future-date check needed.
+        - source is set by the caller, not forced to 'manual'.
+
+        Deduplication: if a reading for this user with the exact same
+        measuredAt already exists in Firestore, the insert is skipped
+        and None is returned. This prevents duplicates on re-sync.
+
+        Returns the saved document dict (with id) on success.
+        Returns None if the reading already exists (duplicate).
+        """
+        # Normalise timezone before comparison
+        if measured_at.tzinfo is None:
+            measured_at = measured_at.replace(tzinfo=timezone.utc)
+
+        # ── Duplicate check ───────────────────────────────────────
+        existing = (
+            self.db.collection(self.collection)
+            .where("userId", "==", user_id)
+            .where("measuredAt", "==", measured_at)
+            .limit(1)
+            .stream()
+        )
+        for _ in existing:
+            return None  # duplicate — skip
+
+        # ── Save ──────────────────────────────────────────────────
+        doc_ref = self.db.collection(self.collection).document()
+
+        document = GlucoseDocument(
+            userId=user_id,
+            value=value,
+            measuredAt=measured_at,
+            source=source,
+            createdAt=datetime.now(timezone.utc),
+        )
+
+        doc_ref.set(document.dict())
+        result = document.dict()
+        result["id"] = doc_ref.id
+        return result
+
+    # ==========================================
     # Get All Readings
     # ==========================================
 
