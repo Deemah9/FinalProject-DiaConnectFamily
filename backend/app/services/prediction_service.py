@@ -189,7 +189,8 @@ class PredictionService:
             prev_val = prev["value"]
             curr_val = current["value"]
 
-            base_max = CGM_MAX_CHANGE if current.get("source") == "libreview" else MANUAL_MAX_CHANGE
+            is_cgm = current.get("source") in ("libreview", "csv")
+            base_max = CGM_MAX_CHANGE if is_cgm else MANUAL_MAX_CHANGE
 
             # Scale the threshold by elapsed time so a long gap (e.g. 12 hours)
             # doesn't falsely flag a legitimate reading as an outlier.

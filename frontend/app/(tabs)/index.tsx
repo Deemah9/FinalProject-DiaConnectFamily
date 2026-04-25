@@ -2,9 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Animated,
   Dimensions,
   I18nManager,
@@ -21,7 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile } from "@/services/api";
+import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile, importGlucoseCSV } from "@/services/api";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
@@ -69,6 +71,8 @@ export default function HomeScreen() {
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -194,6 +198,36 @@ export default function HomeScreen() {
     typeof latest === "number"
       ? latest < 70 ? t("low") : latest > 170 ? t("high") : t("normal")
       : "--";
+
+  const pickAndImportCSV = async () => {
+    setShowAddModal(false);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset) return;
+
+      setImporting(true);
+      // On web, asset.file is the native File object; on native, use { uri, name, type }
+      const filePayload = (asset as any).file ?? { uri: asset.uri, name: asset.name, type: asset.mimeType ?? "text/csv" };
+      const data = await importGlucoseCSV(filePayload, asset.name, asset.mimeType ?? "text/csv");
+      await loadGlucose();
+
+      Alert.alert(
+        t("importCSV"),
+        `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+      );
+    } catch (e: any) {
+      Alert.alert(t("importCSV"), e.message || t("importFailed"));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
@@ -415,10 +449,54 @@ export default function HomeScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB — Add Glucose */}
-      <Pressable style={styles.fab} onPress={() => router.push("/add-glucose" as any)}>
+      {/* FAB — Add / Import Glucose */}
+      <Pressable style={styles.fab} onPress={() => !importing && setShowAddModal(true)}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </Pressable>
+
+      {/* Add Options Modal */}
+      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+        <Pressable style={styles.addModalBackdrop} onPress={() => setShowAddModal(false)}>
+          <View style={styles.addModalSheet}>
+            <View style={styles.addModalHandle} />
+            <Text style={styles.addModalTitle}>{t("importCSVTitle")}</Text>
+
+            <Pressable
+              style={styles.addOptionBtn}
+              onPress={() => { setShowAddModal(false); router.push("/add-glucose" as any); }}
+            >
+              <View style={styles.addOptionIcon}>
+                <Ionicons name="pencil-outline" size={22} color="#1A6FA8" />
+              </View>
+              <View style={styles.addOptionText}>
+                <Text style={styles.addOptionLabel}>{t("manualEntry")}</Text>
+                <Text style={styles.addOptionSub}>{t("manualEntrySub")}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#B8D0E8" />
+            </Pressable>
+
+            <View style={styles.importInfoBanner}>
+              <Ionicons name="information-circle-outline" size={15} color="#1A6FA8" />
+              <Text style={styles.importInfoText}>{t("importCSVInfo")}</Text>
+            </View>
+
+            <Pressable style={[styles.addOptionBtn, importing && { opacity: 0.6 }]} onPress={importing ? undefined : pickAndImportCSV}>
+              <View style={styles.addOptionIcon}>
+                <Ionicons name={importing ? "cloud-upload-outline" : "document-text-outline"} size={22} color="#1A6FA8" />
+              </View>
+              <View style={styles.addOptionText}>
+                <Text style={styles.addOptionLabel}>{importing ? t("importing") : t("importCSVOption")}</Text>
+                <Text style={styles.addOptionSub}>{t("importCSVOptionSub")}</Text>
+              </View>
+              {!importing && <Ionicons name="chevron-forward" size={18} color="#B8D0E8" />}
+            </Pressable>
+
+            <Pressable style={styles.addModalCancel} onPress={() => setShowAddModal(false)}>
+              <Text style={styles.addModalCancelText}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Glucose Reminder Modal */}
       <Modal visible={showReminder} transparent animationType="fade" onRequestClose={() => setShowReminder(false)}>
@@ -1352,6 +1430,65 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     lineHeight: 20,
+  },
+
+  addModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  addModalSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  addModalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: "#D6E8F5",
+    alignSelf: "center", marginBottom: 20,
+  },
+  addModalTitle: {
+    fontSize: 17, fontWeight: "700", color: "#0B1A2E",
+    marginBottom: 20, textAlign: "center",
+  },
+  addOptionBtn: {
+    flexDirection: "row", alignItems: "center",
+    gap: 14, paddingVertical: 16, paddingHorizontal: 12,
+    borderRadius: 16, backgroundColor: "#EBF3FA",
+    marginBottom: 12,
+  },
+  addOptionIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1A6FA8", shadowOpacity: 0.08,
+    shadowRadius: 4, elevation: 2,
+  },
+  addOptionText: { flex: 1 },
+  addOptionLabel: {
+    fontSize: 15, fontWeight: "600", color: "#0B1A2E", marginBottom: 2,
+  },
+  addOptionSub: { fontSize: 12, color: "#4A6480" },
+  addModalCancel: {
+    alignItems: "center", paddingVertical: 14, marginTop: 4,
+  },
+  addModalCancelText: {
+    fontSize: 15, fontWeight: "600", color: "#7A96B0",
+  },
+  importInfoBanner: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#EBF3FA", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12,
+  },
+  importInfoText: {
+    fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17,
   },
 
   reminderBackdrop: {

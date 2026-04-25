@@ -1,4 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+import csv
+import io
+from datetime import datetime, timezone, timedelta
+
+from fastapi import (
+    APIRouter, Depends, File, HTTPException, UploadFile, status, Response
+)
 from app.middleware.dependencies import get_current_user, require_role
 from app.models.glucose_reading import (
     GlucoseCreate, GlucoseResponse, GlucoseStatsResponse
@@ -139,3 +145,108 @@ def delete_glucose_reading(
     alert_service.delete_by_reading_id(reading_id=reading_id)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ==========================================
+# POST /glucose/import-csv
+# ==========================================
+
+@router.post("/import-csv")
+async def import_glucose_csv(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_role("patient")),
+):
+    """
+    Import glucose readings from a FreeStyle LibreLink CSV export.
+
+    Quota optimisation:
+      - Only imports the last 90 days (older rows are silently skipped).
+      - Type-0 CGM readings are downsampled to one per 30-minute slot;
+        type-1 manual scans are all kept (they are far fewer).
+
+    CSV format (skip first 2 rows):
+      Col 2: Device Timestamp (DD-MM-YYYY HH:MM)
+      Col 3: Record Type — 0=historic (15-min CGM), 1=scan, 6=alarm (skip)
+      Col 4: Historic Glucose mg/dL (type 0)
+      Col 5: Scan Glucose mg/dL (type 1)
+    """
+    user_id = current_user["sub"]
+    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+
+    reader = csv.reader(io.StringIO(text))
+    rows = list(reader)
+
+    # Skip the first 2 rows (metadata + header)
+    data_rows = rows[2:]
+
+    # ── Parse + filter + downsample in memory ────────────────────
+    candidates: list[dict] = []
+    seen_buckets: set[datetime] = set()  # for type-0 30-min dedup
+
+    for row in data_rows:
+        if len(row) < 5:
+            continue
+
+        record_type_raw = row[3].strip()
+        if record_type_raw not in ("0", "1"):
+            continue
+
+        record_type = int(record_type_raw)
+        if record_type == 0:
+            raw_value = row[4].strip()
+        else:
+            raw_value = row[5].strip() if len(row) > 5 else ""
+
+        if not raw_value:
+            continue
+
+        try:
+            value_mgdl = int(round(float(raw_value)))
+        except ValueError:
+            continue
+
+        if not (40 <= value_mgdl <= 600):
+            continue
+
+        timestamp_raw = row[2].strip()
+        try:
+            measured_at = datetime.strptime(timestamp_raw, "%d-%m-%Y %H:%M")
+            measured_at = measured_at.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+
+        # ── 90-day window ─────────────────────────────────────────
+        if measured_at < cutoff:
+            continue
+
+        # ── Downsample type-0: one reading per 30-min slot ───────
+        if record_type == 0:
+            bucket = measured_at.replace(
+                minute=(measured_at.minute // 30) * 30,
+                second=0,
+                microsecond=0,
+            )
+            if bucket in seen_buckets:
+                continue
+            seen_buckets.add(bucket)
+
+        candidates.append({"value": value_mgdl, "measuredAt": measured_at})
+
+    # ── Batch write (1 read + batched writes) ────────────────────
+    imported, skipped = glucose_service.batch_import_readings(
+        user_id=user_id,
+        readings=candidates,
+        source="csv",
+    )
+
+    return {
+        "imported_count": imported,
+        "skipped_count": skipped,
+        "source": "csv",
+    }

@@ -45,7 +45,7 @@ class GlucoseDocument(BaseModel):
     userId: str
     value: int
     measuredAt: datetime
-    source: Literal["manual", "libreview"]
+    source: Literal["manual", "libreview", "csv"]
     createdAt: datetime
 
 
@@ -62,7 +62,7 @@ class GlucoseResponse(BaseModel):
     id: str
     value: int
     measuredAt: datetime
-    source: Literal["manual", "libreview"]
+    source: Literal["manual", "libreview", "csv"]
     createdAt: datetime
 
 # ==========================================
