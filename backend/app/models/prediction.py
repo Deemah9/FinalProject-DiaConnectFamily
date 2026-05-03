@@ -42,3 +42,5 @@ class PredictionResponse(BaseModel):
     advice: Optional[PredictionAdvice] = None
     readings_used: int = 0
     message: Optional[str] = None
+    data_stale: bool = False
+    hours_since_last_reading: Optional[float] = None

@@ -71,6 +71,7 @@ export default function HomeScreen() {
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [showAlreadyImported, setShowAlreadyImported] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
@@ -112,7 +113,7 @@ export default function HomeScreen() {
     }
   };
 
-  const loadGlucose = async () => {
+  const loadGlucose = async (): Promise<any[]> => {
     try {
       setLoadingGlucose(true);
       setErrorGlucose("");
@@ -134,10 +135,13 @@ export default function HomeScreen() {
         const hoursElapsed = (Date.now() - latest) / (1000 * 60 * 60);
         if (hoursElapsed >= 6) setShowReminder(true);
       }
+
+      return readings;
     } catch (error: any) {
       console.log("glucose fetch error:", error);
       setErrorGlucose(error?.message || "Failed to load glucose readings");
       setGlucoseReadings([]);
+      return [];
     } finally {
       setLoadingGlucose(false);
     }
@@ -187,11 +191,9 @@ export default function HomeScreen() {
     return new Date(y, m - 1, day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
   }, [selectedDateStr, t]);
 
-  const values = glucoseReadings
-    .map((g) => Number(g?.value || 0))
-    .filter((v) => !Number.isNaN(v) && v > 0);
-
-  const latest = values.length > 0 ? values[0] : "--";
+  const latest = chartReadings.length > 0
+    ? Number(chartReadings[chartReadings.length - 1]?.value || 0)
+    : "--";
   const chartWidth = Dimensions.get("window").width - 64;
 
   const latestStatus =
@@ -216,12 +218,30 @@ export default function HomeScreen() {
       // On web, asset.file is the native File object; on native, use { uri, name, type }
       const filePayload = (asset as any).file ?? { uri: asset.uri, name: asset.name, type: asset.mimeType ?? "text/csv" };
       const data = await importGlucoseCSV(filePayload, asset.name, asset.mimeType ?? "text/csv");
-      await loadGlucose();
+      const freshReadings = await loadGlucose();
+      setShowReminder(false); // don't show stale reminder right after an import
+      loadPrediction();
 
-      Alert.alert(
-        t("importCSV"),
-        `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-      );
+      // Navigate chart to the date of the most recent imported reading
+      if (freshReadings.length > 0) {
+        const latestTs = freshReadings
+          .map((r: any) => new Date(r?.measuredAt || r?.timestamp || r?.createdAt || 0).getTime())
+          .filter((t: number) => t > 0)
+          .sort((a: number, b: number) => b - a)[0];
+        if (latestTs > 0) {
+          setSelectedDateStr(toLocalDateStr(new Date(latestTs)));
+        }
+      }
+
+      if (data.imported_count === 0 && data.skipped_count > 0) {
+        setShowAlreadyImported(true);
+      } else {
+        Alert.alert(
+          t("importSuccessTitle"),
+          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          [{ text: t("ok"), onPress: () => router.push("/glucose-history" as any) }],
+        );
+      }
     } catch (e: any) {
       Alert.alert(t("importCSV"), e.message || t("importFailed"));
     } finally {
@@ -274,10 +294,21 @@ export default function HomeScreen() {
 
             {loadingPrediction ? (
               <Text style={styles.predictionLoading}>{t("predictionLoading")}</Text>
-            ) : prediction?.message ? (
-              <Text style={styles.predictionInsufficient}>{prediction.message}</Text>
+            ) : prediction?.data_stale && prediction?.predicted_value == null ? (
+              <View style={styles.staleWarningCard}>
+                <Ionicons name="warning-outline" size={20} color="#D97706" />
+                <Text style={styles.staleWarningText}>{prediction.message || t("predictionStale")}</Text>
+              </View>
             ) : prediction?.predicted_value != null ? (
               <>
+                {/* Stale data soft warning */}
+                {prediction?.data_stale && (
+                  <View style={styles.staleBanner}>
+                    <Ionicons name="time-outline" size={14} color="#D97706" />
+                    <Text style={styles.staleBannerText}>{prediction.message}</Text>
+                  </View>
+                )}
+
                 {/* Value + Trend Badge Row */}
                 <View style={styles.predictionValueRow}>
                   <View>
@@ -516,6 +547,25 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable style={styles.reminderDismiss} onPress={() => setShowReminder(false)}>
               <Text style={styles.reminderDismissText}>{t("remindLater")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Already Imported Modal */}
+      <Modal visible={showAlreadyImported} transparent animationType="fade" onRequestClose={() => setShowAlreadyImported(false)}>
+        <View style={styles.reminderBackdrop}>
+          <View style={styles.reminderBox}>
+            <View style={[styles.reminderIconWrap, { backgroundColor: "#FEF9EC" }]}>
+              <Ionicons name="checkmark-done-outline" size={30} color="#D97706" />
+            </View>
+            <Text style={styles.reminderModalTitle}>{t("importAlreadyTitle")}</Text>
+            <Text style={styles.reminderModalMsg}>{t("importAlreadyMessage")}</Text>
+            <Pressable
+              style={[styles.reminderAddBtn, { backgroundColor: "#D97706" }]}
+              onPress={() => { setShowAlreadyImported(false); }}
+            >
+              <Text style={styles.reminderAddText}>{t("ok")}</Text>
             </Pressable>
           </View>
         </View>
@@ -1428,6 +1478,43 @@ const styles = StyleSheet.create({
   dayNavLabel: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
   predictionAlertText: {
     fontSize: 13,
+    flex: 1,
+    lineHeight: 20,
+  },
+
+  staleBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF9EC",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  staleBannerText: {
+    fontSize: 12,
+    color: "#92400E",
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  staleWarningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FEF9EC",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 4,
+  },
+  staleWarningText: {
+    fontSize: 13,
+    color: "#92400E",
     flex: 1,
     lineHeight: 20,
   },

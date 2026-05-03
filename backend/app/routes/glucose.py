@@ -53,16 +53,16 @@ async def add_glucose_reading(
 
 @router.get("/", response_model=list[GlucoseResponse])
 async def get_glucose_readings(
-    limit: int = 50,
+    limit: int = 500,
     current_user: dict = Depends(get_current_user)
 ):
     """
     Retrieve glucose readings for the current user.
     Available to both patients and family members.
     Results are ordered by measuredAt descending.
-    limit: number of readings to return (default 50, max 200).
+    limit: number of readings to return (default 500, max 2000).
     """
-    limit = max(1, min(limit, 200))
+    limit = max(1, min(limit, 2000))
     return glucose_service.get_readings(
         user_id=current_user["sub"], limit=limit
     )
@@ -188,6 +188,7 @@ async def import_glucose_csv(
     # ── Parse + filter + downsample in memory ────────────────────
     candidates: list[dict] = []
     seen_buckets: set[datetime] = set()  # for type-0 30-min dedup
+    too_old_count = 0  # rows outside 90-day window → count as skipped
 
     for row in data_rows:
         if len(row) < 5:
@@ -223,6 +224,7 @@ async def import_glucose_csv(
 
         # ── 90-day window ─────────────────────────────────────────
         if measured_at < cutoff:
+            too_old_count += 1
             continue
 
         # ── Downsample type-0: one reading per 30-min slot ───────
@@ -247,6 +249,6 @@ async def import_glucose_csv(
 
     return {
         "imported_count": imported,
-        "skipped_count": skipped,
+        "skipped_count": skipped + too_old_count,
         "source": "csv",
     }

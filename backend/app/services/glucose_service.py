@@ -125,17 +125,31 @@ class GlucoseService:
         source: str = "csv",
     ) -> tuple[int, int]:
         """
-        Efficiently import many glucose readings in bulk.
+        Incrementally import glucose readings from a CSV export.
 
-        Strategy (3 Firestore round-trips regardless of reading count):
-          1. Stream all existing measuredAt values for this user → Python set.
-          2. Filter duplicates in memory.
+        Strategy (2 Firestore round-trips regardless of reading count):
+          1. Fetch only the most recent measuredAt for this user (1 doc).
+          2. Skip everything up to and including that timestamp in memory.
           3. Write new readings in batches of BATCH_SIZE.
+
+        This replaces the old "stream all timestamps" approach, which was
+        expensive on quota. Now only 1 read is needed regardless of history size.
 
         Returns (imported_count, skipped_count).
         """
-        # ── 1. Fetch existing timestamps ──────────────────────────
-        existing_ts: set[datetime] = set()
+        def _ts_key(ts) -> str:
+            """Normalize any datetime (pytz/timezone.utc/naive) to a
+            minute-precision UTC string "YYYYMMDDHHММ" for safe comparison."""
+            if ts is None:
+                return ""
+            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            # utctimetuple strips tzinfo differences — purely UTC digits
+            t = ts.utctimetuple()
+            return f"{t.tm_year:04}{t.tm_mon:02}{t.tm_mday:02}{t.tm_hour:02}{t.tm_min:02}"
+
+        # ── 1. Find the latest stored timestamp key for this user ─
+        last_key: str = ""
         docs = (
             self.db.collection(self.collection)
             .where("userId", "==", user_id)
@@ -143,25 +157,27 @@ class GlucoseService:
         )
         for doc in docs:
             ts = doc.to_dict().get("measuredAt")
-            if ts is not None:
-                if hasattr(ts, "tzinfo") and ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=timezone.utc)
-                existing_ts.add(ts)
+            key = _ts_key(ts)
+            if key > last_key:
+                last_key = key
 
-        # ── 2. Deduplicate in memory ──────────────────────────────
+        print(f"[Import] last stored key: {last_key or 'none (empty DB)'}")
+
+        # ── 2. Keep only readings newer than the latest stored ────
         now = datetime.now(timezone.utc)
         new_readings = []
         skipped = 0
 
         for r in readings:
-            ts = r["measuredAt"]
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            if ts in existing_ts:
+            key = _ts_key(r["measuredAt"])
+            if last_key and key <= last_key:
                 skipped += 1
             else:
-                new_readings.append({"value": r["value"], "measuredAt": ts})
-                existing_ts.add(ts)  # prevent intra-batch duplicates
+                new_readings.append({"value": r["value"], "measuredAt": r["measuredAt"]})
+                if key > last_key:
+                    last_key = key  # prevent intra-batch duplicates
+
+        print(f"[Import] to import: {len(new_readings)}, skipped: {skipped}")
 
         # ── 3. Batch write ────────────────────────────────────────
         imported = 0

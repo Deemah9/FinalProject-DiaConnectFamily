@@ -14,6 +14,8 @@ const getToken = async () => {
 // Helper — base request
 // ==========================================
 
+const REQUEST_TIMEOUT_MS = 30000;
+
 const request = async (method, endpoint, body = null) => {
   const token = await getToken();
 
@@ -23,13 +25,27 @@ const request = async (method, endpoint, body = null) => {
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   const config = {
     method,
     headers,
+    signal: controller.signal,
     ...(body && { body: JSON.stringify(body) }),
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, config);
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, config);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out. Please check your connection.");
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   const raw = await response.text();
   let data = null;
@@ -110,7 +126,7 @@ export const updateLifestyle = (data) =>
 export const addGlucose = (value, measuredAt) =>
   request("POST", "/glucose/", { value, measuredAt });
 
-export const getGlucoseReadings = () => request("GET", "/glucose/");
+export const getGlucoseReadings = () => request("GET", "/glucose/?limit=500");
 
 export const getLatestGlucose = () => request("GET", "/glucose/latest");
 

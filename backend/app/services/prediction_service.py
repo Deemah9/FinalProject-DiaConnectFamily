@@ -577,38 +577,57 @@ Reply in JSON format only:
         # to the message so the user knows to add a fresh reading.
         predict_hours = hours
         stale_note = None
+        hours_elapsed = 0.0
         last_ts = cleaned_readings[-1].get("measuredAt")
         if last_ts is not None and hasattr(last_ts, "tzinfo"):
             if last_ts.tzinfo is None:
                 last_ts = last_ts.replace(tzinfo=timezone.utc)
             hours_elapsed = max(0.0, (datetime.now(timezone.utc) - last_ts).total_seconds() / 3600)
             print(f"[Prediction] Last reading {hours_elapsed:.1f}h ago → predicting {predict_hours} step ahead")
-            if hours_elapsed >= 2.0:
-                elapsed_str = f"{round(hours_elapsed)}"
+
+            def _elapsed_str(h: float, lang: str) -> str:
+                """Return a human-readable elapsed time string in the given language."""
+                days = h / 24
+                if h < 24:
+                    n = round(h)
+                    return {"ar": f"{n} ساعة", "en": f"{n}h", "he": f"{n} שעות"}.get(lang, f"{n}h")
+                elif days < 2:
+                    return {"ar": "يوم واحد", "en": "1 day", "he": "יום אחד"}.get(lang, "1 day")
+                else:
+                    n = round(days)
+                    return {"ar": f"{n} أيام", "en": f"{n} days", "he": f"{n} ימים"}.get(lang, f"{n} days")
+
+            # Soft warning: data is getting old but still usable
+            if hours_elapsed >= 6.0:
+                e = _elapsed_str(hours_elapsed, lang)
                 stale_note = {
-                    "ar": f"آخر قراءة منذ {elapsed_str} ساعة — أضف قراءة جديدة للحصول على تنبؤ محدّث.",
-                    "en": f"Last reading was {elapsed_str}h ago — add a new reading for a fresher prediction.",
-                    "he": f"הקריאה האחרונה לפני {elapsed_str} שעות — הוסף קריאה חדשה לתחזית מעודכנת.",
+                    "ar": f"آخر قراءة منذ {e} — أضف قراءة جديدة للحصول على تنبؤ محدّث.",
+                    "en": f"Last reading was {e} ago — add a new reading for a fresher prediction.",
+                    "he": f"הקריאה האחרונה לפני {e} — הוסף קריאה חדשה לתחזית מעודכנת.",
                 }
 
-            MAX_STALE_HOURS = 3
+            # Hard cutoff: data too old to predict reliably
+            MAX_STALE_HOURS = 24
             if hours_elapsed > MAX_STALE_HOURS:
+                e = _elapsed_str(hours_elapsed, lang)
                 stale_msg = {
-                    "ar": f"آخر قراءة منذ {round(hours_elapsed)} ساعة — أضف قراءة جديدة للحصول على تنبؤ دقيق.",
-                    "en": f"Last reading was {round(hours_elapsed)} hours ago — add a new reading for an accurate prediction.",
-                    "he": f"הקריאה האחרונה לפני {round(hours_elapsed)} שעות — הוסף קריאה חדשה לתחזית מדויקת.",
+                    "ar": f"آخر قراءة منذ {e} — أضف قراءة جديدة للحصول على تنبؤ دقيق.",
+                    "en": f"Last reading was {e} ago — add a new reading for an accurate prediction.",
+                    "he": f"הקריאה האחרונה לפני {e} — הוסף קריאה חדשה לתחזית מדויקת.",
                 }
                 return {
-                    "predicted_value": None,
-                    "hours":           hours,
-                    "trend":           None,
-                    "alert_type":      None,
-                    "probability":     None,
-                    "prob_up":         None,
-                    "prob_down":       None,
-                    "advice":          None,
-                    "readings_used":   len(cleaned_readings),
-                    "message":         stale_msg.get(lang, stale_msg["en"]),
+                    "predicted_value":         None,
+                    "hours":                   hours,
+                    "trend":                   None,
+                    "alert_type":              None,
+                    "probability":             None,
+                    "prob_up":                 None,
+                    "prob_down":               None,
+                    "advice":                  None,
+                    "readings_used":           len(cleaned_readings),
+                    "message":                 stale_msg.get(lang, stale_msg["en"]),
+                    "data_stale":              True,
+                    "hours_since_last_reading": round(hours_elapsed, 1),
                 }
 
 
@@ -681,16 +700,18 @@ Reply in JSON format only:
             )
 
         return {
-            "predicted_value": predicted,
-            "hours":           hours,
-            "trend":           trend,
-            "alert_type":      alert_type,
-            "probability":     probability,
-            "prob_up":         prob_up,
-            "prob_down":       prob_down,
-            "advice":          advice,
-            "readings_used":   len(rows),
-            "message":         stale_note.get(lang, stale_note["en"]) if stale_note else None,
+            "predicted_value":          predicted,
+            "hours":                    hours,
+            "trend":                    trend,
+            "alert_type":               alert_type,
+            "probability":              probability,
+            "prob_up":                  prob_up,
+            "prob_down":                prob_down,
+            "advice":                   advice,
+            "readings_used":            len(rows),
+            "message":                  stale_note.get(lang, stale_note["en"]) if stale_note else None,
+            "data_stale":               hours_elapsed >= 6.0,
+            "hours_since_last_reading": round(hours_elapsed, 1),
         }
 
 
