@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -12,9 +13,12 @@ import {
   View,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Calendar } from "react-native-calendars";
 
 import AppHeader from "@/src/components/AppHeader";
 import { getGlucoseReadings, deleteGlucose } from "@/services/api";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const toLocalDateStr = (d: Date) => {
   const y = d.getFullYear();
@@ -38,6 +42,7 @@ export default function GlucoseHistoryScreen() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const parseDate = (item: any) => {
     const raw = item?.measuredAt || item?.timestamp || item?.createdAt;
@@ -84,6 +89,19 @@ export default function GlucoseHistoryScreen() {
   }, [readings]);
 
   const allDates = useMemo(() => grouped.map(([dateStr]) => dateStr), [grouped]);
+
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
+    allDates.forEach((dateStr) => {
+      marks[dateStr] = {
+        marked: true,
+        dotColor: "#1A6FA8",
+        selected: dateStr === selectedDateStr,
+        selectedColor: "#1A6FA8",
+      };
+    });
+    return marks;
+  }, [allDates, selectedDateStr]);
 
   useEffect(() => {
     if (allDates.length > 0 && !selectedDateStr) {
@@ -220,7 +238,10 @@ export default function GlucoseHistoryScreen() {
                 >
                   <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
                 </Pressable>
-                <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+                <Pressable style={styles.dayNavCenter} onPress={() => setShowCalendar(true)}>
+                  <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
+                  <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+                </Pressable>
                 <Pressable
                   onPress={() => selectedDateStr && setSelectedDateStr(shiftDay(selectedDateStr, 1))}
                   disabled={!canNext}
@@ -229,6 +250,32 @@ export default function GlucoseHistoryScreen() {
                   <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
                 </Pressable>
               </View>
+
+              {/* Calendar Modal */}
+              <Modal visible={showCalendar} transparent animationType="fade">
+                <Pressable style={styles.calBackdrop} onPress={() => setShowCalendar(false)}>
+                  <Pressable style={styles.calBox} onPress={(e) => e.stopPropagation()}>
+                    <Calendar
+                      markedDates={markedDates}
+                      onDayPress={(day: any) => {
+                        if (allDates.includes(day.dateString)) {
+                          setSelectedDateStr(day.dateString);
+                        }
+                        setShowCalendar(false);
+                      }}
+                      theme={{
+                        selectedDayBackgroundColor: "#1A6FA8",
+                        todayTextColor: "#1A6FA8",
+                        arrowColor: "#1A6FA8",
+                        dotColor: "#1A6FA8",
+                      }}
+                    />
+                    <Pressable style={styles.calCloseBtn} onPress={() => setShowCalendar(false)}>
+                      <Text style={styles.calCloseTxt}>{t("close")}</Text>
+                    </Pressable>
+                  </Pressable>
+                </Pressable>
+              </Modal>
 
               {/* Day Stats */}
               {stats && (
@@ -365,7 +412,25 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   navArrow: { padding: 6 },
-  dayNavLabel: { flex: 1, textAlign: "center", fontSize: 14, fontWeight: "700", color: "#0B1A2E" },
+  dayNavCenter: {
+    flex: 1, flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 6,
+  },
+  dayNavLabel: { fontSize: 14, fontWeight: "700", color: "#0B1A2E" },
+  calBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center", alignItems: "center",
+  },
+  calBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 20,
+    padding: 16, width: SCREEN_WIDTH - 48,
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+  },
+  calCloseBtn: {
+    marginTop: 12, alignItems: "center",
+    paddingVertical: 10, backgroundColor: "#EBF3FA", borderRadius: 10,
+  },
+  calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
 
   dayStatsRow: {
     flexDirection: "row", backgroundColor: "#F4F9FD",

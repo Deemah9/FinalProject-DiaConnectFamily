@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -74,6 +75,7 @@ export default function HomeScreen() {
   const [showAlreadyImported, setShowAlreadyImported] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -190,6 +192,29 @@ export default function HomeScreen() {
     const [y, m, day] = selectedDateStr.split("-").map(Number);
     return new Date(y, m - 1, day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
   }, [selectedDateStr, t]);
+
+  const datesWithReadings = useMemo(() => {
+    const dates = new Set<string>();
+    for (const g of glucoseReadings) {
+      const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) dates.add(toLocalDateStr(d));
+    }
+    return dates;
+  }, [glucoseReadings]);
+
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
+    datesWithReadings.forEach((dateStr) => {
+      marks[dateStr] = {
+        marked: true,
+        dotColor: "#1A6FA8",
+        selected: dateStr === selectedDateStr,
+        selectedColor: "#1A6FA8",
+      };
+    });
+    return marks;
+  }, [datesWithReadings, selectedDateStr]);
 
   const latest = chartReadings.length > 0
     ? Number(chartReadings[chartReadings.length - 1]?.value || 0)
@@ -404,6 +429,97 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Historical Pattern Card — shown only when prediction_mode = "pattern" */}
+        {prediction?.prediction_mode === "pattern" && (() => {
+          const pp   = prediction.pattern_prediction;
+          const risk = pp?.risk_level ?? "normal";
+
+          const riskColor = risk === "high" ? "#D32F2F" : risk === "low" ? "#D97706" : risk === "variable" ? "#7C3AED" : "#059669";
+          const riskBg    = risk === "high" ? "#FEE2E2" : risk === "low" ? "#FFFBEB" : risk === "variable" ? "#F5F3FF" : "#D1FAE5";
+          const riskIcon  = risk === "variable" ? "stats-chart" : risk === "normal" ? "checkmark-circle" : "alert-circle";
+          const riskLabel = risk === "high" ? t("high") : risk === "low" ? t("low") : risk === "variable" ? t("patternVariabilityUnstable") : t("normal");
+
+          const confLabel = pp?.confidence === "high" ? t("patternConfidenceHigh") : pp?.confidence === "medium" ? t("patternConfidenceMedium") : t("patternConfidenceLow");
+
+          const avgVal     = pp?.typical_avg ?? 0;
+          const adviceStyle = avgVal > 170
+            ? { bg: "#FDEDED", border: "#FECACA", color: "#991B1B", icon: "alert-circle",       iconClr: "#D32F2F" }
+            : avgVal < 70
+            ? { bg: "#FFF7ED", border: "#FED7AA", color: "#92400E", icon: "alert-circle",       iconClr: "#E07B00" }
+            : { bg: "#EBF3FA", border: "#B8D0E8", color: "#1A4A6B", icon: "information-circle", iconClr: "#1A6FA8" };
+
+          return (
+            <View style={styles.section} key="pattern-card">
+              <Text style={styles.sectionLabel}>{t("patternCardTitle")}</Text>
+              <View style={styles.predictionCard}>
+
+                {/* Header — mirrors prediction card */}
+                <View style={styles.predictionHeader}>
+                  <Ionicons name="bar-chart-outline" size={20} color={Colors.primary} />
+                  <Text style={styles.predictionLabel}>{t("patternCardSubtitle")}</Text>
+                </View>
+
+                {pp?.available ? (
+                  <>
+                    {/* Value row + risk badge */}
+                    <View style={styles.predictionValueRow}>
+                      <View>
+                        <Text style={[styles.predictionValue, {
+                          color: avgVal > 170 ? "#D32F2F" : avgVal < 70 ? "#D97706" : Colors.text,
+                        }]}>
+                          {pp.typical_avg}
+                          <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
+                        </Text>
+                      </View>
+                      <View style={[styles.trendBadge, { backgroundColor: riskBg }]}>
+                        <Ionicons name={riskIcon as any} size={18} color={riskColor} />
+                        <Text style={[styles.trendBadgeText, { color: riskColor }]}>{riskLabel}</Text>
+                      </View>
+                    </View>
+
+                    {/* Typical range */}
+                    {pp.typical_min != null && pp.typical_max != null && (
+                      <View style={[styles.probRow, { marginBottom: 12 }]}>
+                        <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
+                        <Text style={styles.probText}>
+                          {t("patternTypical")}{" "}
+                          <Text style={styles.probValue}>{pp.typical_min} – {pp.typical_max}</Text>
+                          {" "}{t("mgdL")}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Advice — identical style to prediction card */}
+                    {(prediction.advice?.patient || pp.message) && (
+                      <View style={[styles.predictionAlert, { backgroundColor: adviceStyle.bg, borderColor: adviceStyle.border }]}>
+                        <Ionicons name={adviceStyle.icon as any} size={18} color={adviceStyle.iconClr} />
+                        <Text style={[styles.predictionAlertText, { color: adviceStyle.color }]}>
+                          {prediction.advice?.patient || pp.message}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Footer: samples + confidence */}
+                    <View style={[styles.probRow, { marginTop: 10, marginBottom: 0 }]}>
+                      <Ionicons name="time-outline" size={13} color="#4A6480" />
+                      <Text style={styles.probText}>
+                        {t("patternSamples", { count: pp.sample_count })}
+                        {"  ·  "}
+                        <Text style={{
+                          fontWeight: "600",
+                          color: pp?.confidence === "high" ? "#16A34A" : pp?.confidence === "medium" ? "#D97706" : "#6B7280",
+                        }}>{confLabel}</Text>
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.predictionInsufficient}>{t("patternNoData")}</Text>
+                )}
+              </View>
+            </View>
+          );
+        })()}
+
         {/* Glucose Trend — chart with day navigator */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("todaysOverview")}</Text>
@@ -440,7 +556,10 @@ export default function HomeScreen() {
               <Pressable style={styles.navArrow} onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}>
                 <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
               </Pressable>
-              <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+              <Pressable style={styles.dayNavCenter} onPress={() => setShowCalendar(true)}>
+                <Ionicons name="calendar-outline" size={14} color="#1A6FA8" />
+                <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+              </Pressable>
               <Pressable
                 style={[styles.navArrow, !canNext && { opacity: 0.3 }]}
                 onPress={() => canNext && setSelectedDateStr((d) => shiftDay(d, 1))}
@@ -449,6 +568,30 @@ export default function HomeScreen() {
                 <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
               </Pressable>
             </View>
+
+            {/* Calendar Modal */}
+            <Modal visible={showCalendar} transparent animationType="fade">
+              <Pressable style={styles.calBackdrop} onPress={() => setShowCalendar(false)}>
+                <Pressable style={styles.calBox} onPress={(e) => e.stopPropagation()}>
+                  <Calendar
+                    markedDates={markedDates}
+                    onDayPress={(day: any) => {
+                      setSelectedDateStr(day.dateString);
+                      setShowCalendar(false);
+                    }}
+                    theme={{
+                      selectedDayBackgroundColor: "#1A6FA8",
+                      todayTextColor: "#1A6FA8",
+                      arrowColor: "#1A6FA8",
+                      dotColor: "#1A6FA8",
+                    }}
+                  />
+                  <Pressable style={styles.calCloseBtn} onPress={() => setShowCalendar(false)}>
+                    <Text style={styles.calCloseTxt}>{t("close")}</Text>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            </Modal>
 
             {chartReadings.length > 0 ? (
               <View style={styles.trendWrap}>
@@ -490,36 +633,55 @@ export default function HomeScreen() {
         <Pressable style={styles.addModalBackdrop} onPress={() => setShowAddModal(false)}>
           <View style={styles.addModalSheet}>
             <View style={styles.addModalHandle} />
-            <Text style={styles.addModalTitle}>{t("importCSVTitle")}</Text>
 
-            <Pressable
-              style={styles.addOptionBtn}
-              onPress={() => { setShowAddModal(false); router.push("/add-glucose" as any); }}
-            >
-              <View style={styles.addOptionIcon}>
-                <Ionicons name="pencil-outline" size={22} color="#1A6FA8" />
+            {/* Title */}
+            <View style={styles.addModalTitleRow}>
+              <View style={styles.addModalTitleBadge}>
+                <Ionicons name="pulse-outline" size={18} color="#1A6FA8" />
               </View>
-              <View style={styles.addOptionText}>
-                <Text style={styles.addOptionLabel}>{t("manualEntry")}</Text>
-                <Text style={styles.addOptionSub}>{t("manualEntrySub")}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#B8D0E8" />
-            </Pressable>
-
-            <View style={styles.importInfoBanner}>
-              <Ionicons name="information-circle-outline" size={15} color="#1A6FA8" />
-              <Text style={styles.importInfoText}>{t("importCSVInfo")}</Text>
+              <Text style={styles.addModalTitle}>{t("importCSVTitle")}</Text>
             </View>
 
-            <Pressable style={[styles.addOptionBtn, importing && { opacity: 0.6 }]} onPress={importing ? undefined : pickAndImportCSV}>
-              <View style={styles.addOptionIcon}>
-                <Ionicons name={importing ? "cloud-upload-outline" : "document-text-outline"} size={22} color="#1A6FA8" />
+            {/* Manual Entry Card — Blue */}
+            <Pressable
+              style={styles.addCardBlue}
+              onPress={() => { setShowAddModal(false); router.push("/add-glucose" as any); }}
+            >
+              <View style={styles.addCardIconBlue}>
+                <Ionicons name="pencil" size={24} color="#FFFFFF" />
               </View>
               <View style={styles.addOptionText}>
-                <Text style={styles.addOptionLabel}>{importing ? t("importing") : t("importCSVOption")}</Text>
-                <Text style={styles.addOptionSub}>{t("importCSVOptionSub")}</Text>
+                <Text style={styles.addCardLabelBlue}>{t("manualEntry")}</Text>
+                <Text style={styles.addCardSubBlue}>{t("manualEntrySub")}</Text>
               </View>
-              {!importing && <Ionicons name="chevron-forward" size={18} color="#B8D0E8" />}
+              <View style={styles.addCardArrowBlue}>
+                <Ionicons name="chevron-forward" size={16} color="#1A6FA8" />
+              </View>
+            </Pressable>
+
+            {/* CSV Import Card — Green */}
+            <Pressable
+              style={[styles.addCardGreen, importing && { opacity: 0.6 }]}
+              onPress={importing ? undefined : pickAndImportCSV}
+            >
+              <View style={styles.addCardIconGreen}>
+                <Ionicons name={importing ? "cloud-upload" : "document-text"} size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.addOptionText}>
+                <Text style={styles.addCardLabelGreen}>
+                  {importing ? t("importing") : t("importCSVOption")}
+                </Text>
+                <Text style={styles.addCardSubGreen}>{t("importCSVOptionSub")}</Text>
+                <View style={styles.addCardInfoRow}>
+                  <Ionicons name="information-circle-outline" size={11} color="#15803D" />
+                  <Text style={styles.addCardInfoText}>{t("importCSVInfo")}</Text>
+                </View>
+              </View>
+              {!importing && (
+                <View style={styles.addCardArrowGreen}>
+                  <Ionicons name="chevron-forward" size={16} color="#16A34A" />
+                </View>
+              )}
             </Pressable>
 
             <Pressable style={styles.addModalCancel} onPress={() => setShowAddModal(false)}>
@@ -1475,11 +1637,113 @@ const styles = StyleSheet.create({
     width: "70%",
   },
   navArrow: { padding: 4 },
-  dayNavLabel: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
+  dayNavCenter: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  dayNavLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
+  calBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" },
+  calBox: { backgroundColor: "#FFFFFF", borderRadius: 20, padding: 16, width: Dimensions.get("window").width - 48, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
+  calCloseBtn: { marginTop: 12, alignItems: "center", paddingVertical: 10, backgroundColor: "#EBF3FA", borderRadius: 10 },
+  calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
   predictionAlertText: {
     fontSize: 13,
     flex: 1,
     lineHeight: 20,
+  },
+
+  // Pattern card — new design
+  patternStatusStrip: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#F8FAFC",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  patternStatusText: {
+    fontSize: 12,
+    color: "#6B7280",
+    flex: 1,
+    lineHeight: 17,
+  },
+  patternMainRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  patternMainLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#94A3B8",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  patternBigValue: {
+    fontSize: 46,
+    fontWeight: "800",
+    lineHeight: 52,
+  },
+  patternBigUnit: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: "#94A3B8",
+  },
+  patternRangeText: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  patternRiskPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  patternRiskPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  patternAlertBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  patternAlertText: {
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  patternFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  patternSamplesText: {
+    fontSize: 11,
+    color: "#94A3B8",
+  },
+  patternConfRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  patternDots: {
+    fontSize: 10,
+    letterSpacing: 2,
+  },
+  patternConfLabel: {
+    fontSize: 11,
+    color: "#94A3B8",
   },
 
   staleBanner: {
@@ -1521,62 +1785,149 @@ const styles = StyleSheet.create({
 
   addModalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   addModalSheet: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 44,
     paddingTop: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
   },
   addModalHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: "#D6E8F5",
-    alignSelf: "center", marginBottom: 20,
+    width: 44, height: 5, borderRadius: 3,
+    backgroundColor: "#E2EAF2",
+    alignSelf: "center", marginBottom: 18,
+  },
+  addModalTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  addModalTitleBadge: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: "#EBF3FA",
+    alignItems: "center", justifyContent: "center",
   },
   addModalTitle: {
-    fontSize: 17, fontWeight: "700", color: "#0B1A2E",
-    marginBottom: 20, textAlign: "center",
+    fontSize: 18, fontWeight: "700", color: "#0B1A2E",
   },
+
+  // Blue card — Manual Entry
+  addCardBlue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: "#EFF6FF",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderLeftWidth: 5,
+    borderLeftColor: "#1A6FA8",
+  },
+  addCardIconBlue: {
+    width: 52, height: 52, borderRadius: 16,
+    backgroundColor: "#1A6FA8",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#1A6FA8", shadowOpacity: 0.35,
+    shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  addCardLabelBlue: {
+    fontSize: 16, fontWeight: "700", color: "#1E3A5F", marginBottom: 2,
+  },
+  addCardSubBlue: {
+    fontSize: 12, color: "#3B82F6",
+  },
+  addCardArrowBlue: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center", justifyContent: "center",
+  },
+
+  // Green card — CSV Import
+  addCardGreen: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: "#F0FDF4",
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderLeftWidth: 5,
+    borderLeftColor: "#16A34A",
+  },
+  addCardIconGreen: {
+    width: 52, height: 52, borderRadius: 16,
+    backgroundColor: "#16A34A",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#16A34A", shadowOpacity: 0.35,
+    shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  addCardLabelGreen: {
+    fontSize: 16, fontWeight: "700", color: "#14532D", marginBottom: 2,
+  },
+  addCardSubGreen: {
+    fontSize: 12, color: "#16A34A", marginBottom: 4,
+  },
+  addCardInfoRow: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+  },
+  addCardInfoText: {
+    fontSize: 10, color: "#15803D", flex: 1, lineHeight: 14, opacity: 0.85,
+  },
+  addCardArrowGreen: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center", justifyContent: "center",
+  },
+
+  addOptionText: { flex: 1 },
+  addModalCancel: {
+    alignItems: "center",
+    paddingVertical: 14,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  addModalCancelText: {
+    fontSize: 15, fontWeight: "600", color: "#94A3B8",
+  },
+
+  // kept for any legacy references
   addOptionBtn: {
     flexDirection: "row", alignItems: "center",
     gap: 14, paddingVertical: 16, paddingHorizontal: 12,
-    borderRadius: 16, backgroundColor: "#EBF3FA",
-    marginBottom: 12,
+    borderRadius: 16, backgroundColor: "#EBF3FA", marginBottom: 12,
   },
   addOptionIcon: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: "#FFFFFF",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#1A6FA8", shadowOpacity: 0.08,
-    shadowRadius: 4, elevation: 2,
   },
-  addOptionText: { flex: 1 },
-  addOptionLabel: {
-    fontSize: 15, fontWeight: "600", color: "#0B1A2E", marginBottom: 2,
-  },
-  addOptionSub: { fontSize: 12, color: "#4A6480" },
-  addModalCancel: {
-    alignItems: "center", paddingVertical: 14, marginTop: 4,
-  },
-  addModalCancelText: {
-    fontSize: 15, fontWeight: "600", color: "#7A96B0",
-  },
+  addOptionLabel: { fontSize: 15, fontWeight: "600", color: "#0B1A2E", marginBottom: 2 },
+  addOptionSub:   { fontSize: 12, color: "#4A6480" },
   importInfoBanner: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#EBF3FA", borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12,
   },
-  importInfoText: {
-    fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17,
-  },
+  importInfoText: { fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17 },
 
   reminderBackdrop: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
