@@ -71,6 +71,7 @@ export default function HomeScreen() {
 
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [showAlreadyImported, setShowAlreadyImported] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -127,6 +128,12 @@ export default function HomeScreen() {
       else if (Array.isArray(data?.items)) readings = data.items;
       else if (Array.isArray(data?.readings)) readings = data.readings;
       setGlucoseReadings(readings);
+
+      // Show welcome modal once for new users with no readings
+      if (readings.length === 0) {
+        const seen = await AsyncStorage.getItem("welcome_shown");
+        if (!seen) setShowWelcome(true);
+      }
 
       // Check if last reading was 6+ hours ago
       if (readings.length > 0) {
@@ -385,7 +392,10 @@ export default function HomeScreen() {
                     <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
                     <Text style={styles.probText}>
                       <Text style={styles.probValue}>{prediction.probability}%</Text>
-                      {"  "}{t(`prob_${prediction.trend}`)}
+                      {"  "}
+                      {prediction.alert_type === "high" && prediction.trend === "falling"
+                        ? t("prob_falling_high")
+                        : t(`prob_${prediction.trend}`)}
                     </Text>
                   </View>
                 )}
@@ -622,6 +632,39 @@ export default function HomeScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Welcome Modal — shown once for new users */}
+      <Modal visible={showWelcome} transparent animationType="fade" onRequestClose={() => setShowWelcome(false)}>
+        <View style={styles.welcomeBackdrop}>
+          <View style={styles.welcomeBox}>
+            <View style={styles.welcomeIconWrap}>
+              <Ionicons name="heart" size={32} color="#1A6FA8" />
+            </View>
+            <Text style={styles.welcomeTitle}>{t("welcomeModalTitle")}</Text>
+            <Text style={styles.welcomeBody}>{t("welcomeModalBody")}</Text>
+            <Pressable
+              style={styles.welcomePrimaryBtn}
+              onPress={async () => {
+                await AsyncStorage.setItem("welcome_shown", "1");
+                setShowWelcome(false);
+                router.push("/add-glucose" as any);
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={styles.welcomePrimaryText}>{t("welcomeModalAddBtn")}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.welcomeSkipBtn}
+              onPress={async () => {
+                await AsyncStorage.setItem("welcome_shown", "1");
+                setShowWelcome(false);
+              }}
+            >
+              <Text style={styles.welcomeSkipText}>{t("welcomeModalSkip")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* FAB — Add / Import Glucose */}
       <Pressable style={styles.fab} onPress={() => !importing && setShowAddModal(true)}>
@@ -1954,4 +1997,36 @@ const styles = StyleSheet.create({
   reminderAddText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
   reminderDismiss: { paddingVertical: 8 },
   reminderDismissText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
+
+  welcomeBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 28,
+  },
+  welcomeBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 28,
+    padding: 28, width: "100%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 24, elevation: 12,
+  },
+  welcomeIconWrap: {
+    width: 68, height: 68, borderRadius: 34,
+    backgroundColor: "#EBF3FA",
+    alignItems: "center", justifyContent: "center", marginBottom: 18,
+  },
+  welcomeTitle: {
+    fontSize: 20, fontWeight: "700", color: "#0B1A2E",
+    textAlign: "center", marginBottom: 12,
+  },
+  welcomeBody: {
+    fontSize: 14, color: "#4A6480", textAlign: "center",
+    lineHeight: 22, marginBottom: 24,
+  },
+  welcomePrimaryBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, backgroundColor: "#1A6FA8",
+    paddingVertical: 14, borderRadius: 16,
+    width: "100%", marginBottom: 10,
+  },
+  welcomePrimaryText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  welcomeSkipBtn: { paddingVertical: 8 },
+  welcomeSkipText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
 });

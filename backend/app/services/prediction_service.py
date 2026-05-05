@@ -635,8 +635,14 @@ Prediction context:
 - Historical pattern risk at this hour: {pattern_risk_level or 'unknown'}
 - Today's prediction vs historical pattern: {comparison_to_pattern or 'unknown'}"""
 
+        alert_rule = ""
+        if alert_type == "high":
+            alert_rule = "\nCRITICAL RULE: The patient has HIGH blood glucose (hyperglycemia). You MUST NOT recommend eating carbohydrates, sweets, juice, or sugary food. Advise avoiding carbs, drinking water, and consulting a doctor if levels remain high."
+        elif alert_type == "low":
+            alert_rule = "\nCRITICAL RULE: The patient has LOW blood glucose (hypoglycemia). Recommend fast-acting carbohydrates immediately (juice, glucose tablets, or candy)."
+
         prompt = f"""You are a medical assistant specialized in Type 2 diabetes patients.
-{lang_instruction}
+{lang_instruction}{alert_rule}
 
 Patient data:
 - Name: {patient_name}

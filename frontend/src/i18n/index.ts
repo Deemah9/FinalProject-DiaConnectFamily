@@ -270,6 +270,12 @@ const resources = {
       minutesDuration: "{{min}} min",
       hoursSlept: "{{hours}} hrs",
 
+      // Welcome modal (first login)
+      welcomeModalTitle: "Welcome to DiaConnect!",
+      welcomeModalBody: "To get AI-powered glucose predictions, you need at least 15 readings. Add your first reading now to get started.",
+      welcomeModalAddBtn: "Add a Reading Now",
+      welcomeModalSkip: "I'll do it later",
+
       // Glucose History
       trackReadingsTime: "Track your glucose readings over time",
       glucoseTrend: "Glucose Trend",
@@ -312,6 +318,7 @@ const resources = {
       alert_patch_error_short: "Sensor Error",
       prob_rising: "probability of glucose rise",
       prob_falling: "probability of glucose drop",
+      prob_falling_high: "probability of gradual drop from high",
       prob_stable: "probability of stability",
 
       // CSV Import
@@ -687,6 +694,12 @@ const resources = {
       minutesDuration: "{{min}} دقيقة",
       hoursSlept: "{{hours}} ساعات",
 
+      // Welcome modal (first login)
+      welcomeModalTitle: "مرحباً بك في DiaConnect!",
+      welcomeModalBody: "لعرض تنبؤات الذكاء الاصطناعي، تحتاج إلى 15 قراءة على الأقل. أضف أول قراءة الآن للبدء.",
+      welcomeModalAddBtn: "أضف قراءة الآن",
+      welcomeModalSkip: "سأفعل ذلك لاحقاً",
+
       // Glucose History
       trackReadingsTime: "تتبع قراءات السكر عبر الزمن",
       glucoseTrend: "مؤشر السكر",
@@ -729,6 +742,7 @@ const resources = {
       alert_patch_error_short: "خطأ في الجهاز",
       prob_rising: "احتمال ارتفاع السكر",
       prob_falling: "احتمال انخفاض السكر",
+      prob_falling_high: "احتمال انخفاض تدريجي عن المستوى المرتفع",
       prob_stable: "احتمال استقرار السكر",
 
       // CSV Import
@@ -1104,6 +1118,12 @@ const resources = {
       minutesDuration: "{{min}} דקות",
       hoursSlept: "{{hours}} שעות",
 
+      // Welcome modal (first login)
+      welcomeModalTitle: "ברוך הבא ל-DiaConnect!",
+      welcomeModalBody: "כדי לקבל תחזיות AI לגלוקוז, אתה צריך לפחות 15 קריאות. הוסף את הקריאה הראשונה שלך עכשיו כדי להתחיל.",
+      welcomeModalAddBtn: "הוסף קריאה עכשיו",
+      welcomeModalSkip: "אעשה זאת מאוחר יותר",
+
       // Glucose History
       trackReadingsTime: "עקוב אחר קריאות הגלוקוז לאורך זמן",
       glucoseTrend: "מגמת גלוקוז",
@@ -1146,6 +1166,7 @@ const resources = {
       alert_patch_error_short: "שגיאת חיישן",
       prob_rising: "סיכוי לעלייה בגלוקוז",
       prob_falling: "סיכוי לירידה בגלוקוז",
+      prob_falling_high: "סיכוי לירידה הדרגתית מרמה גבוהה",
       prob_stable: "סיכוי ליציבות",
 
       // CSV Import
