@@ -173,7 +173,7 @@ class GlucoseService:
             if last_key and key <= last_key:
                 skipped += 1
             else:
-                new_readings.append({"value": r["value"], "measuredAt": r["measuredAt"]})
+                new_readings.append({"value": r["value"], "measuredAt": r["measuredAt"], "source": r.get("source", source)})
                 if key > last_key:
                     last_key = key  # prevent intra-batch duplicates
 
@@ -190,7 +190,7 @@ class GlucoseService:
                     userId=user_id,
                     value=r["value"],
                     measuredAt=r["measuredAt"],
-                    source=source,
+                    source=r.get("source", source),
                     createdAt=now,
                 )
                 batch.set(doc_ref, document.dict())

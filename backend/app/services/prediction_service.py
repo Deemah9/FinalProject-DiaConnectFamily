@@ -212,7 +212,7 @@ class PredictionService:
         for i in range(1, len(readings)):
             current  = readings[i]
             prev     = cleaned[-1]
-            is_cgm   = current.get("source") in ("libreview", "csv")
+            is_cgm   = current.get("source") in ("libreview", "csv_cgm")
             base_max = CGM_MAX_CHANGE if is_cgm else MANUAL_MAX_CHANGE
 
             prev_ts = prev.get("measuredAt")

@@ -238,7 +238,8 @@ async def import_glucose_csv(
                 continue
             seen_buckets.add(bucket)
 
-        candidates.append({"value": value_mgdl, "measuredAt": measured_at})
+        source = "csv" if record_type == 0 else "csv_scan"
+        candidates.append({"value": value_mgdl, "measuredAt": measured_at, "source": source})
 
     # ── Batch write (1 read + batched writes) ────────────────────
     imported, skipped = glucose_service.batch_import_readings(
