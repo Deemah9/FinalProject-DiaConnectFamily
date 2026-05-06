@@ -464,15 +464,28 @@ async def change_password(
 # DELETE /auth/account
 # ==========================================
 
+class DeleteAccountRequest(BaseModel):
+    password: str
+
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(current_user: dict = Depends(get_current_user)):
+async def delete_account(
+    request: DeleteAccountRequest,
+    current_user: dict = Depends(get_current_user),
+):
     """
     Permanently delete the authenticated user's account and all associated data.
+    Requires password confirmation before deletion.
     - Patient: removes user doc, glucose readings, family links, pairing codes,
                meals, activities, sleep logs.
     - Family member: removes user doc and family links.
     """
     user_id = current_user["sub"]
+
+    user_doc = db.collection("users").document(user_id).get()
+    if not user_doc.exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    if not verify_password(request.password, user_doc.to_dict().get("password", "")):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password.")
     role    = current_user.get("role", "")
 
     def _delete_collection_where(collection: str, field: str, value: str):

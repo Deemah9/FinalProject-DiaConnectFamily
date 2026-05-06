@@ -92,7 +92,7 @@ export const logout = async () => {
   await AsyncStorage.removeItem("role");
 };
 
-export const deleteAccount = () => request("DELETE", "/auth/account");
+export const deleteAccount = (password) => request("DELETE", "/auth/account", { password });
 
 export const forgotPassword = (email) =>
   request("POST", "/auth/forgot-password", { email });

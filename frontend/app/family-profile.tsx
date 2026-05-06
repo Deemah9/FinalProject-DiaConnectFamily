@@ -40,6 +40,8 @@ export default function FamilyProfileScreen() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting]               = useState(false);
+  const [deletePassword, setDeletePassword]   = useState("");
+  const [deleteError, setDeleteError]         = useState("");
 
   const load = async () => {
     try {
@@ -56,13 +58,15 @@ export default function FamilyProfileScreen() {
   };
 
   const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) return;
     try {
       setDeleting(true);
-      await deleteAccount();
+      setDeleteError("");
+      await deleteAccount(deletePassword);
       await logout();
-    } catch {
+    } catch (e: any) {
       setDeleting(false);
-      setShowDeleteModal(false);
+      setDeleteError(e?.message?.includes("Incorrect") ? t("deleteAccountPasswordError") : e?.message || t("saveFailed"));
     }
   };
 
@@ -200,7 +204,12 @@ export default function FamilyProfileScreen() {
       </ScrollView>
 
       {/* Delete Confirmation Modal */}
-      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowDeleteModal(false); setDeletePassword(""); setDeleteError(""); }}
+      >
         <View style={styles.deleteModalBackdrop}>
           <View style={styles.deleteModalBox}>
             <View style={styles.deleteModalIcon}>
@@ -208,16 +217,30 @@ export default function FamilyProfileScreen() {
             </View>
             <Text style={styles.deleteModalTitle}>{t("deleteAccount")}</Text>
             <Text style={styles.deleteModalWarning}>{t("deleteAccountFamilyWarning")}</Text>
+            <TextInput
+              style={styles.deletePasswordInput}
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              placeholder={t("deleteAccountPasswordPlaceholder")}
+              placeholderTextColor="#94A3B8"
+              secureTextEntry
+              editable={!deleting}
+            />
+            {!!deleteError && <Text style={styles.deletePasswordError}>{deleteError}</Text>}
             <Pressable
-              style={[styles.deleteConfirmBtn, deleting && { opacity: 0.6 }]}
+              style={[styles.deleteConfirmBtn, (deleting || !deletePassword.trim()) && { opacity: 0.5 }]}
               onPress={handleDeleteAccount}
-              disabled={deleting}
+              disabled={deleting || !deletePassword.trim()}
             >
               <Text style={styles.deleteConfirmText}>
                 {deleting ? t("deletingAccount") : t("deleteAccountConfirm")}
               </Text>
             </Pressable>
-            <Pressable style={styles.deleteCancelBtn} onPress={() => setShowDeleteModal(false)} disabled={deleting}>
+            <Pressable
+              style={styles.deleteCancelBtn}
+              onPress={() => { setShowDeleteModal(false); setDeletePassword(""); setDeleteError(""); }}
+              disabled={deleting}
+            >
               <Text style={styles.deleteCancelText}>{t("deleteAccountCancel")}</Text>
             </Pressable>
           </View>
@@ -507,4 +530,22 @@ const styles = StyleSheet.create({
   },
   deleteCancelBtn: { paddingVertical: 10 },
   deleteCancelText: { fontSize: 14, color: "#94A3B8", fontWeight: "500" },
+  deletePasswordInput: {
+    width: "100%",
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FFF5F5",
+    paddingHorizontal: 14,
+    color: "#0B1A2E",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  deletePasswordError: {
+    fontSize: 13,
+    color: "#D32F2F",
+    marginBottom: 10,
+    textAlign: "center",
+  },
 });
