@@ -123,7 +123,8 @@ const styles = StyleSheet.create({
     marginTop: 30,
     flexDirection: "row",
     alignItems: "center",
-  },
+    direction: "ltr",
+  } as any,
   title: { color: Colors.white, ...Typography.title, lineHeight: 26 },
   subtitle: { color: Colors.white, ...Typography.subtitle, lineHeight: 26 },
 
