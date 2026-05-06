@@ -21,7 +21,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile } from "@/services/api";
+import * as Notifications from "expo-notifications";
+import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile, registerPushToken } from "@/services/api";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
@@ -37,6 +38,26 @@ export default function HomeScreen() {
       router.replace("/family-home" as any);
     }
   }, [authUser?.role]);
+
+  // Register push token for patient notifications
+  useEffect(() => {
+    const registerPush = async () => {
+      try {
+        const { status: existing } = await Notifications.getPermissionsAsync();
+        let finalStatus = existing;
+        if (existing !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== "granted") return;
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        await registerPushToken(tokenData.data);
+      } catch {
+        // push setup is non-critical
+      }
+    };
+    registerPush();
+  }, []);
 
   const DRAWER_W = 270;
   const isRTL = I18nManager.isRTL;

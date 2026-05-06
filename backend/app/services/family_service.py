@@ -293,49 +293,8 @@ def get_patient_daily_logs(family_member_id: str, patient_id: str, days: int = 7
     }
 
 
-def send_emergency_notification(patient_id: str, patient_name: str, glucose_value: int) -> None:
-    """
-    Send Expo push notifications to all family members linked to a patient
-    when a dangerous glucose level is recorded (< 70 or > 300 mg/dL).
-    """
-    links = db.collection(FAMILY_LINKS_COLLECTION)\
-        .where("patient_id", "==", patient_id)\
-        .stream()
-
-    family_ids = [doc.to_dict().get("family_member_id") for doc in links if doc.to_dict().get("family_member_id")]
-    if not family_ids:
-        return
-
-    if glucose_value < 70:
-        title = f"\u26a0\ufe0f {patient_name} - Low Glucose Alert"
-        body = f"Glucose is dangerously LOW: {glucose_value} mg/dL. Please check immediately."
-    else:
-        title = f"\u26a0\ufe0f {patient_name} - High Glucose Alert"
-        body = f"Glucose is dangerously HIGH: {glucose_value} mg/dL. Please check immediately."
-
-    tokens = []
-    for fid in family_ids:
-        doc = db.collection(USERS_COLLECTION).document(fid).get()
-        if doc.exists:
-            token = doc.to_dict().get("pushToken", "")
-            if token and token.startswith("ExponentPushToken["):
-                tokens.append(token)
-
-    if not tokens:
-        return
-
-    messages = [
-        {
-            "to": token,
-            "title": title,
-            "body": body,
-            "data": {"patient_id": patient_id, "glucose_value": glucose_value, "type": "glucose_alert"},
-            "sound": "default",
-            "priority": "high",
-        }
-        for token in tokens
-    ]
-
+def _send_push_batch(messages: list) -> None:
+    """Send a list of Expo push messages in one HTTP call."""
     try:
         payload = json_lib.dumps(messages).encode("utf-8")
         req = urllib.request.Request(
@@ -349,9 +308,94 @@ def send_emergency_notification(patient_id: str, patient_name: str, glucose_valu
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
-        print(f"✅ Emergency notifications sent for patient {patient_id}: {glucose_value} mg/dL")
     except Exception as e:
         print(f"⚠️ Push notification failed: {e}")
+
+
+def send_emergency_notification(
+    patient_id: str,
+    patient_name: str,
+    glucose_value: int,
+) -> None:
+    """
+    Send Expo push notifications to the patient themselves and all linked
+    family members when a dangerous glucose level is recorded.
+    """
+    alert_data = {
+        "patient_id": patient_id,
+        "glucose_value": glucose_value,
+        "type": "glucose_alert",
+    }
+
+    if glucose_value < 70:
+        family_title = f"⚠️ {patient_name} - Low Glucose Alert"
+        family_body = (
+            f"Glucose is dangerously LOW: {glucose_value} mg/dL. "
+            "Please check immediately."
+        )
+        patient_title = "⚠️ تنبيه سكر منخفض"
+        patient_body = (
+            f"مستوى السكر خطير جداً: "
+            f"{glucose_value} mg/dL. "
+            "يرجى اتخاذ الإجراء اللازم فوراً."
+        )
+    else:
+        family_title = f"⚠️ {patient_name} - High Glucose Alert"
+        family_body = (
+            f"Glucose is dangerously HIGH: {glucose_value} mg/dL. "
+            "Please check immediately."
+        )
+        patient_title = "⚠️ تنبيه سكر مرتفع"
+        patient_body = (
+            f"مستوى السكر مرتفع جداً: "
+            f"{glucose_value} mg/dL. "
+            "يرجى اتخاذ الإجراء اللازم فوراً."
+        )
+
+    # Notify the patient themselves
+    patient_doc = db.collection(USERS_COLLECTION).document(patient_id).get()
+    if patient_doc.exists:
+        pt = patient_doc.to_dict().get("pushToken", "")
+        if pt and pt.startswith("ExponentPushToken["):
+            _send_push_batch([{
+                "to": pt,
+                "title": patient_title,
+                "body": patient_body,
+                "data": alert_data,
+                "sound": "default",
+                "priority": "high",
+            }])
+
+    # Notify all linked family members
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("patient_id", "==", patient_id)\
+        .stream()
+
+    family_messages = []
+    for doc in links:
+        fid = doc.to_dict().get("family_member_id")
+        if not fid:
+            continue
+        fdoc = db.collection(USERS_COLLECTION).document(fid).get()
+        if fdoc.exists:
+            token = fdoc.to_dict().get("pushToken", "")
+            if token and token.startswith("ExponentPushToken["):
+                family_messages.append({
+                    "to": token,
+                    "title": family_title,
+                    "body": family_body,
+                    "data": alert_data,
+                    "sound": "default",
+                    "priority": "high",
+                })
+
+    if family_messages:
+        _send_push_batch(family_messages)
+
+    print(
+        f"✅ Emergency notifications sent for "
+        f"patient {patient_id}: {glucose_value} mg/dL"
+    )
 
 
 def send_prediction_alert(
@@ -379,11 +423,26 @@ def send_prediction_alert(
         return
 
     alert_labels = {
-        "low":         ("⬇️ Low Glucose Alert",   f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL in {hours}h (now {current:.0f}). Please check on them."),
-        "high":        ("⬆️ High Glucose Alert",  f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL in {hours}h (now {current:.0f}). Please check on them."),
-        "patch_error": ("⚠️ Sensor Error",         f"A suspicious reading was detected for {patient_name}. The sensor may need checking."),
+        "low": (
+            "⬇️ Low Glucose Alert",
+            f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL "
+            f"in {hours}h (now {current:.0f}). Please check on them.",
+        ),
+        "high": (
+            "⬆️ High Glucose Alert",
+            f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL "
+            f"in {hours}h (now {current:.0f}). Please check on them.",
+        ),
+        "patch_error": (
+            "⚠️ Sensor Error",
+            f"A suspicious reading was detected for {patient_name}. "
+            "The sensor may need checking.",
+        ),
     }
-    title, body = alert_labels.get(alert_type, ("⚠️ Glucose Alert", f"Check {patient_name}'s glucose levels."))
+    title, body = alert_labels.get(
+        alert_type,
+        ("⚠️ Glucose Alert", f"Check {patient_name}'s glucose levels."),
+    )
 
     tokens = []
     for fid in family_ids:
@@ -402,34 +461,20 @@ def send_prediction_alert(
             "title": title,
             "body": body,
             "data": {
-                "patient_id":  patient_id,
-                "alert_type":  alert_type,
-                "current":     current,
-                "predicted":   predicted,
-                "type":        "prediction_alert",
+                "patient_id": patient_id,
+                "alert_type": alert_type,
+                "current": current,
+                "predicted": predicted,
+                "type": "prediction_alert",
             },
-            "sound":    "default",
+            "sound": "default",
             "priority": "high",
         }
         for token in tokens
     ]
 
-    try:
-        payload = json_lib.dumps(messages).encode("utf-8")
-        req = urllib.request.Request(
-            "https://exp.host/--/api/v2/push/send",
-            data=payload,
-            headers={
-                "Content-Type":    "application/json",
-                "Accept":          "application/json",
-                "Accept-Encoding": "gzip, deflate",
-            },
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
-        print(f"✅ Prediction alert sent for {patient_name}: {alert_type}")
-    except Exception as e:
-        print(f"⚠️ Prediction push notification failed: {e}")
+    _send_push_batch(messages)
+    print(f"✅ Prediction alert sent for {patient_name}: {alert_type}")
 
 
 def get_patient_glucose(family_member_id: str, patient_id: str, limit: int = 50) -> list:
