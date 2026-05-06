@@ -461,6 +461,39 @@ async def change_password(
 
 
 # ==========================================
+# DELETE /auth/account
+# ==========================================
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(current_user: dict = Depends(get_current_user)):
+    """
+    Permanently delete the authenticated user's account and all associated data.
+    - Patient: removes user doc, glucose readings, family links, pairing codes,
+               meals, activities, sleep logs.
+    - Family member: removes user doc and family links.
+    """
+    user_id = current_user["sub"]
+    role    = current_user.get("role", "")
+
+    def _delete_collection_where(collection: str, field: str, value: str):
+        docs = db.collection(collection).where(field, "==", value).stream()
+        for doc in docs:
+            doc.reference.delete()
+
+    if role == "patient":
+        _delete_collection_where("glucose_readings",     "userId",     user_id)
+        _delete_collection_where("family_patient_links", "patient_id", user_id)
+        _delete_collection_where("pairing_codes",        "patient_id", user_id)
+        _delete_collection_where("meals",                "userId",     user_id)
+        _delete_collection_where("activities",           "userId",     user_id)
+        _delete_collection_where("sleep_logs",           "userId",     user_id)
+    elif role == "family_member":
+        _delete_collection_where("family_patient_links", "family_member_id", user_id)
+
+    db.collection("users").document(user_id).delete()
+
+
+# ==========================================
 # Reset Redirect — universal HTML bridge
 # ==========================================
 

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 class GenerateCodeResponse(BaseModel):
     code: str
-    expires_in_days: int
+    expires_in_minutes: int
 
 
 class JoinRequest(BaseModel):
@@ -18,6 +18,7 @@ class JoinResponse(BaseModel):
 
 
 class PatientSummary(BaseModel):
+    link_id: str
     patient_id: str
     patient_name: str
     linked_at: Optional[str] = None

@@ -11,7 +11,7 @@ FAMILY_LINKS_COLLECTION = "family_patient_links"
 USERS_COLLECTION = "users"
 GLUCOSE_COLLECTION = "glucose_readings"
 
-CODE_EXPIRY_DAYS = 7
+CODE_EXPIRY_MINUTES = 30
 
 
 def _send_expo_push(messages: list[dict], label: str = "") -> None:
@@ -63,7 +63,7 @@ def generate_code(patient_id: str) -> dict:
 
     code = _generate_unique_code()
     now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(days=CODE_EXPIRY_DAYS)
+    expires_at = now + timedelta(minutes=CODE_EXPIRY_MINUTES)
 
     db.collection(PAIRING_CODES_COLLECTION).add({
         "code": code,
@@ -73,7 +73,7 @@ def generate_code(patient_id: str) -> dict:
         "used": False,
     })
 
-    return {"code": code, "expires_in_days": CODE_EXPIRY_DAYS}
+    return {"code": code, "expires_in_minutes": CODE_EXPIRY_MINUTES}
 
 
 def join_with_code(family_member_id: str, code: str) -> dict:
@@ -205,12 +205,31 @@ def get_patients(family_member_id: str) -> list:
         d = doc.to_dict()
         linked_at = d.get("linked_at")
         patients.append({
+            "link_id": doc.id,
             "patient_id": d.get("patient_id"),
             "patient_name": d.get("patient_name", ""),
             "linked_at": linked_at.isoformat() if linked_at else None,
         })
 
     return patients
+
+
+def remove_patient_link(family_member_id: str, link_id: str) -> bool:
+    """
+    Family member removes themselves from a patient link.
+    Returns True if deleted, False if not found or unauthorized.
+    """
+    doc_ref = db.collection(FAMILY_LINKS_COLLECTION).document(link_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        return False
+
+    if doc.to_dict().get("family_member_id") != family_member_id:
+        return False
+
+    doc_ref.delete()
+    return True
 
 
 def view_with_code(code: str, limit: int = 50) -> dict:

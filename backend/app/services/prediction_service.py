@@ -542,8 +542,115 @@ class PredictionService:
             return "patch_error"
         if current < 70 or predicted < 70:
             return "low"
-        if current > 170 or predicted > 170:
+        if current > 180 or predicted > 180:
             return "high"
+        return None
+
+    def _ensemble_adjust(
+        self,
+        lstm_predicted: float,
+        current: float,
+        raw_readings: list[dict],
+        pattern_avg: float | None,
+        hours_elapsed: float,
+        meal_ctx: dict | None = None,
+    ) -> float:
+        """
+        Combine LSTM short-term prediction with:
+        1. Global linear trend across ALL readings
+        2. Pattern typical average at this hour
+
+        Weights shift toward pattern/trend as data becomes stale.
+        """
+        if len(raw_readings) < SEQUENCE_LENGTH + 4:
+            return lstm_predicted
+
+        # ── 1. Global trend (linear regression over all readings) ──
+        values = [r["value"] for r in raw_readings]
+        n = len(values)
+        x = list(range(n))
+        x_mean = (n - 1) / 2
+        y_mean = sum(values) / n
+        slope_num = sum((x[i] - x_mean) * (values[i] - y_mean) for i in range(n))
+        slope_den = sum((x[i] - x_mean) ** 2 for i in range(n))
+        slope_per_interval = slope_num / slope_den if slope_den else 0.0
+
+        # Convert slope to mg/dL per hour (intervals are ~15 min apart)
+        intervals_per_hour = 4
+        trend_adjustment = slope_per_interval * intervals_per_hour * 1
+
+        # ── 2. Weights based on data freshness ────────────────────
+        w_lstm  = max(0.5, 1.0 - (hours_elapsed / 12.0))
+        w_trend = 1.0 - w_lstm
+
+        # Meal-context adjustment
+        if meal_ctx:
+            h_meal = meal_ctx["hours_ago"]
+            conf   = meal_ctx["confidence"]
+            if h_meal < 2:
+                # Post-meal rise: LSTM captures this dynamic best
+                boost   = 0.2 if conf == "high" else 0.1
+                w_lstm  = min(0.85, w_lstm + boost)
+                w_trend = 1.0 - w_lstm
+            print(f"[Ensemble] meal detected {h_meal:.1f}h ago ({conf}) → w_lstm={w_lstm:.2f}")
+
+        # ── 3. Ensemble ────────────────────────────────────────────
+        trend_predicted = current + trend_adjustment
+        if pattern_avg is not None:
+            # Blend: LSTM + trend + pattern
+            w_pattern = w_trend * 0.5
+            w_slope   = w_trend * 0.5
+            ensemble  = (lstm_predicted * w_lstm
+                         + trend_predicted  * w_slope
+                         + pattern_avg      * w_pattern)
+        else:
+            ensemble = lstm_predicted * w_lstm + trend_predicted * w_trend
+
+        result = float(np.clip(ensemble, GLUCOSE_MIN, GLUCOSE_MAX))
+        print(f"[Ensemble] lstm={lstm_predicted:.1f} trend={trend_predicted:.1f} "
+              f"pattern={pattern_avg} → final={result:.1f} "
+              f"(w_lstm={w_lstm:.2f} w_trend={w_trend:.2f})")
+        return result
+
+    def _estimate_last_meal(self, raw_readings: list[dict]) -> dict | None:
+        """
+        Detect the most recent meal-like glucose spike (implicit meal detection).
+        Returns {"hours_ago": float, "confidence": "high"|"medium"} or None.
+        """
+        if len(raw_readings) < 5:
+            return None
+
+        now = datetime.now(timezone.utc)
+
+        for i in range(len(raw_readings) - 3, -1, -1):
+            v0 = raw_readings[i]["value"]
+
+            # 30-min window (2 readings): strong spike → high confidence
+            if i + 2 < len(raw_readings):
+                delta = raw_readings[i + 2]["value"] - v0
+                if delta > 40:
+                    ts = raw_readings[i]["measuredAt"]
+                    if isinstance(ts, str):
+                        ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    hours_ago = (now - ts).total_seconds() / 3600.0
+                    if hours_ago <= 24:
+                        return {"hours_ago": round(hours_ago, 1), "confidence": "high"}
+
+            # 60-min window (4 readings): moderate spike → medium confidence
+            if i + 4 < len(raw_readings):
+                delta = raw_readings[i + 4]["value"] - v0
+                if delta > 25:
+                    ts = raw_readings[i]["measuredAt"]
+                    if isinstance(ts, str):
+                        ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    hours_ago = (now - ts).total_seconds() / 3600.0
+                    if hours_ago <= 24:
+                        return {"hours_ago": round(hours_ago, 1), "confidence": "medium"}
+
         return None
 
     # ==========================================
@@ -603,6 +710,7 @@ class PredictionService:
         prediction_mode:       str = "real_time",
         comparison_to_pattern: str | None = None,
         pattern_risk_level:    str | None = None,
+        meal_ctx:              dict | None = None,
     ) -> dict | None:
         if not GROQ_API_KEY:
             return None
@@ -641,6 +749,12 @@ Prediction context:
         elif alert_type == "low":
             alert_rule = "\nCRITICAL RULE: The patient has LOW blood glucose (hypoglycemia). Recommend fast-acting carbohydrates immediately (juice, glucose tablets, or candy)."
 
+        meal_line = ""
+        if meal_ctx:
+            meal_line = f"\n- Estimated last meal: ~{meal_ctx['hours_ago']}h ago ({meal_ctx['confidence']} confidence)"
+        elif not lifestyle_ctx or lifestyle_ctx.get("carbs_2h", 0) == 0:
+            meal_line = "\n- No recent meal detected (likely fasting)"
+
         prompt = f"""You are a medical assistant specialized in Type 2 diabetes patients.
 {lang_instruction}{alert_rule}
 
@@ -649,7 +763,7 @@ Patient data:
 - Current glucose: {current} mg/dL
 - Trend: {trend}
 - Predicted glucose in {hours} hour(s): {predicted} mg/dL
-- Alert type: {alert_type or 'none'}{ctx_lines}{pattern_ctx}
+- Alert type: {alert_type or 'none'}{meal_line}{ctx_lines}{pattern_ctx}
 
 Write two short pieces of advice (1-2 sentences each):
 1. For the patient: what should they do right now?
@@ -926,6 +1040,19 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         predicted, sigma  = self._predict_lstm(
             feature_matrix, user_id=user_id, hours=hours, seed_override=seed_matrix
         )
+
+        # Ensemble: blend LSTM with global trend + historical pattern
+        pattern_data = self.calculate_pattern_prediction(user_id, lang, preloaded_readings=raw_readings)
+        meal_ctx     = self._estimate_last_meal(raw_readings)
+        predicted = self._ensemble_adjust(
+            lstm_predicted=predicted,
+            current=current,
+            raw_readings=raw_readings,
+            pattern_avg=pattern_data.get("typical_avg"),
+            hours_elapsed=hours_elapsed,
+            meal_ctx=meal_ctx,
+        )
+
         trend              = self._calculate_trend(current, predicted)
         prob_up, prob_down = self._calculate_probability(current, predicted, sigma)
         probability        = (
@@ -937,11 +1064,10 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         alert_type  = self._get_alert_type(current, predicted, patch_error)
 
         # Pattern comparison (internal — used for Groq context, not shown as card)
-        pattern_data        = self.calculate_pattern_prediction(user_id, lang, preloaded_readings=raw_readings)
-        comparison          = self._compare_to_pattern(
+        comparison         = self._compare_to_pattern(
             predicted, pattern_data.get("typical_avg")
         )
-        pattern_risk_level  = pattern_data.get("risk_level")
+        pattern_risk_level = pattern_data.get("risk_level")
 
         _, last_c30, last_c2h, last_activity, last_sleep = self._context_for_reading(
             cleaned_readings[-1], log_ctx, sleep_bl
@@ -966,6 +1092,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             prediction_mode=prediction_mode,
             comparison_to_pattern=comparison,
             pattern_risk_level=pattern_risk_level,
+            meal_ctx=meal_ctx,
         )
 
         # Family notification (rate-limited)

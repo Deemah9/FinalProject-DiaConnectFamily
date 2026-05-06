@@ -1064,16 +1064,6 @@ export default function HomeScreen() {
                 <Text style={styles.addCardSubGreen}>
                   {t("importCSVOptionSub")}
                 </Text>
-                <View style={styles.addCardInfoRow}>
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={11}
-                    color="#15803D"
-                  />
-                  <Text style={styles.addCardInfoText}>
-                    {t("importCSVInfo")}
-                  </Text>
-                </View>
               </View>
               {!importing && (
                 <View style={styles.addCardArrowGreen}>
@@ -1110,7 +1100,7 @@ export default function HomeScreen() {
               style={styles.reminderAddBtn}
               onPress={() => {
                 setShowReminder(false);
-                router.push("/add-glucose" as any);
+                setShowAddModal(true);
               }}
             >
               <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
@@ -1493,7 +1483,7 @@ const styles = StyleSheet.create({
 
   welcomeTitle: {
     color: "#0B1A2E",
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "700",
     marginBottom: 8,
   },
@@ -2351,8 +2341,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    paddingBottom: 44,
-    paddingTop: 12,
+    paddingBottom: 28,
+    paddingTop: 10,
     shadowColor: "#000",
     shadowOpacity: 0.18,
     shadowRadius: 24,
@@ -2364,14 +2354,14 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#E2EAF2",
     alignSelf: "center",
-    marginBottom: 18,
+    marginBottom: 12,
   },
   addModalTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 14,
   },
   addModalTitleBadge: {
     width: 32,
@@ -2391,21 +2381,21 @@ const styles = StyleSheet.create({
   addCardBlue: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     backgroundColor: "#EFF6FF",
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#BFDBFE",
     borderLeftWidth: 5,
     borderLeftColor: "#1A6FA8",
   },
   addCardIconBlue: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     backgroundColor: "#1A6FA8",
     alignItems: "center",
     justifyContent: "center",
@@ -2438,10 +2428,10 @@ const styles = StyleSheet.create({
   addCardGreen: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     backgroundColor: "#F0FDF4",
     marginBottom: 8,
     borderWidth: 1,
@@ -2450,9 +2440,9 @@ const styles = StyleSheet.create({
     borderLeftColor: "#16A34A",
   },
   addCardIconGreen: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     backgroundColor: "#16A34A",
     alignItems: "center",
     justifyContent: "center",

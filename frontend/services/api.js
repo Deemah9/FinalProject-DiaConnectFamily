@@ -92,6 +92,8 @@ export const logout = async () => {
   await AsyncStorage.removeItem("role");
 };
 
+export const deleteAccount = () => request("DELETE", "/auth/account");
+
 export const forgotPassword = (email) =>
   request("POST", "/auth/forgot-password", { email });
 
@@ -245,3 +247,6 @@ export const getFamilyMembers = () =>
 
 export const removeFamilyMember = (linkId) =>
   request("DELETE", `/family/members/${linkId}`);
+
+export const removePatientLink = (linkId) =>
+  request("DELETE", `/family/patients/${linkId}`);
