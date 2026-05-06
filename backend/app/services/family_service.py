@@ -326,41 +326,53 @@ def send_emergency_notification(
         "glucose_value": glucose_value,
         "type": "glucose_alert",
     }
+    is_low = glucose_value < 70
 
-    if glucose_value < 70:
-        family_title = f"⚠️ {patient_name} - Low Glucose Alert"
-        family_body = (
-            f"Glucose is dangerously LOW: {glucose_value} mg/dL. "
-            "Please check immediately."
-        )
-        patient_title = "⚠️ تنبيه سكر منخفض"
-        patient_body = (
-            f"مستوى السكر خطير جداً: "
-            f"{glucose_value} mg/dL. "
-            "يرجى اتخاذ الإجراء اللازم فوراً."
-        )
-    else:
-        family_title = f"⚠️ {patient_name} - High Glucose Alert"
-        family_body = (
-            f"Glucose is dangerously HIGH: {glucose_value} mg/dL. "
-            "Please check immediately."
-        )
-        patient_title = "⚠️ تنبيه سكر مرتفع"
-        patient_body = (
-            f"مستوى السكر مرتفع جداً: "
-            f"{glucose_value} mg/dL. "
-            "يرجى اتخاذ الإجراء اللازم فوراً."
+    def _build_alert_text(lang: str, name: str) -> tuple[str, str]:
+        if lang == "en":
+            if is_low:
+                return (
+                    f"⚠️ {name} - Low Glucose Alert",
+                    f"Glucose is dangerously LOW: {glucose_value} mg/dL. Please check immediately.",
+                )
+            return (
+                f"⚠️ {name} - High Glucose Alert",
+                f"Glucose is dangerously HIGH: {glucose_value} mg/dL. Please check immediately.",
+            )
+        if lang == "he":
+            if is_low:
+                return (
+                    f"⚠️ {name} - התראת סוכר נמוך",
+                    f"רמת הסוכר נמוכה מסוכנת: {glucose_value} mg/dL. אנא בדוק מיד.",
+                )
+            return (
+                f"⚠️ {name} - התראת סוכר גבוה",
+                f"רמת הסוכר גבוהה מסוכנת: {glucose_value} mg/dL. אנא בדוק מיד.",
+            )
+        # Arabic (default)
+        if is_low:
+            return (
+                "⚠️ تنبيه سكر منخفض",
+                f"مستوى السكر خطير جداً: {glucose_value} mg/dL. يرجى اتخاذ الإجراء اللازم فوراً.",
+            )
+        return (
+            "⚠️ تنبيه سكر مرتفع",
+            f"مستوى السكر مرتفع جداً: {glucose_value} mg/dL. يرجى اتخاذ الإجراء اللازم فوراً.",
         )
 
     # Notify the patient themselves
     patient_doc = db.collection(USERS_COLLECTION).document(patient_id).get()
     if patient_doc.exists:
-        pt = patient_doc.to_dict().get("pushToken", "")
+        pdata = patient_doc.to_dict()
+        pt = pdata.get("pushToken", "")
         if pt and pt.startswith("ExponentPushToken["):
+            lang = pdata.get("language", "ar")
+            first = pdata.get("firstName", patient_name)
+            ptitle, pbody = _build_alert_text(lang, first)
             _send_push_batch([{
                 "to": pt,
-                "title": patient_title,
-                "body": patient_body,
+                "title": ptitle,
+                "body": pbody,
                 "data": alert_data,
                 "sound": "default",
                 "priority": "high",
@@ -378,12 +390,15 @@ def send_emergency_notification(
             continue
         fdoc = db.collection(USERS_COLLECTION).document(fid).get()
         if fdoc.exists:
-            token = fdoc.to_dict().get("pushToken", "")
+            fdata = fdoc.to_dict()
+            token = fdata.get("pushToken", "")
             if token and token.startswith("ExponentPushToken["):
+                lang = fdata.get("language", "ar")
+                ftitle, fbody = _build_alert_text(lang, patient_name)
                 family_messages.append({
                     "to": token,
-                    "title": family_title,
-                    "body": family_body,
+                    "title": ftitle,
+                    "body": fbody,
                     "data": alert_data,
                     "sound": "default",
                     "priority": "high",

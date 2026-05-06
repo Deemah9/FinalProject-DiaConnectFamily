@@ -6,7 +6,7 @@ from app.config.firebase import db
 USERS_COLLECTION = "users"
 GLUCOSE_COLLECTION = "glucose_readings"
 
-REMINDER_INTERVAL_HOURS = 0.017
+REMINDER_INTERVAL_HOURS = 4
 
 
 def _send_push(tokens: list[str], title: str, body: str, data: dict) -> None:
@@ -79,12 +79,26 @@ def send_glucose_reminders() -> None:
             continue
 
         first_name = udata.get("firstName") or udata.get("first_name") or ""
-        title = "تذكير قياس السكر" if udata.get("lang", "ar") != "en" else "Glucose Reminder"
-        body = (
-            f"مرحباً {first_name}، لم تقم بتسجيل قراءة سكر منذ أكثر من {REMINDER_INTERVAL_HOURS} ساعات. يرجى القياس الآن."
-            if udata.get("lang", "ar") != "en"
-            else f"Hi {first_name}, you haven't logged a glucose reading in over {REMINDER_INTERVAL_HOURS} hours. Please check now."
-        )
+        lang = udata.get("language", "ar")
+
+        if lang == "en":
+            title = "Glucose Reminder"
+            body = (
+                f"Hi {first_name}, you haven't logged a glucose reading "
+                f"in over {REMINDER_INTERVAL_HOURS} hours. Please check now."
+            )
+        elif lang == "he":
+            title = "תזכורת סוכר"
+            body = (
+                f"שלום {first_name}, לא רשמת קריאת סוכר "
+                f"מזה יותר מ-{REMINDER_INTERVAL_HOURS} שעות. אנא בדוק עכשיו."
+            )
+        else:
+            title = "تذكير قياس السكر"
+            body = (
+                f"مرحباً {first_name}، لم تقم بتسجيل قراءة سكر "
+                f"منذ أكثر من {REMINDER_INTERVAL_HOURS} ساعات. يرجى القياس الآن."
+            )
 
         _send_push([token], title, body, {"type": "glucose_reminder"})
         reminded += 1
