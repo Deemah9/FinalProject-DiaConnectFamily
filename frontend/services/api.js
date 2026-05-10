@@ -119,6 +119,36 @@ export const deleteGlucose = (id) => request("DELETE", `/glucose/${id}`);
 export const getGlucoseStats = (days = 7) =>
   request("GET", `/glucose/stats?days=${days}`);
 
+export const importGlucoseCSV = async (filePayload, fileName, mimeType) => {
+  const token = await getToken();
+  const formData = new FormData();
+  // filePayload is either a web File object or a RN { uri, name, type } object
+  if (filePayload instanceof File || filePayload instanceof Blob) {
+    formData.append("file", filePayload, fileName || "glucose.csv");
+  } else {
+    formData.append("file", { uri: filePayload.uri, name: fileName || filePayload.name || "glucose.csv", type: mimeType || filePayload.type || "text/csv" });
+  }
+
+  const response = await fetch(`${BASE_URL}/glucose/import-csv`, {
+    method: "POST",
+    headers: {
+      "bypass-tunnel-reminder": "true",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: formData,
+  });
+
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+
+  if (!response.ok) {
+    const msg = (data && (data.detail || data.message)) || raw || `HTTP ${response.status}`;
+    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  }
+  return data;
+};
+
 export const getGlucosePrediction = (hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
 

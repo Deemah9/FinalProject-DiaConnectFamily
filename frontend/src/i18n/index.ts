@@ -302,6 +302,20 @@ const resources = {
       prob_falling: "probability of glucose drop",
       prob_stable: "probability of stability",
 
+      // CSV Import
+      importCSV: "Import CSV",
+      importCSVTitle: "Add Glucose Reading",
+      importCSVOption: "Import from CSV File",
+      importCSVOptionSub: "FreeStyle LibreLink export",
+      importCSVInfo: "Last 90 days only · CGM readings every 30 min",
+      manualEntry: "Enter Manually",
+      manualEntrySub: "Type a single reading",
+      importing: "Importing...",
+      importSuccess: "Imported {{count}} readings",
+      importSkipped: "{{count}} already existed",
+      importFailed: "Import failed. Please try again.",
+      importNoFile: "No file selected",
+
       // Add Glucose
       addGlucoseDesc: "Add a new glucose reading manually",
       glucoseValue: "Glucose Value (mg/dL)",
@@ -690,6 +704,20 @@ const resources = {
       prob_falling: "احتمال انخفاض السكر",
       prob_stable: "احتمال استقرار السكر",
 
+      // CSV Import
+      importCSV: "استيراد CSV",
+      importCSVTitle: "إضافة قراءة سكر",
+      importCSVOption: "استيراد من ملف CSV",
+      importCSVOptionSub: "تصدير FreeStyle LibreLink",
+      importCSVInfo: "آخر 90 يوم فقط · قراءة CGM كل 30 دقيقة",
+      manualEntry: "إدخال يدوي",
+      manualEntrySub: "إدخال قراءة واحدة",
+      importing: "جارٍ الاستيراد...",
+      importSuccess: "تم استيراد {{count}} قراءة",
+      importSkipped: "{{count}} موجودة مسبقاً",
+      importFailed: "فشل الاستيراد. حاول مجدداً.",
+      importNoFile: "لم يتم اختيار ملف",
+
       // Add Glucose
       addGlucoseDesc: "إضافة قراءة سكر يدوياً",
       glucoseValue: "قيمة السكر (ملغ/ديسيلتر)",
@@ -1077,6 +1105,20 @@ const resources = {
       prob_rising: "סיכוי לעלייה בגלוקוז",
       prob_falling: "סיכוי לירידה בגלוקוז",
       prob_stable: "סיכוי ליציבות",
+
+      // CSV Import
+      importCSV: "ייבוא CSV",
+      importCSVTitle: "הוסף קריאת גלוקוז",
+      importCSVOption: "ייבוא מקובץ CSV",
+      importCSVOptionSub: "ייצוא FreeStyle LibreLink",
+      importCSVInfo: "90 ימים אחרונים בלבד · קריאת CGM כל 30 דקות",
+      manualEntry: "הזנה ידנית",
+      manualEntrySub: "הזן קריאה בודדת",
+      importing: "מייבא...",
+      importSuccess: "יובאו {{count}} קריאות",
+      importSkipped: "{{count}} כבר קיימות",
+      importFailed: "הייבוא נכשל. נסה שוב.",
+      importNoFile: "לא נבחר קובץ",
 
       // Add Glucose
       addGlucoseDesc: "הוסף קריאת גלוקוז חדשה ידנית",
