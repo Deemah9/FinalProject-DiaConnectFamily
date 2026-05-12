@@ -250,3 +250,13 @@ export const removeFamilyMember = (linkId) =>
 
 export const removePatientLink = (linkId) =>
   request("DELETE", `/family/patients/${linkId}`);
+
+// ==========================================
+// Health Info + Insulin APIs
+// ==========================================
+
+export const getHealthInfo = () => request("GET", "/health/info");
+export const updateHealthInfo = (data) => request("PUT", "/health/info", data);
+export const addInsulinDose = (data) => request("POST", "/health/insulin", data);
+export const getInsulinToday = () => request("GET", "/health/insulin/today");
+export const deleteInsulinDose = (id) => request("DELETE", `/health/insulin/${id}`);

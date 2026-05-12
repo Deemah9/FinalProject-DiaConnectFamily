@@ -13,7 +13,7 @@ import {
 
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
-import { getProfile, updateLifestyle, updateMedical, updateProfile, deleteAccount } from "@/services/api";
+import { getProfile, updateLifestyle, updateMedical, updateProfile, deleteAccount, getHealthInfo, updateHealthInfo } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -25,6 +25,9 @@ const MUTED     = "#4A6480";
 const BORDER    = "#D6E8F5";
 const SOFT      = "#E8F1F8";
 const INPUT_BDR = "#B8D0E8";
+
+const CONDITION_IDS  = ["hypertension", "kidney_disease", "heart_disease", "dyslipidemia", "obesity", "neuropathy"] as const;
+const SLOW_INSULIN_IDS = ["insulin_lantus", "insulin_tresiba", "insulin_toujeo", "insulin_basaglar", "insulin_levemir"] as const;
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -56,6 +59,17 @@ export default function ProfileScreen() {
   const [savingLifestyle, setSavingLifestyle] = useState(false);
   const [errorLifestyle, setErrorLifestyle]   = useState("");
 
+  // ── Health Info edit state ────────────────────────────────────────────────
+  const [editHealth, setEditHealth]           = useState(false);
+  const [conditions, setConditions]           = useState<string[]>([]);
+  const [basalType, setBasalType]             = useState("");
+  const [basalDose, setBasalDose]             = useState("");
+  const [basalTime, setBasalTime]             = useState("");
+  const [isf, setIsf]                         = useState("30");
+  const [savingHealth, setSavingHealth]       = useState(false);
+  const [errorHealth, setErrorHealth]         = useState("");
+  const [healthInfo, setHealthInfo]           = useState<any>(null);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting]               = useState(false);
   const [deletePassword, setDeletePassword]   = useState("");
@@ -65,7 +79,7 @@ export default function ProfileScreen() {
   const load = async () => {
     try {
       setLoading(true);
-      const data = await getProfile();
+      const [data, health] = await Promise.all([getProfile(), getHealthInfo().catch(() => null)]);
       setUser(data);
 
       setFirstName(data?.firstName || data?.first_name || "");
@@ -87,6 +101,15 @@ export default function ProfileScreen() {
           : ""
       );
       setDietType(life?.diet_type || "");
+
+      if (health) {
+        setHealthInfo(health);
+        setConditions(health.conditions || []);
+        setBasalType(health.basal_insulin?.type || "");
+        setBasalDose(health.basal_insulin?.dose != null ? String(health.basal_insulin.dose) : "");
+        setBasalTime(health.basal_insulin?.time || "");
+        setIsf(health.insulin_sensitivity != null ? String(health.insulin_sensitivity) : "30");
+      }
     } catch (e: any) {
       console.log("ProfileScreen load error:", e);
     } finally {
@@ -141,6 +164,33 @@ export default function ProfileScreen() {
       setErrorMedical(e?.message || t("saveFailed"));
     } finally {
       setSavingMedical(false);
+    }
+  };
+
+  const saveHealth = async () => {
+    try {
+      setSavingHealth(true);
+      setErrorHealth("");
+      const payload: any = {
+        conditions,
+        insulin_sensitivity: isf ? Number(isf) : 30,
+      };
+      if (basalType && basalDose) {
+        payload.basal_insulin = {
+          type: basalType,
+          dose: Number(basalDose),
+          time: basalTime || "00:00",
+        };
+      } else {
+        payload.basal_insulin = null;
+      }
+      await updateHealthInfo(payload);
+      await load();
+      setEditHealth(false);
+    } catch (e: any) {
+      setErrorHealth(e?.message || t("saveFailed"));
+    } finally {
+      setSavingHealth(false);
     }
   };
 
@@ -291,6 +341,139 @@ export default function ProfileScreen() {
           ) : (
             <>
               <InfoRow label={t("medications")}   value={medicationsDisplay} isMultiLine />
+            </>
+          )}
+        </View>
+
+        {/* ── Health Info ────────────────────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons name="medkit-outline" size={18} color={PRIMARY} />
+              <Text style={styles.cardTitle}>{t("healthInfo")}</Text>
+            </View>
+            {!loading && (
+              <Pressable
+                style={styles.editBtn}
+                onPress={() => { setEditHealth((v) => !v); setErrorHealth(""); }}
+              >
+                <Ionicons name="create-outline" size={15} color={PRIMARY} />
+                <Text style={styles.editBtnText}>{editHealth ? t("close") : t("edit")}</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {!!errorHealth && <Text style={styles.errorText}>{errorHealth}</Text>}
+
+          {editHealth ? (
+            <>
+              <Field label={t("chronicConditions")}>
+                <View style={styles.optionsWrap}>
+                  {CONDITION_IDS.map((id) => {
+                    const selected = conditions.includes(id);
+                    return (
+                      <Pressable
+                        key={id}
+                        style={[styles.optionChip, selected && styles.optionChipSelected]}
+                        onPress={() =>
+                          setConditions((prev) =>
+                            selected ? prev.filter((c) => c !== id) : [...prev, id]
+                          )
+                        }
+                      >
+                        <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
+                          {t(id)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Field>
+
+              <Field label={t("basalInsulinLabel")}>
+                <View style={styles.optionsWrap}>
+                  {SLOW_INSULIN_IDS.map((id) => {
+                    const selected = basalType === id;
+                    return (
+                      <Pressable
+                        key={id}
+                        style={[styles.optionChip, selected && styles.optionChipSelected]}
+                        onPress={() => setBasalType(selected ? "" : id)}
+                      >
+                        <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
+                          {t(id)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Field>
+
+              {!!basalType && (
+                <>
+                  <Field label={t("basalDose")}>
+                    <TextInput
+                      value={basalDose}
+                      onChangeText={setBasalDose}
+                      placeholder="e.g. 20"
+                      placeholderTextColor={MUTED}
+                      keyboardType="decimal-pad"
+                      style={styles.input}
+                    />
+                  </Field>
+                  <Field label={t("basalTime")}>
+                    <TextInput
+                      value={basalTime}
+                      onChangeText={setBasalTime}
+                      placeholder="22:00"
+                      placeholderTextColor={MUTED}
+                      style={styles.input}
+                    />
+                  </Field>
+                </>
+              )}
+
+              <Field label={`${t("insulinSensitivity")} (${t("isfUnit")})`}>
+                <TextInput
+                  value={isf}
+                  onChangeText={setIsf}
+                  placeholder="30"
+                  placeholderTextColor={MUTED}
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                />
+              </Field>
+
+              <SaveCancelRow
+                saving={savingHealth}
+                onSave={saveHealth}
+                onCancel={() => { setEditHealth(false); load(); }}
+                t={t}
+              />
+            </>
+          ) : (
+            <>
+              <InfoRow
+                label={t("chronicConditions")}
+                value={
+                  healthInfo?.conditions?.length
+                    ? healthInfo.conditions.map((c: string) => t(c)).join(", ")
+                    : t("noConditionsSelected")
+                }
+                isMultiLine
+              />
+              <InfoRow
+                label={t("basalInsulinLabel")}
+                value={
+                  healthInfo?.basal_insulin
+                    ? `${t(healthInfo.basal_insulin.type)} · ${healthInfo.basal_insulin.dose}u · ${healthInfo.basal_insulin.time}`
+                    : t("notConfigured")
+                }
+              />
+              <InfoRow
+                label={t("insulinSensitivity")}
+                value={`${healthInfo?.insulin_sensitivity ?? 30} ${t("isfUnit")}`}
+              />
             </>
           )}
         </View>

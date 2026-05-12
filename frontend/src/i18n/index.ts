@@ -426,6 +426,57 @@ const resources = {
       delete: "Delete",
       back: "Back",
 
+      saveFailed: "Failed to save",
+
+      // Health Info section
+      healthInfo: "Health Info",
+      chronicConditions: "Chronic Conditions",
+      basalInsulinLabel: "Basal (Slow) Insulin",
+      insulinSensitivity: "Insulin Sensitivity Factor (ISF)",
+      isfUnit: "mg/dL per unit",
+      basalDose: "Dose (units)",
+      basalTime: "Injection Time (e.g. 22:00)",
+      noConditionsSelected: "None",
+      notConfigured: "Not configured",
+      removeBasalInsulin: "Remove",
+
+      // Condition names
+      hypertension: "Hypertension",
+      kidney_disease: "Kidney Disease",
+      heart_disease: "Heart Disease",
+      dyslipidemia: "Dyslipidemia",
+      obesity: "Obesity",
+      neuropathy: "Neuropathy",
+
+      // Insulin type names (brand names)
+      insulin_humalog: "Humalog",
+      insulin_novorapid: "NovoRapid",
+      insulin_apidra: "Apidra",
+      insulin_fiasp: "Fiasp",
+      insulin_lantus: "Lantus",
+      insulin_tresiba: "Tresiba",
+      insulin_toujeo: "Toujeo",
+      insulin_basaglar: "Basaglar",
+      insulin_levemir: "Levemir",
+
+      // Add Fast Insulin screen
+      addFastInsulin: "Add Insulin Dose",
+      logFastInsulin: "Log a fast insulin dose",
+      fastInsulinType: "Insulin Type",
+      fastInsulinUnits: "Dose (units)",
+      fastInsulinUnitsPlaceholder: "e.g. 4",
+      saveFastInsulin: "Save Dose",
+      selectInsulinType: "Select insulin type",
+      invalidInsulinUnits: "Please enter a valid dose (0.5–100)",
+      invalidInsulinType: "Please select an insulin type",
+
+      // Daily log insulin
+      insulinSection: "INSULIN",
+      insulinDose: "Insulin",
+      insulinUnit: "u",
+      deleteInsulinDose: "Delete Dose",
+      deleteInsulinDoseConfirm: "Are you sure you want to delete this insulin dose?",
+
       // Errors
       errors: {
         emailRequired: "Email is required",
@@ -860,6 +911,57 @@ const resources = {
       delete: "حذف",
       back: "رجوع",
 
+      saveFailed: "فشل الحفظ",
+
+      // Health Info section
+      healthInfo: "المعلومات الصحية",
+      chronicConditions: "الأمراض المزمنة",
+      basalInsulinLabel: "الأنسولين البطيء",
+      insulinSensitivity: "معامل حساسية الأنسولين",
+      isfUnit: "ملغ/ديسيلتر لكل وحدة",
+      basalDose: "الجرعة (وحدات)",
+      basalTime: "وقت الحقن (مثال: 22:00)",
+      noConditionsSelected: "لا شيء",
+      notConfigured: "غير محدد",
+      removeBasalInsulin: "حذف",
+
+      // Condition names
+      hypertension: "ضغط الدم المرتفع",
+      kidney_disease: "أمراض الكلى",
+      heart_disease: "أمراض القلب",
+      dyslipidemia: "اضطراب الدهون",
+      obesity: "السمنة",
+      neuropathy: "اعتلال الأعصاب",
+
+      // Insulin type names (brand names - same across languages)
+      insulin_humalog: "Humalog",
+      insulin_novorapid: "NovoRapid",
+      insulin_apidra: "Apidra",
+      insulin_fiasp: "Fiasp",
+      insulin_lantus: "Lantus",
+      insulin_tresiba: "Tresiba",
+      insulin_toujeo: "Toujeo",
+      insulin_basaglar: "Basaglar",
+      insulin_levemir: "Levemir",
+
+      // Add Fast Insulin screen
+      addFastInsulin: "إضافة جرعة أنسولين",
+      logFastInsulin: "تسجيل جرعة أنسولين سريع",
+      fastInsulinType: "نوع الأنسولين",
+      fastInsulinUnits: "الجرعة (وحدات)",
+      fastInsulinUnitsPlaceholder: "مثال: 4",
+      saveFastInsulin: "حفظ الجرعة",
+      selectInsulinType: "اختر نوع الأنسولين",
+      invalidInsulinUnits: "يرجى إدخال جرعة صحيحة (0.5–100)",
+      invalidInsulinType: "يرجى اختيار نوع الأنسولين",
+
+      // Daily log insulin
+      insulinSection: "الأنسولين",
+      insulinDose: "أنسولين",
+      insulinUnit: "و",
+      deleteInsulinDose: "حذف الجرعة",
+      deleteInsulinDoseConfirm: "هل أنت متأكد من حذف هذه الجرعة؟",
+
       // Errors
       errors: {
         emailRequired: "البريد الإلكتروني مطلوب",
@@ -1293,6 +1395,57 @@ const resources = {
       deleteSleepConfirm: "האם אתה בטוח שברצונך למחוק יומן שינה זה?",
       delete: "מחק",
       back: "חזרה",
+
+      saveFailed: "שמירה נכשלה",
+
+      // Health Info section
+      healthInfo: "מידע בריאות",
+      chronicConditions: "מחלות כרוניות",
+      basalInsulinLabel: "אינסולין בזאלי (איטי)",
+      insulinSensitivity: "גורם רגישות לאינסולין (ISF)",
+      isfUnit: "מ\"ג/ד\"ל לכל יחידה",
+      basalDose: "מינון (יחידות)",
+      basalTime: "שעת הזרקה (לדוגמה: 22:00)",
+      noConditionsSelected: "אין",
+      notConfigured: "לא הוגדר",
+      removeBasalInsulin: "הסר",
+
+      // Condition names
+      hypertension: "יתר לחץ דם",
+      kidney_disease: "מחלת כליות",
+      heart_disease: "מחלת לב",
+      dyslipidemia: "דיסליפידמיה",
+      obesity: "השמנת יתר",
+      neuropathy: "נוירופתיה",
+
+      // Insulin type names (brand names - same across languages)
+      insulin_humalog: "Humalog",
+      insulin_novorapid: "NovoRapid",
+      insulin_apidra: "Apidra",
+      insulin_fiasp: "Fiasp",
+      insulin_lantus: "Lantus",
+      insulin_tresiba: "Tresiba",
+      insulin_toujeo: "Toujeo",
+      insulin_basaglar: "Basaglar",
+      insulin_levemir: "Levemir",
+
+      // Add Fast Insulin screen
+      addFastInsulin: "הוסף מנת אינסולין",
+      logFastInsulin: "תעד מנת אינסולין מהיר",
+      fastInsulinType: "סוג האינסולין",
+      fastInsulinUnits: "מינון (יחידות)",
+      fastInsulinUnitsPlaceholder: "לדוגמה: 4",
+      saveFastInsulin: "שמור מנה",
+      selectInsulinType: "בחר סוג אינסולין",
+      invalidInsulinUnits: "נא להזין מינון תקין (0.5–100)",
+      invalidInsulinType: "נא לבחור סוג אינסולין",
+
+      // Daily log insulin
+      insulinSection: "אינסולין",
+      insulinDose: "אינסולין",
+      insulinUnit: "י",
+      deleteInsulinDose: "מחק מנה",
+      deleteInsulinDoseConfirm: "האם אתה בטוח שברצונך למחוק מנה זו?",
 
       // Errors
       errors: {

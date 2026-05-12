@@ -108,6 +108,7 @@ export default function HomeScreen() {
   const [showReminder, setShowReminder] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
@@ -334,21 +335,21 @@ export default function HomeScreen() {
       }
 
       if (data.imported_count === 0 && data.skipped_count > 0) {
-        Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
+        setImportToast({ type: "info", text: t("importAlreadyMessage") });
+        setTimeout(() => setImportToast(null), 5000);
       } else {
-        Alert.alert(
-          t("importSuccessTitle"),
-          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-          [
-            {
-              text: t("ok"),
-              onPress: () => router.push("/glucose-history" as any),
-            },
-          ],
-        );
+        setImportToast({
+          type: "success",
+          text: `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+        });
+        setTimeout(() => {
+          setImportToast(null);
+          router.push("/glucose-history" as any);
+        }, 3000);
       }
     } catch (e: any) {
-      Alert.alert(t("importCSV"), e.message || t("importFailed"));
+      setImportToast({ type: "error", text: e?.message || t("importFailed") });
+      setTimeout(() => setImportToast(null), 5000);
     } finally {
       setImporting(false);
     }
@@ -372,6 +373,19 @@ export default function HomeScreen() {
           </View>
         }
       />
+      {!!importToast && (
+        <View style={[styles.importToast, importToast.type === "success" && styles.importToastSuccess, importToast.type === "error" && styles.importToastError]}>
+          <Ionicons
+            name={importToast.type === "success" ? "checkmark-circle" : importToast.type === "error" ? "alert-circle" : "information-circle"}
+            size={18}
+            color="#FFFFFF"
+          />
+          <Text style={styles.importToastText}>{importToast.text}</Text>
+          <Pressable onPress={() => setImportToast(null)}>
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      )}
       <ScrollView contentContainerStyle={styles.content}>
         {/* Welcome */}
         <View style={styles.hero}>
@@ -1376,6 +1390,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#EBF3FA",
+  },
+
+  importToast: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#1A6FA8",
+    zIndex: 100,
+  },
+  importToastSuccess: { backgroundColor: "#16A34A" },
+  importToastError: { backgroundColor: "#B91C1C" },
+  importToastText: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "500",
   },
 
   content: {

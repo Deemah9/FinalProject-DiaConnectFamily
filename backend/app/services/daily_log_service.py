@@ -181,7 +181,14 @@ class DailyLogService:
                 data["id"] = doc.id
                 sleep.append(data)
 
-        return {"meals": meals, "activities": activities, "sleep": sleep}
+        insulin = []
+        for doc in self.db.collection("insulin_logs").where("userId", "==", user_id).stream():
+            data = doc.to_dict()
+            if in_range(data):
+                data["id"] = doc.id
+                insulin.append(data)
+
+        return {"meals": meals, "activities": activities, "sleep": sleep, "insulin": insulin}
 
     # ==========================================
     # Get Period Summary
