@@ -106,7 +106,6 @@ export default function HomeScreen() {
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
-  const [showAlreadyImported, setShowAlreadyImported] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -335,7 +334,7 @@ export default function HomeScreen() {
       }
 
       if (data.imported_count === 0 && data.skipped_count > 0) {
-        setShowAlreadyImported(true);
+        Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
       } else {
         Alert.alert(
           t("importSuccessTitle"),
@@ -1116,41 +1115,6 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Already Imported Modal */}
-      <Modal
-        visible={showAlreadyImported}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAlreadyImported(false)}
-      >
-        <View style={styles.reminderBackdrop}>
-          <View style={styles.reminderBox}>
-            <View
-              style={[styles.reminderIconWrap, { backgroundColor: "#FEF9EC" }]}
-            >
-              <Ionicons
-                name="checkmark-done-outline"
-                size={30}
-                color="#D97706"
-              />
-            </View>
-            <Text style={styles.reminderModalTitle}>
-              {t("importAlreadyTitle")}
-            </Text>
-            <Text style={styles.reminderModalMsg}>
-              {t("importAlreadyMessage")}
-            </Text>
-            <Pressable
-              style={[styles.reminderAddBtn, { backgroundColor: "#D97706" }]}
-              onPress={() => {
-                setShowAlreadyImported(false);
-              }}
-            >
-              <Text style={styles.reminderAddText}>{t("ok")}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
 
       {/* Language dropdown — rendered as Modal so it floats above all content */}
       <Modal
@@ -1286,16 +1250,6 @@ export default function HomeScreen() {
                   label: t("glucoseStats"),
                   route: "/glucose-stats",
                 },
-                {
-                  icon: "add-circle-outline",
-                  label: t("addGlucose"),
-                  route: "/add-glucose",
-                },
-                {
-                  icon: "notifications-outline",
-                  label: t("alerts"),
-                  route: "/alerts",
-                },
               ].map(({ icon, label, route }) => (
                 <Pressable
                   key={route}
@@ -1310,6 +1264,20 @@ export default function HomeScreen() {
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
               ))}
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => closeDrawer(() => setShowAddModal(true))}
+              >
+                <Ionicons name="add-circle-outline" size={17} color={Colors.primary} />
+                <Text style={styles.drawerItemText}>{t("addGlucose")}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => closeDrawer(() => router.push("/alerts" as any))}
+              >
+                <Ionicons name="notifications-outline" size={17} color={Colors.primary} />
+                <Text style={styles.drawerItemText}>{t("alerts")}</Text>
+              </Pressable>
 
               {/* Daily Logs section */}
               <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>

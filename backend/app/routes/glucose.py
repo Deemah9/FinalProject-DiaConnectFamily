@@ -218,7 +218,8 @@ async def import_glucose_csv(
         timestamp_raw = row[2].strip()
         try:
             measured_at = datetime.strptime(timestamp_raw, "%d-%m-%Y %H:%M")
-            measured_at = measured_at.replace(tzinfo=timezone.utc)
+            # CSV timestamps are local time (UTC+3); convert to UTC for storage
+            measured_at = measured_at.replace(tzinfo=timezone(timedelta(hours=3))).astimezone(timezone.utc)
         except ValueError:
             continue
 
@@ -238,7 +239,7 @@ async def import_glucose_csv(
                 continue
             seen_buckets.add(bucket)
 
-        source = "csv" if record_type == 0 else "csv_scan"
+        source = "csv_cgm" if record_type == 0 else "csv_scan"
         candidates.append({"value": value_mgdl, "measuredAt": measured_at, "source": source})
 
     # ── Batch write (1 read + batched writes) ────────────────────
