@@ -1,8 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.utils.security import verify_token
-from firebase_admin import firestore
-from app.models.user import User
 
 # Tells FastAPI to expect a Bearer token in the request header
 security = HTTPBearer()
@@ -13,8 +11,8 @@ def get_current_user(
 ) -> dict:
     """
     Extracts and validates the JWT token from the request header.
-    Fetches user from Firestore and checks isActive status.
-    Raises 401 if token is invalid, user not found, or user is inactive.
+    Raises 401 if token is invalid or expired.
+    No Firestore read — all needed claims are embedded in the JWT.
     """
     token = credentials.credentials
     payload = verify_token(token)
@@ -23,16 +21,6 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Fetch user from Firestore and check isActive
-    user = User.get_by_id(payload["sub"])
-
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or account is disabled",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

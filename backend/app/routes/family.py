@@ -70,6 +70,23 @@ def get_patients(current_user: dict = Depends(require_role("family_member"))):
     return family_service.get_patients(family_member_id=current_user["sub"])
 
 
+@router.delete("/patients/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_patient_link(
+    link_id: str,
+    current_user: dict = Depends(require_role("family_member"))
+):
+    """Remove a patient link. Only the family member who owns the link can delete it."""
+    deleted = family_service.remove_patient_link(
+        family_member_id=current_user["sub"],
+        link_id=link_id,
+    )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found or not authorized"
+        )
+
+
 @router.get("/patient/{patient_id}/daily-logs", response_model=DailyLogsResponse)
 def get_patient_daily_logs(
     patient_id: str,

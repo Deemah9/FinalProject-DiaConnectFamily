@@ -3,7 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
   Pressable,
   ScrollView,
   Share,
@@ -19,12 +19,13 @@ import { generateFamilyCode, getFamilyMembers, removeFamilyMember } from "@/serv
 export default function FamilyInviteScreen() {
   const { t } = useTranslation();
   const [code, setCode] = useState<string | null>(null);
-  const [expiryDays, setExpiryDays] = useState(7);
+  const [expiryMinutes, setExpiryMinutes] = useState(30);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [members, setMembers] = useState<any[]>([]);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -48,7 +49,7 @@ export default function FamilyInviteScreen() {
       setCopied(false);
       const res = await generateFamilyCode();
       setCode(res.code);
-      setExpiryDays(res.expires_in_days);
+      setExpiryMinutes(res.expires_in_minutes);
     } catch (e: any) {
       setError(e.message || t("familyLinkFailed"));
     } finally {
@@ -70,29 +71,18 @@ export default function FamilyInviteScreen() {
     await Share.share({ message });
   };
 
-  const handleRemove = (linkId: string) => {
-    Alert.alert(
-      t("removeMemberConfirm"),
-      t("removeMemberConfirmSub"),
-      [
-        { text: t("cancelRemove"), style: "cancel" },
-        {
-          text: t("confirmRemove"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setRemovingId(linkId);
-              await removeFamilyMember(linkId);
-              setMembers((prev) => prev.filter((m) => m.link_id !== linkId));
-            } catch {
-              // silent
-            } finally {
-              setRemovingId(null);
-            }
-          },
-        },
-      ]
-    );
+  const confirmRemove = async () => {
+    if (!confirmId) return;
+    try {
+      setRemovingId(confirmId);
+      setConfirmId(null);
+      await removeFamilyMember(confirmId);
+      setMembers((prev) => prev.filter((m) => m.link_id !== confirmId));
+    } catch {
+      // silent
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   const formatDate = (iso: string) => {
@@ -110,60 +100,68 @@ export default function FamilyInviteScreen() {
     >
       <AppHeader />
 
-      {/* Pairing Code Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("pairingCode")}</Text>
-
-        {code ? (
-          <>
-            <View style={styles.codeRow}>
-              {code.split("").map((char, i) => (
-                <View key={i} style={styles.codeBox}>
-                  <Text style={styles.codeChar}>{char}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Pressable style={styles.copyBtn} onPress={handleCopy}>
-              <Text style={styles.copyBtnText}>
-                {copied ? t("codeCopied") : t("copyCode")}
-              </Text>
-            </Pressable>
-
-            <Text style={styles.expiryNote}>
-              {t("codeExpiryNote", { days: expiryDays })}
-            </Text>
-          </>
-        ) : (
-          <Text style={styles.placeholder}>{t("generateCodeHint")}</Text>
-        )}
-      </View>
+      {/* Pairing Code Card — only shown after generation */}
+      {code && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("pairingCode")}</Text>
+          <View style={styles.codeRow}>
+            {code.split("").map((char, i) => (
+              <View key={i} style={styles.codeBox}>
+                <Text style={styles.codeChar}>{char}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.expiryNote}>
+            {t("codeExpiryNote", { minutes: expiryMinutes })}
+          </Text>
+        </View>
+      )}
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      <Pressable
-        style={[styles.generateBtn, loading && styles.btnDisabled]}
-        onPress={handleGenerate}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.generateBtnText}>
-            {code ? t("generateNewCode") : t("generateCode")}
-          </Text>
-        )}
-      </Pressable>
+      <View style={styles.actionRow}>
+        <Pressable
+          style={[styles.generateBtn, { flex: code ? 1 : undefined, width: code ? undefined : "100%" }, loading && styles.btnDisabled]}
+          onPress={handleGenerate}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.generateBtnText}>
+              {code ? t("generateNewCode") : t("generateCode")}
+            </Text>
+          )}
+        </Pressable>
 
-      {code && (
-        <>
-          <Text style={styles.shareTitle}>{t("shareTitle")}</Text>
-          <Text style={styles.shareSubtitle}>{t("shareSubtitle")}</Text>
-          <Pressable style={styles.shareBtn} onPress={handleShare}>
+        {code && (
+          <Pressable style={[styles.shareBtn, { flex: 1 }]} onPress={handleShare}>
+            <Ionicons name="share-social-outline" size={16} color="#fff" />
             <Text style={styles.shareBtnText}>{t("shareCode")}</Text>
           </Pressable>
-        </>
-      )}
+        )}
+      </View>
+
+      {/* Confirm Remove Modal */}
+      <Modal visible={!!confirmId} transparent animationType="fade" onRequestClose={() => setConfirmId(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="person-remove-outline" size={28} color={Colors.error} />
+            </View>
+            <Text style={styles.modalTitle}>{t("removeMemberConfirm")}</Text>
+            <Text style={styles.modalMsg}>{t("removeMemberConfirmSub")}</Text>
+            <View style={styles.modalBtns}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setConfirmId(null)}>
+                <Text style={styles.modalCancelText}>{t("cancelRemove")}</Text>
+              </Pressable>
+              <Pressable style={styles.modalDeleteBtn} onPress={confirmRemove}>
+                <Text style={styles.modalDeleteText}>{t("confirmRemove")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Family Members List */}
       <View style={styles.membersSection}>
@@ -200,7 +198,7 @@ export default function FamilyInviteScreen() {
               </View>
               <Pressable
                 style={styles.removeBtn}
-                onPress={() => handleRemove(m.link_id)}
+                onPress={() => setConfirmId(m.link_id)}
                 disabled={removingId === m.link_id}
               >
                 {removingId === m.link_id ? (
@@ -251,26 +249,22 @@ const styles = StyleSheet.create({
 
   errorText: { color: Colors.error, textAlign: "center", marginTop: 12, fontSize: 13 },
 
+  actionRow: {
+    flexDirection: "row", gap: 10,
+    marginHorizontal: 20, marginTop: 16,
+  },
   generateBtn: {
     backgroundColor: Colors.primary,
-    marginHorizontal: 20, marginTop: 20,
-    paddingVertical: 14, borderRadius: 14, alignItems: "center",
+    paddingVertical: 14, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
   },
   btnDisabled: { opacity: 0.6 },
   generateBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-
-  shareTitle: {
-    fontSize: 20, fontWeight: "700", color: Colors.text,
-    textAlign: "center", marginTop: 32, marginHorizontal: 20,
-  },
-  shareSubtitle: {
-    fontSize: 14, color: Colors.textMuted, textAlign: "center",
-    marginTop: 8, marginHorizontal: 24, lineHeight: 22,
-  },
   shareBtn: {
-    backgroundColor: Colors.primary,
-    marginHorizontal: 20, marginTop: 20,
-    paddingVertical: 14, borderRadius: 14, alignItems: "center",
+    backgroundColor: Colors.primaryDark,
+    paddingVertical: 14, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
+    flexDirection: "row", gap: 6,
   },
   shareBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 
@@ -309,4 +303,34 @@ const styles = StyleSheet.create({
   memberName: { fontSize: 15, fontWeight: "600", color: Colors.text },
   memberDate: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   removeBtn: { padding: 8 },
+
+  modalBackdrop: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+  },
+  modalBox: {
+    backgroundColor: "#FFFFFF", borderRadius: 24,
+    padding: 24, width: "100%", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+  },
+  modalIconWrap: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: "#FDEDED", alignItems: "center",
+    justifyContent: "center", marginBottom: 16,
+  },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 8, textAlign: "center" },
+  modalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+  modalCancelBtn: {
+    flex: 1, height: 48, borderRadius: 14,
+    borderWidth: 1, borderColor: "#D6E8F5",
+    alignItems: "center", justifyContent: "center",
+  },
+  modalCancelText: { fontSize: 15, fontWeight: "600", color: "#4A6480" },
+  modalDeleteBtn: {
+    flex: 1, height: 48, borderRadius: 14,
+    backgroundColor: Colors.error,
+    alignItems: "center", justifyContent: "center",
+  },
+  modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 });
