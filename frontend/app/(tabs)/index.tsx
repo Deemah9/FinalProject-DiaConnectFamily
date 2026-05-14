@@ -5,6 +5,7 @@ import {
   getGlucoseReadings,
   getProfile,
   importGlucoseCSV,
+  registerPushToken,
   updateProfile,
 } from "@/services/api";
 import AppHeader from "@/src/components/AppHeader";
@@ -36,6 +37,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as Notifications from "expo-notifications";
 import { Calendar } from "react-native-calendars";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
@@ -52,6 +54,33 @@ export default function HomeScreen() {
       router.replace("/family-home" as any);
     }
   }, [authUser?.role]);
+
+  // Register push token for patient notifications
+  useEffect(() => {
+    const registerPush = async () => {
+      try {
+        const { status: existing } = await Notifications.getPermissionsAsync();
+        let finalStatus = existing;
+        if (existing !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== "granted") {
+          console.log("[Push] Permission not granted:", finalStatus);
+          return;
+        }
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
+        });
+        console.log("[Push] Token:", tokenData.data);
+        await registerPushToken(tokenData.data);
+        console.log("[Push] Token registered successfully");
+      } catch (e) {
+        console.log("[Push] Error:", e);
+      }
+    };
+    registerPush();
+  }, []);
 
   const DRAWER_W = 270;
   const isRTL = I18nManager.isRTL;
