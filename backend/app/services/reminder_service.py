@@ -33,7 +33,9 @@ def _send_push(tokens: list[str], title: str, body: str, data: dict) -> None:
             },
             method="POST",
         )
-        urllib.request.urlopen(req, timeout=5)
+        response = urllib.request.urlopen(req, timeout=5)
+        result = json.loads(response.read().decode("utf-8"))
+        print(f"[Push] Expo API response: {json.dumps(result, ensure_ascii=False)}")
     except Exception as e:
         print(f"⚠️ Reminder push failed: {e}")
 

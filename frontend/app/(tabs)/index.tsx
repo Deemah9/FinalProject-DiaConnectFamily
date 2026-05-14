@@ -49,11 +49,18 @@ export default function HomeScreen() {
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
         }
-        if (finalStatus !== "granted") return;
-        const tokenData = await Notifications.getExpoPushTokenAsync();
+        if (finalStatus !== "granted") {
+          console.log("[Push] Permission not granted:", finalStatus);
+          return;
+        }
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
+        });
+        console.log("[Push] Token:", tokenData.data);
         await registerPushToken(tokenData.data);
-      } catch {
-        // push setup is non-critical
+        console.log("[Push] Token registered successfully");
+      } catch (e) {
+        console.log("[Push] Error:", e);
       }
     };
     registerPush();
