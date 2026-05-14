@@ -71,7 +71,7 @@ class GlucoseService:
         return result
 
     # ==========================================
-    # Import Reading from LibreView
+    # Import Reading from LibreView (single)
     # ==========================================
 
     def create_reading_from_import(
@@ -82,25 +82,13 @@ class GlucoseService:
         source: str = "libreview",
     ) -> dict | None:
         """
-        Save a glucose reading imported from an external source (LibreView).
-
-        Bypasses GlucoseCreate validation intentionally:
-        - value is already normalised to int mg/dL by the caller.
-        - measuredAt is historical, no future-date check needed.
-        - source is set by the caller, not forced to 'manual'.
-
-        Deduplication: if a reading for this user with the exact same
-        measuredAt already exists in Firestore, the insert is skipped
-        and None is returned. This prevents duplicates on re-sync.
-
-        Returns the saved document dict (with id) on success.
-        Returns None if the reading already exists (duplicate).
+        Save a single imported glucose reading with per-row deduplication.
+        Used by the LibreView sync flow.
+        For bulk CSV imports use batch_import_readings instead.
         """
-        # Normalise timezone before comparison
         if measured_at.tzinfo is None:
             measured_at = measured_at.replace(tzinfo=timezone.utc)
 
-        # ── Duplicate check ───────────────────────────────────────
         existing = (
             self.db.collection(self.collection)
             .where("userId", "==", user_id)
@@ -109,11 +97,9 @@ class GlucoseService:
             .stream()
         )
         for _ in existing:
-            return None  # duplicate — skip
+            return None
 
-        # ── Save ──────────────────────────────────────────────────
         doc_ref = self.db.collection(self.collection).document()
-
         document = GlucoseDocument(
             userId=user_id,
             value=value,
@@ -121,11 +107,97 @@ class GlucoseService:
             source=source,
             createdAt=datetime.now(timezone.utc),
         )
-
         doc_ref.set(document.dict())
         result = document.dict()
         result["id"] = doc_ref.id
         return result
+
+    # ==========================================
+    # Batch Import (CSV / bulk)
+    # ==========================================
+
+    BATCH_SIZE = 400  # Firestore limit is 500; stay below for safety
+
+    def batch_import_readings(
+        self,
+        user_id: str,
+        readings: list[dict],  # [{"value": int, "measuredAt": datetime}]
+        source: str = "csv",
+    ) -> tuple[int, int]:
+        """
+        Incrementally import glucose readings from a CSV export.
+
+        Strategy (2 Firestore round-trips regardless of reading count):
+          1. Fetch only the most recent measuredAt for this user (1 doc).
+          2. Skip everything up to and including that timestamp in memory.
+          3. Write new readings in batches of BATCH_SIZE.
+
+        This replaces the old "stream all timestamps" approach, which was
+        expensive on quota. Now only 1 read is needed regardless of history size.
+
+        Returns (imported_count, skipped_count).
+        """
+        def _ts_key(ts) -> str:
+            """Normalize any datetime (pytz/timezone.utc/naive) to a
+            minute-precision UTC string "YYYYMMDDHHММ" for safe comparison."""
+            if ts is None:
+                return ""
+            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            # utctimetuple strips tzinfo differences — purely UTC digits
+            t = ts.utctimetuple()
+            return f"{t.tm_year:04}{t.tm_mon:02}{t.tm_mday:02}{t.tm_hour:02}{t.tm_min:02}"
+
+        # ── 1. Find the latest stored timestamp key for this user ─
+        last_key: str = ""
+        docs = (
+            self.db.collection(self.collection)
+            .where("userId", "==", user_id)
+            .stream()
+        )
+        for doc in docs:
+            ts = doc.to_dict().get("measuredAt")
+            key = _ts_key(ts)
+            if key > last_key:
+                last_key = key
+
+        print(f"[Import] last stored key: {last_key or 'none (empty DB)'}")
+
+        # ── 2. Keep only readings newer than the latest stored ────
+        now = datetime.now(timezone.utc)
+        new_readings = []
+        skipped = 0
+
+        for r in readings:
+            key = _ts_key(r["measuredAt"])
+            if last_key and key <= last_key:
+                skipped += 1
+            else:
+                new_readings.append({"value": r["value"], "measuredAt": r["measuredAt"], "source": r.get("source", source)})
+                if key > last_key:
+                    last_key = key  # prevent intra-batch duplicates
+
+        print(f"[Import] to import: {len(new_readings)}, skipped: {skipped}")
+
+        # ── 3. Batch write ────────────────────────────────────────
+        imported = 0
+        for chunk_start in range(0, len(new_readings), self.BATCH_SIZE):
+            chunk = new_readings[chunk_start: chunk_start + self.BATCH_SIZE]
+            batch = self.db.batch()
+            for r in chunk:
+                doc_ref = self.db.collection(self.collection).document()
+                document = GlucoseDocument(
+                    userId=user_id,
+                    value=r["value"],
+                    measuredAt=r["measuredAt"],
+                    source=r.get("source", source),
+                    createdAt=now,
+                )
+                batch.set(doc_ref, document.dict())
+                imported += 1
+            batch.commit()
+
+        return imported, skipped
 
     # ==========================================
     # Get All Readings

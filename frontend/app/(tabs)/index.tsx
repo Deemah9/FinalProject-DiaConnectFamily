@@ -1,10 +1,32 @@
+import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/context/AuthContext";
+import {
+  getGlucosePrediction,
+  getGlucoseReadings,
+  getProfile,
+  importGlucoseCSV,
+  registerPushToken,
+  updateProfile,
+} from "@/services/api";
+import AppHeader from "@/src/components/AppHeader";
+import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
+import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Animated,
   Dimensions,
   I18nManager,
@@ -15,14 +37,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { Colors } from "@/constants/Colors";
-import { useAuth } from "@/context/AuthContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import AppHeader from "@/src/components/AppHeader";
-import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 import * as Notifications from "expo-notifications";
-import { getGlucoseReadings, getGlucosePrediction, getProfile, updateProfile, registerPushToken } from "@/services/api";
+import { Calendar } from "react-native-calendars";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
@@ -68,22 +84,43 @@ export default function HomeScreen() {
 
   const DRAWER_W = 270;
   const isRTL = I18nManager.isRTL;
-  const slideAnim = useRef(new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W)).current;
+  const slideAnim = useRef(
+    new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W),
+  ).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
   const openDrawer = () => {
     setMenuOpen(true);
     Animated.parallel([
-      Animated.timing(slideAnim,   { toValue: 0, duration: 260, useNativeDriver: true }),
-      Animated.timing(backdropAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
   const closeDrawer = (cb?: () => void) => {
     Animated.parallel([
-      Animated.timing(slideAnim,   { toValue: isRTL ? DRAWER_W : -DRAWER_W, duration: 220, useNativeDriver: true }),
-      Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-    ]).start(() => { setMenuOpen(false); cb?.(); });
+      Animated.timing(slideAnim, {
+        toValue: isRTL ? DRAWER_W : -DRAWER_W,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setMenuOpen(false);
+      cb?.();
+    });
   };
 
   const [user, setUser] = useState<any>(null);
@@ -96,10 +133,14 @@ export default function HomeScreen() {
 
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
 
   useFocusEffect(
@@ -136,7 +177,7 @@ export default function HomeScreen() {
     }
   };
 
-  const loadGlucose = async () => {
+  const loadGlucose = async (): Promise<any[]> => {
     try {
       setLoadingGlucose(true);
       setErrorGlucose("");
@@ -149,19 +190,32 @@ export default function HomeScreen() {
       else if (Array.isArray(data?.readings)) readings = data.readings;
       setGlucoseReadings(readings);
 
+      // Show welcome modal once for new users with no readings
+      if (readings.length === 0) {
+        const seen = await AsyncStorage.getItem("welcome_shown");
+        if (!seen) setShowWelcome(true);
+      }
+
       // Check if last reading was 6+ hours ago
       if (readings.length > 0) {
         const latest = readings
-          .map((r: any) => new Date(r?.measuredAt || r?.timestamp || r?.createdAt || 0).getTime())
+          .map((r: any) =>
+            new Date(
+              r?.measuredAt || r?.timestamp || r?.createdAt || 0,
+            ).getTime(),
+          )
           .filter((t: number) => t > 0)
           .sort((a: number, b: number) => b - a)[0];
         const hoursElapsed = (Date.now() - latest) / (1000 * 60 * 60);
         if (hoursElapsed >= 6) setShowReminder(true);
       }
+
+      return readings;
     } catch (error: any) {
       console.log("glucose fetch error:", error);
       setErrorGlucose(error?.message || "Failed to load glucose readings");
       setGlucoseReadings([]);
+      return [];
     } finally {
       setLoadingGlucose(false);
     }
@@ -178,7 +232,7 @@ export default function HomeScreen() {
   };
 
   const toLocalDateStr = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const shiftDay = (dateStr: string, delta: number) => {
     const [y, m, day] = dateStr.split("-").map(Number);
@@ -194,11 +248,17 @@ export default function HomeScreen() {
         if (Number(g?.value) <= 0) return false;
         const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
         const d = new Date(raw);
-        return !Number.isNaN(d.getTime()) && toLocalDateStr(d) === selectedDateStr;
+        return (
+          !Number.isNaN(d.getTime()) && toLocalDateStr(d) === selectedDateStr
+        );
       })
       .sort((a, b) => {
-        const ta = new Date(a?.measuredAt || a?.timestamp || a?.createdAt || "").getTime();
-        const tb = new Date(b?.measuredAt || b?.timestamp || b?.createdAt || "").getTime();
+        const ta = new Date(
+          a?.measuredAt || a?.timestamp || a?.createdAt || "",
+        ).getTime();
+        const tb = new Date(
+          b?.measuredAt || b?.timestamp || b?.createdAt || "",
+        ).getTime();
         return ta - tb;
       });
   }, [glucoseReadings, selectedDateStr]);
@@ -208,20 +268,120 @@ export default function HomeScreen() {
     const yesterday = toLocalDateStr(new Date(Date.now() - 86_400_000));
     if (selectedDateStr === yesterday) return t("yesterday");
     const [y, m, day] = selectedDateStr.split("-").map(Number);
-    return new Date(y, m - 1, day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    return new Date(y, m - 1, day).toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
   }, [selectedDateStr, t]);
 
-  const values = glucoseReadings
-    .map((g) => Number(g?.value || 0))
-    .filter((v) => !Number.isNaN(v) && v > 0);
+  const datesWithReadings = useMemo(() => {
+    const dates = new Set<string>();
+    for (const g of glucoseReadings) {
+      const raw = g?.measuredAt || g?.timestamp || g?.createdAt || "";
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) dates.add(toLocalDateStr(d));
+    }
+    return dates;
+  }, [glucoseReadings]);
 
-  const latest = values.length > 0 ? values[0] : "--";
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
+    datesWithReadings.forEach((dateStr) => {
+      marks[dateStr] = {
+        marked: true,
+        dotColor: "#1A6FA8",
+        selected: dateStr === selectedDateStr,
+        selectedColor: "#1A6FA8",
+      };
+    });
+    return marks;
+  }, [datesWithReadings, selectedDateStr]);
+
+  const latest =
+    chartReadings.length > 0
+      ? Number(chartReadings[chartReadings.length - 1]?.value || 0)
+      : "--";
   const chartWidth = Dimensions.get("window").width - 64;
 
   const latestStatus =
     typeof latest === "number"
-      ? latest < 70 ? t("low") : latest > 170 ? t("high") : t("normal")
+      ? latest < 70
+        ? t("low")
+        : latest > 170
+          ? t("high")
+          : t("normal")
       : "--";
+
+  const pickAndImportCSV = async () => {
+    setShowAddModal(false);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          "text/csv",
+          "text/comma-separated-values",
+          "application/csv",
+          "*/*",
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset) return;
+
+      setImporting(true);
+      // On web, asset.file is the native File object; on native, use { uri, name, type }
+      const filePayload = (asset as any).file ?? {
+        uri: asset.uri,
+        name: asset.name,
+        type: asset.mimeType ?? "text/csv",
+      };
+      const data = await importGlucoseCSV(
+        filePayload,
+        asset.name,
+        asset.mimeType ?? "text/csv",
+      );
+      const freshReadings = await loadGlucose();
+      setShowReminder(false); // don't show stale reminder right after an import
+      loadPrediction();
+
+      // Navigate chart to the date of the most recent imported reading
+      if (freshReadings.length > 0) {
+        const latestTs = freshReadings
+          .map((r: any) =>
+            new Date(
+              r?.measuredAt || r?.timestamp || r?.createdAt || 0,
+            ).getTime(),
+          )
+          .filter((t: number) => t > 0)
+          .sort((a: number, b: number) => b - a)[0];
+        if (latestTs > 0) {
+          setSelectedDateStr(toLocalDateStr(new Date(latestTs)));
+        }
+      }
+
+      if (data.imported_count === 0 && data.skipped_count > 0) {
+        Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
+      } else {
+        Alert.alert(
+          t("importSuccessTitle"),
+          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          [
+            {
+              text: t("ok"),
+              onPress: () => router.push("/glucose-history" as any),
+            },
+          ],
+        );
+      }
+    } catch (e: any) {
+      Alert.alert(t("importCSV"), e.message || t("importFailed"));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
@@ -229,7 +389,10 @@ export default function HomeScreen() {
         left={null}
         right={
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable style={styles.topBarBtn} onPress={() => setLangOpen((v) => !v)}>
+            <Pressable
+              style={styles.topBarBtn}
+              onPress={() => setLangOpen((v) => !v)}
+            >
               <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
             </Pressable>
             <Pressable style={styles.topBarBtn} onPress={openDrawer}>
@@ -239,13 +402,10 @@ export default function HomeScreen() {
         }
       />
       <ScrollView contentContainerStyle={styles.content}>
-
         {/* Welcome */}
         <View style={styles.hero}>
           <Text style={styles.welcomeTitle}>
-            {loadingUser
-              ? t("loading")
-              : `${getGreeting()} ${fullName}`}
+            {loadingUser ? t("loading") : `${getGreeting()} ${fullName}`}
           </Text>
           <Text style={styles.welcomeSub}>
             {errorUser
@@ -256,22 +416,45 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-
         {/* AI Prediction Card */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("predictionTitle")}</Text>
           <View style={styles.predictionCard}>
             <View style={styles.predictionHeader}>
-              <Ionicons name="analytics-outline" size={20} color={Colors.primary} />
-              <Text style={styles.predictionLabel}>{t("predictionSubtitle")}</Text>
+              <Ionicons
+                name="analytics-outline"
+                size={20}
+                color={Colors.primary}
+              />
+              <Text style={styles.predictionLabel}>
+                {t("predictionSubtitle")}
+              </Text>
             </View>
 
             {loadingPrediction ? (
-              <Text style={styles.predictionLoading}>{t("predictionLoading")}</Text>
-            ) : prediction?.message ? (
-              <Text style={styles.predictionInsufficient}>{prediction.message}</Text>
+              <Text style={styles.predictionLoading}>
+                {t("predictionLoading")}
+              </Text>
+            ) : prediction?.data_stale &&
+              prediction?.predicted_value == null ? (
+              <View style={styles.staleWarningCard}>
+                <Ionicons name="warning-outline" size={20} color="#D97706" />
+                <Text style={styles.staleWarningText}>
+                  {prediction.message || t("predictionStale")}
+                </Text>
+              </View>
             ) : prediction?.predicted_value != null ? (
               <>
+                {/* Stale data soft warning */}
+                {prediction?.data_stale && (
+                  <View style={styles.staleBanner}>
+                    <Ionicons name="time-outline" size={14} color="#D97706" />
+                    <Text style={styles.staleBannerText}>
+                      {prediction.message}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Value + Trend Badge Row */}
                 <View style={styles.predictionValueRow}>
                   <View>
@@ -281,34 +464,53 @@ export default function HomeScreen() {
                     </Text>
                   </View>
 
-                  {(prediction.trend || prediction.alert_type === "patch_error") && (
-                    <View style={[
-                      styles.trendBadge,
-                      prediction.alert_type === "patch_error" ? { backgroundColor: "#FEF3C7" } :
-                      prediction.trend === "rising"  ? { backgroundColor: "#FEE2E2" } :
-                      prediction.trend === "falling" ? { backgroundColor: "#FEF3C7" } :
-                                                       { backgroundColor: "#D1FAE5" },
-                    ]}>
+                  {(prediction.trend ||
+                    prediction.alert_type === "patch_error") && (
+                    <View
+                      style={[
+                        styles.trendBadge,
+                        prediction.alert_type === "patch_error"
+                          ? { backgroundColor: "#FEF3C7" }
+                          : prediction.trend === "rising"
+                            ? { backgroundColor: "#FEE2E2" }
+                            : prediction.trend === "falling"
+                              ? { backgroundColor: "#FEF3C7" }
+                              : { backgroundColor: "#D1FAE5" },
+                      ]}
+                    >
                       <Ionicons
                         name={
-                          prediction.alert_type === "patch_error" ? "warning"       :
-                          prediction.trend === "rising"            ? "trending-up"   :
-                          prediction.trend === "falling"           ? "trending-down" : "remove"
+                          prediction.alert_type === "patch_error"
+                            ? "warning"
+                            : prediction.trend === "rising"
+                              ? "trending-up"
+                              : prediction.trend === "falling"
+                                ? "trending-down"
+                                : "remove"
                         }
                         size={18}
                         color={
-                          prediction.alert_type === "patch_error" ? "#D97706" :
-                          prediction.trend === "rising"            ? "#DC2626" :
-                          prediction.trend === "falling"           ? "#D97706" : "#059669"
+                          prediction.alert_type === "patch_error"
+                            ? "#D97706"
+                            : prediction.trend === "rising"
+                              ? "#DC2626"
+                              : prediction.trend === "falling"
+                                ? "#D97706"
+                                : "#059669"
                         }
                       />
-                      <Text style={[
-                        styles.trendBadgeText,
-                        prediction.alert_type === "patch_error" ? { color: "#92400E" } :
-                        prediction.trend === "rising"            ? { color: "#DC2626" } :
-                        prediction.trend === "falling"           ? { color: "#D97706" } :
-                                                                   { color: "#059669" },
-                      ]}>
+                      <Text
+                        style={[
+                          styles.trendBadgeText,
+                          prediction.alert_type === "patch_error"
+                            ? { color: "#92400E" }
+                            : prediction.trend === "rising"
+                              ? { color: "#DC2626" }
+                              : prediction.trend === "falling"
+                                ? { color: "#D97706" }
+                                : { color: "#059669" },
+                        ]}
+                      >
                         {prediction.alert_type === "patch_error"
                           ? t("alert_patch_error_short")
                           : t(`trend_${prediction.trend}`)}
@@ -318,54 +520,317 @@ export default function HomeScreen() {
                 </View>
 
                 {/* Probability Row */}
-                {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
-                  <View style={styles.probRow}>
-                    <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
-                    <Text style={styles.probText}>
-                      <Text style={styles.probValue}>{prediction.probability}%</Text>
-                      {"  "}{t(`prob_${prediction.trend}`)}
-                    </Text>
-                  </View>
-                )}
+                {prediction.probability != null &&
+                  prediction.trend &&
+                  prediction.alert_type !== "patch_error" && (
+                    <View style={styles.probRow}>
+                      <Ionicons
+                        name="stats-chart-outline"
+                        size={14}
+                        color="#4A6480"
+                      />
+                      <Text style={styles.probText}>
+                        <Text style={styles.probValue}>
+                          {prediction.probability}%
+                        </Text>
+                        {"  "}
+                        {prediction.alert_type === "high" &&
+                        prediction.trend === "falling"
+                          ? t("prob_falling_high")
+                          : t(`prob_${prediction.trend}`)}
+                      </Text>
+                    </View>
+                  )}
 
                 {/* Alert + AI Advice */}
                 {(prediction.alert_type || prediction.advice?.patient) && (
-                  <View style={[
-                    styles.predictionAlert,
-                    prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
-                    prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
-                    prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
-                    !prediction.alert_type                  && { backgroundColor: "#EBF3FA", borderColor: "#B8D0E8" },
-                  ]}>
+                  <View
+                    style={[
+                      styles.predictionAlert,
+                      prediction.alert_type === "low" && {
+                        backgroundColor: "#FFF7ED",
+                        borderColor: "#FED7AA",
+                      },
+                      prediction.alert_type === "high" && {
+                        backgroundColor: "#FDEDED",
+                        borderColor: "#FECACA",
+                      },
+                      prediction.alert_type === "patch_error" && {
+                        backgroundColor: "#F3F4F6",
+                        borderColor: "#E5E7EB",
+                      },
+                      !prediction.alert_type && {
+                        backgroundColor: "#EBF3FA",
+                        borderColor: "#B8D0E8",
+                      },
+                    ]}
+                  >
                     <Ionicons
                       name={
-                        prediction.alert_type === "patch_error" ? "warning" :
-                        prediction.alert_type               ? "alert-circle" : "information-circle"
+                        prediction.alert_type === "patch_error"
+                          ? "warning"
+                          : prediction.alert_type
+                            ? "alert-circle"
+                            : "information-circle"
                       }
                       size={18}
                       color={
-                        prediction.alert_type === "low"  ? "#E07B00" :
-                        prediction.alert_type === "high" ? "#D32F2F" :
-                        prediction.alert_type === "patch_error" ? "#6B7280" : "#1A6FA8"
+                        prediction.alert_type === "low"
+                          ? "#E07B00"
+                          : prediction.alert_type === "high"
+                            ? "#D32F2F"
+                            : prediction.alert_type === "patch_error"
+                              ? "#6B7280"
+                              : "#1A6FA8"
                       }
                     />
-                    <Text style={[
-                      styles.predictionAlertText,
-                      prediction.alert_type === "low"         && { color: "#92400E" },
-                      prediction.alert_type === "high"        && { color: "#991B1B" },
-                      prediction.alert_type === "patch_error" && { color: "#374151" },
-                      !prediction.alert_type                  && { color: "#1A4A6B" },
-                    ]}>
-                      {prediction.advice?.patient || (prediction.alert_type ? t(`alert_${prediction.alert_type}`) : "")}
+                    <Text
+                      style={[
+                        styles.predictionAlertText,
+                        prediction.alert_type === "low" && { color: "#92400E" },
+                        prediction.alert_type === "high" && {
+                          color: "#991B1B",
+                        },
+                        prediction.alert_type === "patch_error" && {
+                          color: "#374151",
+                        },
+                        !prediction.alert_type && { color: "#1A4A6B" },
+                      ]}
+                    >
+                      {prediction.advice?.patient ||
+                        (prediction.alert_type
+                          ? t(`alert_${prediction.alert_type}`)
+                          : "")}
                     </Text>
                   </View>
                 )}
               </>
             ) : (
-              <Text style={styles.predictionInsufficient}>{t("predictionUnavailable")}</Text>
+              <Text style={styles.predictionInsufficient}>
+                {t("predictionUnavailable")}
+              </Text>
             )}
           </View>
         </View>
+
+        {/* Historical Pattern Card — shown only when prediction_mode = "pattern" */}
+        {prediction?.prediction_mode === "pattern" &&
+          (() => {
+            const pp = prediction.pattern_prediction;
+            const risk = pp?.risk_level ?? "normal";
+
+            const riskColor =
+              risk === "high"
+                ? "#D32F2F"
+                : risk === "low"
+                  ? "#D97706"
+                  : risk === "variable"
+                    ? "#7C3AED"
+                    : "#059669";
+            const riskBg =
+              risk === "high"
+                ? "#FEE2E2"
+                : risk === "low"
+                  ? "#FFFBEB"
+                  : risk === "variable"
+                    ? "#F5F3FF"
+                    : "#D1FAE5";
+            const riskIcon =
+              risk === "variable"
+                ? "stats-chart"
+                : risk === "normal"
+                  ? "checkmark-circle"
+                  : "alert-circle";
+            const riskLabel =
+              risk === "high"
+                ? t("high")
+                : risk === "low"
+                  ? t("low")
+                  : risk === "variable"
+                    ? t("patternVariabilityUnstable")
+                    : t("normal");
+
+            const confLabel =
+              pp?.confidence === "high"
+                ? t("patternConfidenceHigh")
+                : pp?.confidence === "medium"
+                  ? t("patternConfidenceMedium")
+                  : t("patternConfidenceLow");
+
+            const avgVal = pp?.typical_avg ?? 0;
+            const adviceStyle =
+              avgVal > 170
+                ? {
+                    bg: "#FDEDED",
+                    border: "#FECACA",
+                    color: "#991B1B",
+                    icon: "alert-circle",
+                    iconClr: "#D32F2F",
+                  }
+                : avgVal < 70
+                  ? {
+                      bg: "#FFF7ED",
+                      border: "#FED7AA",
+                      color: "#92400E",
+                      icon: "alert-circle",
+                      iconClr: "#E07B00",
+                    }
+                  : {
+                      bg: "#EBF3FA",
+                      border: "#B8D0E8",
+                      color: "#1A4A6B",
+                      icon: "information-circle",
+                      iconClr: "#1A6FA8",
+                    };
+
+            return (
+              <View style={styles.section} key="pattern-card">
+                <Text style={styles.sectionLabel}>{t("patternCardTitle")}</Text>
+                <View style={styles.predictionCard}>
+                  {/* Header — mirrors prediction card */}
+                  <View style={styles.predictionHeader}>
+                    <Ionicons
+                      name="bar-chart-outline"
+                      size={20}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.predictionLabel}>
+                      {t("patternCardSubtitle")}
+                    </Text>
+                  </View>
+
+                  {pp?.available ? (
+                    <>
+                      {/* Value row + risk badge */}
+                      <View style={styles.predictionValueRow}>
+                        <View>
+                          <Text
+                            style={[
+                              styles.predictionValue,
+                              {
+                                color:
+                                  avgVal > 170
+                                    ? "#D32F2F"
+                                    : avgVal < 70
+                                      ? "#D97706"
+                                      : Colors.text,
+                              },
+                            ]}
+                          >
+                            {pp.typical_avg}
+                            <Text style={styles.predictionUnit}>
+                              {" "}
+                              {t("mgdL")}
+                            </Text>
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.trendBadge,
+                            { backgroundColor: riskBg },
+                          ]}
+                        >
+                          <Ionicons
+                            name={riskIcon as any}
+                            size={18}
+                            color={riskColor}
+                          />
+                          <Text
+                            style={[
+                              styles.trendBadgeText,
+                              { color: riskColor },
+                            ]}
+                          >
+                            {riskLabel}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Typical range */}
+                      {pp.typical_min != null && pp.typical_max != null && (
+                        <View style={[styles.probRow, { marginBottom: 12 }]}>
+                          <Ionicons
+                            name="stats-chart-outline"
+                            size={14}
+                            color="#4A6480"
+                          />
+                          <Text style={styles.probText}>
+                            {t("patternTypical")}{" "}
+                            <Text style={styles.probValue}>
+                              {pp.typical_min} – {pp.typical_max}
+                            </Text>{" "}
+                            {t("mgdL")}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Advice — identical style to prediction card */}
+                      {(prediction.advice?.patient || pp.message) && (
+                        <View
+                          style={[
+                            styles.predictionAlert,
+                            {
+                              backgroundColor: adviceStyle.bg,
+                              borderColor: adviceStyle.border,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name={adviceStyle.icon as any}
+                            size={18}
+                            color={adviceStyle.iconClr}
+                          />
+                          <Text
+                            style={[
+                              styles.predictionAlertText,
+                              { color: adviceStyle.color },
+                            ]}
+                          >
+                            {prediction.advice?.patient || pp.message}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Footer: samples + confidence */}
+                      <View
+                        style={[
+                          styles.probRow,
+                          { marginTop: 10, marginBottom: 0 },
+                        ]}
+                      >
+                        <Ionicons
+                          name="time-outline"
+                          size={13}
+                          color="#4A6480"
+                        />
+                        <Text style={styles.probText}>
+                          {t("patternSamples", { count: pp.sample_count })}
+                          {"  ·  "}
+                          <Text
+                            style={{
+                              fontWeight: "600",
+                              color:
+                                pp?.confidence === "high"
+                                  ? "#16A34A"
+                                  : pp?.confidence === "medium"
+                                    ? "#D97706"
+                                    : "#6B7280",
+                            }}
+                          >
+                            {confLabel}
+                          </Text>
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={styles.predictionInsufficient}>
+                      {t("patternNoData")}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })()}
 
         {/* Glucose Trend — chart with day navigator */}
         <View style={styles.section}>
@@ -380,76 +845,278 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.latestPill}>
-                <Text style={styles.latestValue}>{loadingGlucose ? "--" : latest}</Text>
+                <Text style={styles.latestValue}>
+                  {loadingGlucose ? "--" : latest}
+                </Text>
                 <Text style={styles.latestUnit}>{t("mgdL")}</Text>
-                <View style={[
-                  styles.statusBadge,
-                  typeof latest === "number" && latest < 70 && { backgroundColor: "#FEF3E2" },
-                  typeof latest === "number" && latest >= 70 && latest <= 170 && { backgroundColor: "#E6F7F2" },
-                  typeof latest === "number" && latest > 170 && { backgroundColor: "#FDEDED" },
-                ]}>
-                  <Text style={[
-                    styles.statusBadgeText,
-                    typeof latest === "number" && latest < 70 && { color: "#E07B00" },
-                    typeof latest === "number" && latest >= 70 && latest <= 170 && { color: "#0D9E6E" },
-                    typeof latest === "number" && latest > 170 && { color: "#D32F2F" },
-                  ]}>{latestStatus}</Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    typeof latest === "number" &&
+                      latest < 70 && { backgroundColor: "#FEF3E2" },
+                    typeof latest === "number" &&
+                      latest >= 70 &&
+                      latest <= 170 && { backgroundColor: "#E6F7F2" },
+                    typeof latest === "number" &&
+                      latest > 170 && { backgroundColor: "#FDEDED" },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      typeof latest === "number" &&
+                        latest < 70 && { color: "#E07B00" },
+                      typeof latest === "number" &&
+                        latest >= 70 &&
+                        latest <= 170 && { color: "#0D9E6E" },
+                      typeof latest === "number" &&
+                        latest > 170 && { color: "#D32F2F" },
+                    ]}
+                  >
+                    {latestStatus}
+                  </Text>
                 </View>
               </View>
             </View>
 
             {/* Day Navigator */}
             <View style={styles.dayNav}>
-              <Pressable style={styles.navArrow} onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}>
+              <Pressable
+                style={styles.navArrow}
+                onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}
+              >
                 <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
               </Pressable>
-              <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+              <Pressable
+                style={styles.dayNavCenter}
+                onPress={() => setShowCalendar(true)}
+              >
+                <Ionicons name="calendar-outline" size={14} color="#1A6FA8" />
+                <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
+              </Pressable>
               <Pressable
                 style={[styles.navArrow, !canNext && { opacity: 0.3 }]}
-                onPress={() => canNext && setSelectedDateStr((d) => shiftDay(d, 1))}
+                onPress={() =>
+                  canNext && setSelectedDateStr((d) => shiftDay(d, 1))
+                }
                 disabled={!canNext}
               >
                 <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
               </Pressable>
             </View>
 
+            {/* Calendar Modal */}
+            <Modal visible={showCalendar} transparent animationType="fade">
+              <Pressable
+                style={styles.calBackdrop}
+                onPress={() => setShowCalendar(false)}
+              >
+                <Pressable
+                  style={styles.calBox}
+                  onPress={(e) => e.stopPropagation()}
+                >
+                  <Calendar
+                    markedDates={markedDates}
+                    onDayPress={(day: any) => {
+                      setSelectedDateStr(day.dateString);
+                      setShowCalendar(false);
+                    }}
+                    theme={{
+                      selectedDayBackgroundColor: "#1A6FA8",
+                      todayTextColor: "#1A6FA8",
+                      arrowColor: "#1A6FA8",
+                      dotColor: "#1A6FA8",
+                    }}
+                  />
+                  <Pressable
+                    style={styles.calCloseBtn}
+                    onPress={() => setShowCalendar(false)}
+                  >
+                    <Text style={styles.calCloseTxt}>{t("close")}</Text>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            </Modal>
+
             {chartReadings.length > 0 ? (
               <View style={styles.trendWrap}>
-                <GlucoseTrendChart readings={chartReadings} width={chartWidth} />
+                <GlucoseTrendChart
+                  readings={chartReadings}
+                  width={chartWidth}
+                />
                 <View style={styles.trendLegend}>
                   <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#F59E0B" }]} />
+                    <View
+                      style={[styles.legendDot, { backgroundColor: "#F59E0B" }]}
+                    />
                     <Text style={styles.legendText}>{t("low")}</Text>
                   </View>
                   <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#22C55E" }]} />
+                    <View
+                      style={[styles.legendDot, { backgroundColor: "#22C55E" }]}
+                    />
                     <Text style={styles.legendText}>{t("normal")}</Text>
                   </View>
                   <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
-                    <Text style={[styles.legendText, { color: "#EF4444" }]}>{t("high")}</Text>
+                    <View
+                      style={[styles.legendDot, { backgroundColor: "#EF4444" }]}
+                    />
+                    <Text style={[styles.legendText, { color: "#EF4444" }]}>
+                      {t("high")}
+                    </Text>
                   </View>
                 </View>
               </View>
             ) : (
               <View style={styles.trendEmpty}>
-                <Ionicons name="stats-chart-outline" size={32} color="#B8D0E8" />
+                <Ionicons
+                  name="stats-chart-outline"
+                  size={32}
+                  color="#B8D0E8"
+                />
                 <Text style={styles.trendEmptyText}>{t("noReadingsYet")}</Text>
               </View>
             )}
           </View>
         </View>
-
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* FAB — Add Glucose */}
-      <Pressable style={styles.fab} onPress={() => router.push("/add-glucose" as any)}>
+      {/* Welcome Modal — shown once for new users */}
+      <Modal
+        visible={showWelcome}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowWelcome(false)}
+      >
+        <View style={styles.welcomeBackdrop}>
+          <View style={styles.welcomeBox}>
+            <View style={styles.welcomeIconWrap}>
+              <Ionicons name="heart" size={32} color="#1A6FA8" />
+            </View>
+            <Text style={styles.welcomeModalTitle}>{t("welcomeModalTitle")}</Text>
+            <Text style={styles.welcomeBody}>{t("welcomeModalBody")}</Text>
+            <Pressable
+              style={styles.welcomePrimaryBtn}
+              onPress={async () => {
+                await AsyncStorage.setItem("welcome_shown", "1");
+                setShowWelcome(false);
+                router.push("/add-glucose" as any);
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={styles.welcomePrimaryText}>
+                {t("welcomeModalAddBtn")}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.welcomeSkipBtn}
+              onPress={async () => {
+                await AsyncStorage.setItem("welcome_shown", "1");
+                setShowWelcome(false);
+              }}
+            >
+              <Text style={styles.welcomeSkipText}>
+                {t("welcomeModalSkip")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* FAB — Add / Import Glucose */}
+      <Pressable
+        style={styles.fab}
+        onPress={() => !importing && setShowAddModal(true)}
+      >
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </Pressable>
 
+      {/* Add Options Modal */}
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <Pressable
+          style={styles.addModalBackdrop}
+          onPress={() => setShowAddModal(false)}
+        >
+          <View style={styles.addModalSheet}>
+            <View style={styles.addModalHandle} />
+
+            {/* Title */}
+            <View style={styles.addModalTitleRow}>
+              <View style={styles.addModalTitleBadge}>
+                <Ionicons name="pulse-outline" size={18} color="#1A6FA8" />
+              </View>
+              <Text style={styles.addModalTitle}>{t("importCSVTitle")}</Text>
+            </View>
+
+            {/* Manual Entry Card — Blue */}
+            <Pressable
+              style={styles.addCardBlue}
+              onPress={() => {
+                setShowAddModal(false);
+                router.push("/add-glucose" as any);
+              }}
+            >
+              <View style={styles.addCardIconBlue}>
+                <Ionicons name="pencil" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.addOptionText}>
+                <Text style={styles.addCardLabelBlue}>{t("manualEntry")}</Text>
+                <Text style={styles.addCardSubBlue}>{t("manualEntrySub")}</Text>
+              </View>
+              <View style={styles.addCardArrowBlue}>
+                <Ionicons name="chevron-forward" size={16} color="#1A6FA8" />
+              </View>
+            </Pressable>
+
+            {/* CSV Import Card — Green */}
+            <Pressable
+              style={[styles.addCardGreen, importing && { opacity: 0.6 }]}
+              onPress={importing ? undefined : pickAndImportCSV}
+            >
+              <View style={styles.addCardIconGreen}>
+                <Ionicons
+                  name={importing ? "cloud-upload" : "document-text"}
+                  size={24}
+                  color="#FFFFFF"
+                />
+              </View>
+              <View style={styles.addOptionText}>
+                <Text style={styles.addCardLabelGreen}>
+                  {importing ? t("importing") : t("importCSVOption")}
+                </Text>
+                <Text style={styles.addCardSubGreen}>
+                  {t("importCSVOptionSub")}
+                </Text>
+              </View>
+              {!importing && (
+                <View style={styles.addCardArrowGreen}>
+                  <Ionicons name="chevron-forward" size={16} color="#16A34A" />
+                </View>
+              )}
+            </Pressable>
+
+            <Pressable
+              style={styles.addModalCancel}
+              onPress={() => setShowAddModal(false)}
+            >
+              <Text style={styles.addModalCancelText}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Glucose Reminder Modal */}
-      <Modal visible={showReminder} transparent animationType="fade" onRequestClose={() => setShowReminder(false)}>
+      <Modal
+        visible={showReminder}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReminder(false)}
+      >
         <View style={styles.reminderBackdrop}>
           <View style={styles.reminderBox}>
             <View style={styles.reminderIconWrap}>
@@ -459,21 +1126,37 @@ export default function HomeScreen() {
             <Text style={styles.reminderModalMsg}>{t("reminderMsg")}</Text>
             <Pressable
               style={styles.reminderAddBtn}
-              onPress={() => { setShowReminder(false); router.push("/add-glucose" as any); }}
+              onPress={() => {
+                setShowReminder(false);
+                setShowAddModal(true);
+              }}
             >
               <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
               <Text style={styles.reminderAddText}>{t("addReading")}</Text>
             </Pressable>
-            <Pressable style={styles.reminderDismiss} onPress={() => setShowReminder(false)}>
+            <Pressable
+              style={styles.reminderDismiss}
+              onPress={() => setShowReminder(false)}
+            >
               <Text style={styles.reminderDismissText}>{t("remindLater")}</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
+
       {/* Language dropdown — rendered as Modal so it floats above all content */}
-      <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
-        <Pressable style={styles.langModalBackdrop} onPress={() => setLangOpen(false)}>
+      <Modal
+        visible={langOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setLangOpen(false)}
+      >
+        <Pressable
+          style={styles.langModalBackdrop}
+          onPress={() => setLangOpen(false)}
+        >
           <View style={styles.langDropdown}>
             {[
               { code: "en", label: "English" },
@@ -499,10 +1182,17 @@ export default function HomeScreen() {
                     updateProfile({ language: lng }).catch(() => {});
                   }}
                 >
-                  <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>
+                  <Text
+                    style={[
+                      styles.langOptionText,
+                      active && styles.langOptionTextActive,
+                    ]}
+                  >
                     {label}
                   </Text>
-                  {active && <Ionicons name="checkmark" size={14} color="#1A6FA8" />}
+                  {active && (
+                    <Ionicons name="checkmark" size={14} color="#1A6FA8" />
+                  )}
                 </Pressable>
               );
             })}
@@ -540,21 +1230,38 @@ export default function HomeScreen() {
                 </View>
               </View>
               <View style={[styles.drawerSlot, { alignItems: "flex-end" }]}>
-                <Pressable style={styles.drawerCloseBtn} onPress={() => closeDrawer()}>
+                <Pressable
+                  style={styles.drawerCloseBtn}
+                  onPress={() => closeDrawer()}
+                >
                   <Ionicons name="close" size={20} color="#FFFFFF" />
                 </Pressable>
               </View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.drawerScroll}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.drawerScroll}
+            >
               {/* Profile section */}
               <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
               {[
-                { icon: "person-outline",  label: t("openProfile"),     route: "/profile" },
+                {
+                  icon: "person-outline",
+                  label: t("openProfile"),
+                  route: "/profile",
+                },
               ].map(({ icon, label, route }) => (
-                <Pressable key={route} style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push(route as any))}>
-                  <Ionicons name={icon as any} size={17} color={Colors.primary} />
+                <Pressable
+                  key={route}
+                  style={styles.drawerItem}
+                  onPress={() => closeDrawer(() => router.push(route as any))}
+                >
+                  <Ionicons
+                    name={icon as any}
+                    size={17}
+                    color={Colors.primary}
+                  />
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
               ))}
@@ -562,26 +1269,64 @@ export default function HomeScreen() {
               {/* Glucose section */}
               <Text style={styles.drawerSection}>{t("glucoseNavigation")}</Text>
               {[
-                { icon: "stats-chart-outline",  label: t("glucoseHistory"), route: "/glucose-history" },
-                { icon: "bar-chart-outline",    label: t("glucoseStats"),   route: "/glucose-stats"   },
-                { icon: "add-circle-outline",   label: t("addGlucose"),     route: "/add-glucose"     },
-                { icon: "notifications-outline", label: t("alerts"),        route: "/alerts"           },
+                {
+                  icon: "stats-chart-outline",
+                  label: t("glucoseHistory"),
+                  route: "/glucose-history",
+                },
+                {
+                  icon: "bar-chart-outline",
+                  label: t("glucoseStats"),
+                  route: "/glucose-stats",
+                },
               ].map(({ icon, label, route }) => (
-                <Pressable key={route} style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push(route as any))}>
-                  <Ionicons name={icon as any} size={17} color={Colors.primary} />
+                <Pressable
+                  key={route}
+                  style={styles.drawerItem}
+                  onPress={() => closeDrawer(() => router.push(route as any))}
+                >
+                  <Ionicons
+                    name={icon as any}
+                    size={17}
+                    color={Colors.primary}
+                  />
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
               ))}
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => closeDrawer(() => setShowAddModal(true))}
+              >
+                <Ionicons name="add-circle-outline" size={17} color={Colors.primary} />
+                <Text style={styles.drawerItemText}>{t("addGlucose")}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => closeDrawer(() => router.push("/alerts" as any))}
+              >
+                <Ionicons name="notifications-outline" size={17} color={Colors.primary} />
+                <Text style={styles.drawerItemText}>{t("alerts")}</Text>
+              </Pressable>
 
               {/* Daily Logs section */}
               <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>
               {[
-                { icon: "calendar-outline",    label: t("dailyLog"),      route: "/daily-log" },
+                {
+                  icon: "calendar-outline",
+                  label: t("dailyLog"),
+                  route: "/daily-log",
+                },
               ].map(({ icon, label, route }) => (
-                <Pressable key={route} style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push(route as any))}>
-                  <Ionicons name={icon as any} size={17} color={Colors.primary} />
+                <Pressable
+                  key={route}
+                  style={styles.drawerItem}
+                  onPress={() => closeDrawer(() => router.push(route as any))}
+                >
+                  <Ionicons
+                    name={icon as any}
+                    size={17}
+                    color={Colors.primary}
+                  />
                   <Text style={styles.drawerItemText}>{label}</Text>
                 </Pressable>
               ))}
@@ -589,23 +1334,49 @@ export default function HomeScreen() {
               {/* Family Connection section */}
               <Text style={styles.drawerSection}>{t("familySection")}</Text>
               {user?.role === "patient" && (
-                <Pressable style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push("/family-invite" as any))}>
-                  <Ionicons name="person-add-outline" size={17} color={Colors.primary} />
+                <Pressable
+                  style={styles.drawerItem}
+                  onPress={() =>
+                    closeDrawer(() => router.push("/family-invite" as any))
+                  }
+                >
+                  <Ionicons
+                    name="person-add-outline"
+                    size={17}
+                    color={Colors.primary}
+                  />
                   <Text style={styles.drawerItemText}>{t("inviteFamily")}</Text>
                 </Pressable>
               )}
               {user?.role === "family_member" && (
                 <>
-                  <Pressable style={styles.drawerItem}
-                    onPress={() => closeDrawer(() => router.push("/family-patients" as any))}>
-                    <Ionicons name="people-outline" size={17} color={Colors.primary} />
+                  <Pressable
+                    style={styles.drawerItem}
+                    onPress={() =>
+                      closeDrawer(() => router.push("/family-patients" as any))
+                    }
+                  >
+                    <Ionicons
+                      name="people-outline"
+                      size={17}
+                      color={Colors.primary}
+                    />
                     <Text style={styles.drawerItemText}>{t("myPatients")}</Text>
                   </Pressable>
-                  <Pressable style={styles.drawerItem}
-                    onPress={() => closeDrawer(() => router.push("/family-join" as any))}>
-                    <Ionicons name="link-outline" size={17} color={Colors.primary} />
-                    <Text style={styles.drawerItemText}>{t("enterPairingCode")}</Text>
+                  <Pressable
+                    style={styles.drawerItem}
+                    onPress={() =>
+                      closeDrawer(() => router.push("/family-join" as any))
+                    }
+                  >
+                    <Ionicons
+                      name="link-outline"
+                      size={17}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.drawerItemText}>
+                      {t("enterPairingCode")}
+                    </Text>
                   </Pressable>
                 </>
               )}
@@ -613,8 +1384,10 @@ export default function HomeScreen() {
               <View style={styles.drawerDivider} />
 
               {/* Logout */}
-              <Pressable style={styles.drawerLogout}
-                onPress={() => closeDrawer(() => logout())}>
+              <Pressable
+                style={styles.drawerLogout}
+                onPress={() => closeDrawer(() => logout())}
+              >
                 <Ionicons name="log-out-outline" size={17} color="#D32F2F" />
                 <Text style={styles.drawerLogoutText}>{t("logout")}</Text>
               </Pressable>
@@ -637,7 +1410,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: 80,
   },
 
   // ── Blue top bar ──────────────────────────────────────────────────────────
@@ -707,7 +1480,7 @@ const styles = StyleSheet.create({
 
   welcomeTitle: {
     color: "#0B1A2E",
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "700",
     marginBottom: 8,
   },
@@ -746,14 +1519,21 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-
   fab: {
-    position: "absolute", bottom: 32, right: 24,
-    width: 58, height: 58, borderRadius: 29,
+    position: "absolute",
+    bottom: 32,
+    right: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: "#1A6FA8",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#1A6FA8", shadowOpacity: 0.4,
-    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#1A6FA8",
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
 
   alertCard: {
@@ -922,7 +1702,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#4A6480",
   },
-
 
   trendEmpty: {
     alignItems: "center",
@@ -1214,11 +1993,10 @@ const styles = StyleSheet.create({
     color: "#D32F2F",
   },
 
-
   langModalBackdrop: {
     flex: 1,
-    paddingTop: 70,      // clears the header height
-    paddingLeft: 16,     // aligns dropdown under the globe button
+    paddingTop: 70, // clears the header height
+    paddingLeft: 16, // aligns dropdown under the globe button
   },
 
   langWrap: {
@@ -1367,44 +2145,504 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dayNav: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#EBF3FA", borderRadius: 10,
-    paddingVertical: 6, paddingHorizontal: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EBF3FA",
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     marginBottom: 10,
     alignSelf: "center",
     width: "70%",
   },
   navArrow: { padding: 4 },
-  dayNavLabel: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
+  dayNavCenter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  dayNavLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
+  calBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  calBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    width: Dimensions.get("window").width - 48,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  calCloseBtn: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 10,
+    backgroundColor: "#EBF3FA",
+    borderRadius: 10,
+  },
+  calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
   predictionAlertText: {
     fontSize: 13,
     flex: 1,
     lineHeight: 20,
   },
 
+  // Pattern card — new design
+  patternStatusStrip: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#F8FAFC",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  patternStatusText: {
+    fontSize: 12,
+    color: "#6B7280",
+    flex: 1,
+    lineHeight: 17,
+  },
+  patternMainRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  patternMainLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#94A3B8",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  patternBigValue: {
+    fontSize: 46,
+    fontWeight: "800",
+    lineHeight: 52,
+  },
+  patternBigUnit: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: "#94A3B8",
+  },
+  patternRangeText: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  patternRiskPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  patternRiskPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  patternAlertBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  patternAlertText: {
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
+  patternFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  patternSamplesText: {
+    fontSize: 11,
+    color: "#94A3B8",
+  },
+  patternConfRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  patternDots: {
+    fontSize: 10,
+    letterSpacing: 2,
+  },
+  patternConfLabel: {
+    fontSize: 11,
+    color: "#94A3B8",
+  },
+
+  staleBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF9EC",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  staleBannerText: {
+    fontSize: 12,
+    color: "#92400E",
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  staleWarningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FEF9EC",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 4,
+  },
+  staleWarningText: {
+    fontSize: 13,
+    color: "#92400E",
+    flex: 1,
+    lineHeight: 20,
+  },
+
+  addModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  addModalSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    paddingTop: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  addModalHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#E2EAF2",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  addModalTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  addModalTitleBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#EBF3FA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0B1A2E",
+  },
+
+  // Blue card — Manual Entry
+  addCardBlue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#EFF6FF",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderLeftWidth: 5,
+    borderLeftColor: "#1A6FA8",
+  },
+  addCardIconBlue: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: "#1A6FA8",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#1A6FA8",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  addCardLabelBlue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E3A5F",
+    marginBottom: 2,
+  },
+  addCardSubBlue: {
+    fontSize: 12,
+    color: "#3B82F6",
+  },
+  addCardArrowBlue: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Green card — CSV Import
+  addCardGreen: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#F0FDF4",
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderLeftWidth: 5,
+    borderLeftColor: "#16A34A",
+  },
+  addCardIconGreen: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: "#16A34A",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#16A34A",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  addCardLabelGreen: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#14532D",
+    marginBottom: 2,
+  },
+  addCardSubGreen: {
+    fontSize: 12,
+    color: "#16A34A",
+    marginBottom: 4,
+  },
+  addCardInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  addCardInfoText: {
+    fontSize: 10,
+    color: "#15803D",
+    flex: 1,
+    lineHeight: 14,
+    opacity: 0.85,
+  },
+  addCardArrowGreen: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  addOptionText: { flex: 1 },
+  addModalCancel: {
+    alignItems: "center",
+    paddingVertical: 14,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  addModalCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#94A3B8",
+  },
+
+  // kept for any legacy references
+  addOptionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#EBF3FA",
+    marginBottom: 12,
+  },
+  addOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addOptionLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0B1A2E",
+    marginBottom: 2,
+  },
+  addOptionSub: { fontSize: 12, color: "#4A6480" },
+  importInfoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EBF3FA",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  importInfoText: { fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17 },
+
   reminderBackdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
   },
   reminderBox: {
-    backgroundColor: "#FFFFFF", borderRadius: 24,
-    padding: 24, width: "100%", alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   reminderIconWrap: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: "#EBF3FA", alignItems: "center",
-    justifyContent: "center", marginBottom: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#EBF3FA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
-  reminderModalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 10, textAlign: "center" },
-  reminderModalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", lineHeight: 22, marginBottom: 24 },
+  reminderModalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0B1A2E",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  reminderModalMsg: {
+    fontSize: 14,
+    color: "#4A6480",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
   reminderAddBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#1A6FA8", borderRadius: 14,
-    paddingVertical: 14, paddingHorizontal: 24,
-    width: "100%", justifyContent: "center", marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#1A6FA8",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    width: "100%",
+    justifyContent: "center",
+    marginBottom: 12,
   },
   reminderAddText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
   reminderDismiss: { paddingVertical: 8 },
   reminderDismissText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
+
+  welcomeBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  welcomeBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  welcomeIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#EBF3FA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  welcomeModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0B1A2E",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  welcomeBody: {
+    fontSize: 14,
+    color: "#4A6480",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  welcomePrimaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1A6FA8",
+    paddingVertical: 14,
+    borderRadius: 16,
+    width: "100%",
+    marginBottom: 10,
+  },
+  welcomePrimaryText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  welcomeSkipBtn: { paddingVertical: 8 },
+  welcomeSkipText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
 });

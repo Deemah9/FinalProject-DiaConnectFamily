@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   topBarBtn: { padding: 8 },
 
   hero: { marginTop: 28, marginBottom: 20 },
-  welcomeTitle: { fontSize: 28, fontWeight: "700", color: "#0B1A2E", marginBottom: 6 },
+  welcomeTitle: { fontSize: 20, fontWeight: "700", color: "#0B1A2E", marginBottom: 6 },
   welcomeSub: { fontSize: 14, color: "#4A6480" },
 
   section: { marginBottom: 24 },

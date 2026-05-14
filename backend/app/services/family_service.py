@@ -11,7 +11,27 @@ FAMILY_LINKS_COLLECTION = "family_patient_links"
 USERS_COLLECTION = "users"
 GLUCOSE_COLLECTION = "glucose_readings"
 
-CODE_EXPIRY_DAYS = 7
+CODE_EXPIRY_MINUTES = 30
+
+
+def _send_expo_push(messages: list[dict], label: str = "") -> None:
+    payload = json_lib.dumps(messages).encode("utf-8")
+    req = urllib.request.Request(
+        "https://exp.host/--/api/v2/push/send",
+        data=payload,
+        headers={
+            "Content-Type":    "application/json",
+            "Accept":          "application/json",
+            "Accept-Encoding": "gzip, deflate",
+        },
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=5)
+        if label:
+            print(f"✅ Push sent: {label}")
+    except Exception as e:
+        print(f"⚠️ Push failed: {e}")
 
 
 def _generate_unique_code() -> str:
@@ -43,7 +63,7 @@ def generate_code(patient_id: str) -> dict:
 
     code = _generate_unique_code()
     now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(days=CODE_EXPIRY_DAYS)
+    expires_at = now + timedelta(minutes=CODE_EXPIRY_MINUTES)
 
     db.collection(PAIRING_CODES_COLLECTION).add({
         "code": code,
@@ -53,7 +73,7 @@ def generate_code(patient_id: str) -> dict:
         "used": False,
     })
 
-    return {"code": code, "expires_in_days": CODE_EXPIRY_DAYS}
+    return {"code": code, "expires_in_minutes": CODE_EXPIRY_MINUTES}
 
 
 def join_with_code(family_member_id: str, code: str) -> dict:
@@ -185,12 +205,31 @@ def get_patients(family_member_id: str) -> list:
         d = doc.to_dict()
         linked_at = d.get("linked_at")
         patients.append({
+            "link_id": doc.id,
             "patient_id": d.get("patient_id"),
             "patient_name": d.get("patient_name", ""),
             "linked_at": linked_at.isoformat() if linked_at else None,
         })
 
     return patients
+
+
+def remove_patient_link(family_member_id: str, link_id: str) -> bool:
+    """
+    Family member removes themselves from a patient link.
+    Returns True if deleted, False if not found or unauthorized.
+    """
+    doc_ref = db.collection(FAMILY_LINKS_COLLECTION).document(link_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        return False
+
+    if doc.to_dict().get("family_member_id") != family_member_id:
+        return False
+
+    doc_ref.delete()
+    return True
 
 
 def view_with_code(code: str, limit: int = 50) -> dict:
@@ -293,23 +332,6 @@ def get_patient_daily_logs(family_member_id: str, patient_id: str, days: int = 7
     }
 
 
-def _send_push_batch(messages: list) -> None:
-    """Send a list of Expo push messages in one HTTP call."""
-    try:
-        payload = json_lib.dumps(messages).encode("utf-8")
-        req = urllib.request.Request(
-            "https://exp.host/--/api/v2/push/send",
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Accept-Encoding": "gzip, deflate",
-            },
-            method="POST",
-        )
-        urllib.request.urlopen(req, timeout=5)
-    except Exception as e:
-        print(f"⚠️ Push notification failed: {e}")
 
 
 def send_emergency_notification(
@@ -369,7 +391,7 @@ def send_emergency_notification(
             lang = pdata.get("language", "ar")
             first = pdata.get("firstName", patient_name)
             ptitle, pbody = _build_alert_text(lang, first)
-            _send_push_batch([{
+            _send_expo_push([{
                 "to": pt,
                 "title": ptitle,
                 "body": pbody,
@@ -405,7 +427,7 @@ def send_emergency_notification(
                 })
 
     if family_messages:
-        _send_push_batch(family_messages)
+        _send_expo_push(family_messages, f"Emergency notifications for patient {patient_id}: {glucose_value} mg/dL")
 
     print(
         f"✅ Emergency notifications sent for "
@@ -420,10 +442,13 @@ def send_prediction_alert(
     current: float,
     predicted: float,
     hours: int,
+    family_advice: str | None = None,
 ) -> None:
     """
     Send push notification to all linked family members when the prediction
     detects an upcoming low, high, or patch error alert.
+    family_advice: if provided (from Groq), used as the notification body
+                   instead of the default template.
     """
     links = db.collection(FAMILY_LINKS_COLLECTION)\
         .where("patient_id", "==", patient_id)\
@@ -454,10 +479,9 @@ def send_prediction_alert(
             "The sensor may need checking.",
         ),
     }
-    title, body = alert_labels.get(
-        alert_type,
-        ("⚠️ Glucose Alert", f"Check {patient_name}'s glucose levels."),
-    )
+    default_title, default_body = alert_labels.get(alert_type, ("⚠️ Glucose Alert", f"Check {patient_name}'s glucose levels."))
+    title = default_title
+    body  = f"⚠️ {patient_name}: {family_advice}" if family_advice else default_body
 
     tokens = []
     for fid in family_ids:
@@ -488,8 +512,79 @@ def send_prediction_alert(
         for token in tokens
     ]
 
-    _send_push_batch(messages)
-    print(f"✅ Prediction alert sent for {patient_name}: {alert_type}")
+    _send_expo_push(messages, f"Prediction alert for {patient_name}: {alert_type}")
+
+
+# ==========================================
+# Stale + Pattern Risk Alert
+# ==========================================
+
+def send_stale_pattern_alert(
+    patient_id: str,
+    patient_name: str,
+    risk_level: str,
+    hours_elapsed: float,
+    typical_avg: int | None = None,
+) -> None:
+    """
+    Notify family members when the patient has no recent readings AND
+    the historical pattern shows a risk (high / low / variable).
+    """
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("patient_id", "==", patient_id)\
+        .stream()
+
+    family_ids = [
+        doc.to_dict().get("family_member_id")
+        for doc in links
+        if doc.to_dict().get("family_member_id")
+    ]
+    if not family_ids:
+        return
+
+    days = round(hours_elapsed / 24, 1)
+    elapsed_str = f"{days} day(s)" if hours_elapsed >= 24 else f"{round(hours_elapsed)}h"
+    avg_str     = f" (typical ~{typical_avg} mg/dL)" if typical_avg else ""
+
+    risk_bodies = {
+        "high":     f"⬆️ No glucose reading from {patient_name} in {elapsed_str}. "
+                    f"Historically their glucose tends to be HIGH at this time{avg_str}. Please check on them.",
+        "low":      f"⬇️ No glucose reading from {patient_name} in {elapsed_str}. "
+                    f"Historically their glucose tends to be LOW at this time{avg_str}. Please check on them.",
+        "variable": f"⚠️ No glucose reading from {patient_name} in {elapsed_str}. "
+                    f"Their glucose is typically unstable at this time{avg_str}. Please check on them.",
+    }
+    title = "📊 Glucose Pattern Alert"
+    body  = risk_bodies.get(risk_level, f"No recent reading from {patient_name} ({elapsed_str} ago).")
+
+    tokens = []
+    for fid in family_ids:
+        doc = db.collection(USERS_COLLECTION).document(fid).get()
+        if doc.exists:
+            token = doc.to_dict().get("pushToken", "")
+            if token and token.startswith("ExponentPushToken["):
+                tokens.append(token)
+
+    if not tokens:
+        return
+
+    messages = [
+        {
+            "to":    token,
+            "title": title,
+            "body":  body,
+            "data":  {
+                "patient_id":   patient_id,
+                "alert_type":   f"pattern_{risk_level}",
+                "type":         "stale_pattern_alert",
+            },
+            "sound":    "default",
+            "priority": "high",
+        }
+        for token in tokens
+    ]
+
+    _send_expo_push(messages, f"Stale pattern alert for {patient_name}: {risk_level}")
 
 
 def get_patient_glucose(family_member_id: str, patient_id: str, limit: int = 50) -> list:

@@ -14,6 +14,8 @@ const getToken = async () => {
 // Helper — base request
 // ==========================================
 
+const REQUEST_TIMEOUT_MS = 30000;
+
 const request = async (method, endpoint, body = null) => {
   const token = await getToken();
 
@@ -23,13 +25,27 @@ const request = async (method, endpoint, body = null) => {
     ...(token && { Authorization: `Bearer ${token}` }),
   };
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   const config = {
     method,
     headers,
+    signal: controller.signal,
     ...(body && { body: JSON.stringify(body) }),
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, config);
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, config);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out. Please check your connection.");
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   const raw = await response.text();
   let data = null;
@@ -76,6 +92,8 @@ export const logout = async () => {
   await AsyncStorage.removeItem("role");
 };
 
+export const deleteAccount = (password) => request("DELETE", "/auth/account", { password });
+
 export const forgotPassword = (email) =>
   request("POST", "/auth/forgot-password", { email });
 
@@ -110,7 +128,7 @@ export const updateLifestyle = (data) =>
 export const addGlucose = (value, measuredAt) =>
   request("POST", "/glucose/", { value, measuredAt });
 
-export const getGlucoseReadings = () => request("GET", "/glucose/");
+export const getGlucoseReadings = () => request("GET", "/glucose/?limit=500");
 
 export const getLatestGlucose = () => request("GET", "/glucose/latest");
 
@@ -118,6 +136,36 @@ export const deleteGlucose = (id) => request("DELETE", `/glucose/${id}`);
 
 export const getGlucoseStats = (days = 7) =>
   request("GET", `/glucose/stats?days=${days}`);
+
+export const importGlucoseCSV = async (filePayload, fileName, mimeType) => {
+  const token = await getToken();
+  const formData = new FormData();
+  // filePayload is either a web File object or a RN { uri, name, type } object
+  if (filePayload instanceof File || filePayload instanceof Blob) {
+    formData.append("file", filePayload, fileName || "glucose.csv");
+  } else {
+    formData.append("file", { uri: filePayload.uri, name: fileName || filePayload.name || "glucose.csv", type: mimeType || filePayload.type || "text/csv" });
+  }
+
+  const response = await fetch(`${BASE_URL}/glucose/import-csv`, {
+    method: "POST",
+    headers: {
+      "bypass-tunnel-reminder": "true",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: formData,
+  });
+
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+
+  if (!response.ok) {
+    const msg = (data && (data.detail || data.message)) || raw || `HTTP ${response.status}`;
+    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  }
+  return data;
+};
 
 export const getGlucosePrediction = (hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
@@ -199,3 +247,6 @@ export const getFamilyMembers = () =>
 
 export const removeFamilyMember = (linkId) =>
   request("DELETE", `/family/members/${linkId}`);
+
+export const removePatientLink = (linkId) =>
+  request("DELETE", `/family/patients/${linkId}`);

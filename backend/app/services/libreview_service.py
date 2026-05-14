@@ -49,13 +49,17 @@ MMOL_TO_MGDL = 18.0182
 # open-source community.
 LLU_HEADERS = {
     "product":          "llu.ios",
-    "version":          "4.7.0",
+    "version":          "4.16.0",
     "Accept-Encoding":  "gzip, deflate, br",
     "Content-Type":     "application/json",
     "Connection":       "keep-alive",
     "User-Agent":       (
-        "LibreLinkUp/4.7.0 CFNetwork/1410.0.3 Darwin/22.6.0"
+        "LibreLinkUp/4.16.0 CFNetwork/1568.100.1 Darwin/24.0.0"
     ),
+    "Accept":           "application/json",
+    "Accept-Language":  "en-US;q=1.0",
+    "Cache-Control":    "no-cache",
+    "Pragma":           "no-cache",
 }
 
 
@@ -176,10 +180,23 @@ def login(email: str, password: str) -> tuple[str, str]:
                     f"Response data keys: {list(data.keys())}"
                 )
 
-            # Also extract the user's own ID (used as fallback patientId)
-            user_id = data.get("user", {}).get("id")
+            user_obj = data.get("user", {})
+            user_id = user_obj.get("id")
 
-            return token, active_url, user_id
+            # Extract account-id from JWT payload
+            account_id = user_id
+            try:
+                import base64
+                import json as _json
+                parts = token.split(".")
+                pad = parts[1] + "=" * (4 - len(parts[1]) % 4)
+                jwt_payload = _json.loads(base64.b64decode(pad))
+                jti = jwt_payload.get("jti")
+                account_id = jti or user_id
+            except Exception:
+                pass
+
+            return token, active_url, user_id, account_id
 
         raise ValueError(
             "LibreView redirect loop exceeded — "
@@ -192,8 +209,17 @@ def login(email: str, password: str) -> tuple[str, str]:
 # Fetch Connections
 # ==========================================
 
+def _auth_headers(token: str, account_id: str = None) -> dict:
+    """Build request headers including the account-id required by v4.16+."""
+    h = {**LLU_HEADERS, "Authorization": f"Bearer {token}"}
+    if account_id:
+        h["account-id"] = account_id
+    return h
+
+
 def fetch_connections(
-    token: str, base_url: str, self_id: str = None
+    token: str, base_url: str, self_id: str = None,
+    account_id: str = None,
 ) -> list[str]:
     """
     Retrieve the list of patient IDs linked to this LibreView account.
@@ -224,7 +250,7 @@ def fetch_connections(
     }
     ─────────────────────────────────────────────────────────────────
     """
-    headers = {**LLU_HEADERS, "Authorization": f"Bearer {token}"}
+    headers = _auth_headers(token, account_id)
 
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -232,21 +258,21 @@ def fetch_connections(
             headers=headers,
         )
 
-        # 403 = standalone patient account with no LLU followers.
-        # Fall back to fetching the patient's own readings using their user ID.
-        if resp.status_code == 403:
+        if resp.status_code in (400, 403):
             return [self_id] if self_id else []
 
         resp.raise_for_status()
         body = resp.json()
 
-    if body.get("status") != 0:
+    api_status = body.get("status")
+    connections = body.get("data") or []
+
+    if api_status != 0:
         raise ValueError(
             f"Failed to fetch LibreView connections. "
-            f"Status: {body.get('status')}"
+            f"Status: {api_status}"
         )
 
-    connections = body.get("data") or []
     return [c["patientId"] for c in connections if c.get("patientId")]
 
 
@@ -258,6 +284,7 @@ def fetch_graph(
     token: str,
     base_url: str,
     patient_id: str,
+    account_id: str = None,
 ) -> list[dict]:
     """
     Fetch historical glucose readings for one connected patient.
@@ -298,7 +325,7 @@ def fetch_graph(
     - We parse FactoryTimestamp and attach UTC timezone explicitly.
     ─────────────────────────────────────────────────────────────────
     """
-    headers = {**LLU_HEADERS, "Authorization": f"Bearer {token}"}
+    headers = _auth_headers(token, account_id)
 
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -339,10 +366,69 @@ def fetch_graph(
 
 
 # ==========================================
+# Fetch Patient's Own Data (standalone account)
+# ==========================================
+
+def fetch_patient_own_data(
+    token: str, base_url: str, user_id: str, account_id: str = None
+) -> list[dict]:
+    """
+    Try multiple endpoints to get readings for a standalone patient account.
+    The LLU API is designed for followers, so we probe several paths.
+    """
+    headers = _auth_headers(token, account_id)
+    candidates = [
+        f"{base_url}/llu/connections/{user_id}/logbook",
+        f"{base_url}/llu/connections/{user_id}/graph",
+        f"{base_url}/llu/logbook",
+    ]
+
+    with httpx.Client(timeout=15) as client:
+        for url in candidates:
+            resp = client.get(url, headers=headers)
+            if resp.status_code not in (200,):
+                continue
+
+            body = resp.json()
+            api_status = body.get("status")
+            if api_status != 0:
+                continue
+
+            data_block = body.get("data") or {}
+            if isinstance(data_block, dict):
+                raw = data_block.get("graphData") or []
+            else:
+                raw = data_block
+
+            if not raw:
+                continue
+
+            normalised = []
+            for entry in raw:
+                value_mgdl = _extract_mgdl(entry)
+                measured_at = _parse_timestamp(
+                    entry.get("FactoryTimestamp")
+                )
+                if value_mgdl is None or measured_at is None:
+                    continue
+                normalised.append({
+                    "value":      value_mgdl,
+                    "measuredAt": measured_at,
+                })
+
+            if normalised:
+                return normalised
+
+    return []
+
+
+# ==========================================
 # Fetch Patient's Own Logbook
 # ==========================================
 
-def fetch_logbook(token: str, base_url: str) -> list[dict]:
+def fetch_logbook(
+    token: str, base_url: str, account_id: str = None
+) -> list[dict]:
     """
     Fetch the logged-in patient's own glucose readings from their logbook.
     Used when the account has no LLU follower connections.
@@ -350,7 +436,7 @@ def fetch_logbook(token: str, base_url: str) -> list[dict]:
     Endpoint: GET /llu/logbook
     Returns the same normalised list as fetch_graph.
     """
-    headers = {**LLU_HEADERS, "Authorization": f"Bearer {token}"}
+    headers = _auth_headers(token, account_id)
 
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -364,10 +450,12 @@ def fetch_logbook(token: str, base_url: str) -> list[dict]:
         resp.raise_for_status()
         body = resp.json()
 
-    if body.get("status") != 0:
+    api_status = body.get("status")
+    raw_readings = body.get("data") or []
+
+    if api_status != 0:
         return []
 
-    raw_readings = body.get("data") or []
     normalised = []
 
     for entry in raw_readings:
@@ -399,18 +487,24 @@ def sync(email: str, password: str) -> list[dict]:
       3. If connections found → fetch graph for each patient.
       4. If no connections (standalone patient) → fetch own logbook.
     """
-    token, base_url, _ = login(email, password)
-    patient_ids = fetch_connections(token, base_url, self_id=None)
+    token, base_url, user_id, account_id = login(email, password)
+
+    patient_ids = fetch_connections(
+        token, base_url, self_id=None, account_id=account_id
+    )
 
     all_readings: list[dict] = []
 
     if patient_ids:
         for pid in patient_ids:
-            readings = fetch_graph(token, base_url, pid)
+            readings = fetch_graph(
+                token, base_url, pid, account_id=account_id
+            )
             all_readings.extend(readings)
     else:
-        # Standalone patient account — fetch their own logbook
-        all_readings = fetch_logbook(token, base_url)
+        all_readings = fetch_patient_own_data(
+            token, base_url, user_id, account_id=account_id
+        )
 
     return all_readings
 

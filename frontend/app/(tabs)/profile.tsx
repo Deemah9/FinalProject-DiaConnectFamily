@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +13,8 @@ import {
 
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
-import { getProfile, updateLifestyle, updateMedical, updateProfile } from "@/services/api";
+import { getProfile, updateLifestyle, updateMedical, updateProfile, deleteAccount } from "@/services/api";
+import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -26,6 +28,7 @@ const INPUT_BDR = "#B8D0E8";
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
+  const { logout } = useAuth();
 
   // ── Raw data ───────────────────────────────────────────────────────────────
   const [user, setUser]       = useState<any>(null);
@@ -52,6 +55,11 @@ export default function ProfileScreen() {
   const [dietType, setDietType]               = useState("");
   const [savingLifestyle, setSavingLifestyle] = useState(false);
   const [errorLifestyle, setErrorLifestyle]   = useState("");
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting]               = useState(false);
+  const [deletePassword, setDeletePassword]   = useState("");
+  const [deleteError, setDeleteError]         = useState("");
 
   // ── Load ───────────────────────────────────────────────────────────────────
   const load = async () => {
@@ -83,6 +91,19 @@ export default function ProfileScreen() {
       console.log("ProfileScreen load error:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) return;
+    try {
+      setDeleting(true);
+      setDeleteError("");
+      await deleteAccount(deletePassword);
+      await logout();
+    } catch (e: any) {
+      setDeleting(false);
+      setDeleteError(e?.message?.includes("Incorrect") ? t("deleteAccountPasswordError") : e?.message || t("saveFailed"));
     }
   };
 
@@ -376,8 +397,58 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={16} color={PRIMARY} />
         </Pressable>
 
+        {/* Delete Account */}
+        <Pressable style={styles.deleteAccountBtn} onPress={() => setShowDeleteModal(true)}>
+          <Ionicons name="trash-outline" size={18} color="#D32F2F" />
+          <Text style={styles.deleteAccountBtnText}>{t("deleteAccount")}</Text>
+        </Pressable>
+
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowDeleteModal(false); setDeletePassword(""); setDeleteError(""); }}
+      >
+        <View style={styles.deleteModalBackdrop}>
+          <View style={styles.deleteModalBox}>
+            <View style={styles.deleteModalIcon}>
+              <Ionicons name="warning-outline" size={32} color="#D32F2F" />
+            </View>
+            <Text style={styles.deleteModalTitle}>{t("deleteAccount")}</Text>
+            <Text style={styles.deleteModalWarning}>{t("deleteAccountPatientWarning")}</Text>
+            <TextInput
+              style={styles.deletePasswordInput}
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              placeholder={t("deleteAccountPasswordPlaceholder")}
+              placeholderTextColor="#94A3B8"
+              secureTextEntry
+              editable={!deleting}
+            />
+            {!!deleteError && <Text style={styles.deletePasswordError}>{deleteError}</Text>}
+            <Pressable
+              style={[styles.deleteConfirmBtn, (deleting || !deletePassword.trim()) && { opacity: 0.5 }]}
+              onPress={handleDeleteAccount}
+              disabled={deleting || !deletePassword.trim()}
+            >
+              <Text style={styles.deleteConfirmText}>
+                {deleting ? t("deletingAccount") : t("deleteAccountConfirm")}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.deleteCancelBtn}
+              onPress={() => { setShowDeleteModal(false); setDeletePassword(""); setDeleteError(""); }}
+              disabled={deleting}
+            >
+              <Text style={styles.deleteCancelText}>{t("deleteAccountCancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -716,5 +787,106 @@ const styles = StyleSheet.create({
     color: PRIMARY,
     fontSize: 15,
     fontWeight: "600",
+  },
+
+  deleteAccountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFF0F0",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  deleteAccountBtnText: {
+    flex: 1,
+    color: "#D32F2F",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  deleteModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  deleteModalBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  deleteModalIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0B1A2E",
+    marginBottom: 14,
+    textAlign: "center",
+  },
+  deleteModalWarning: {
+    fontSize: 14,
+    color: "#4A6480",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteConfirmBtn: {
+    width: "100%",
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#D32F2F",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  deleteConfirmText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  deleteCancelBtn: {
+    paddingVertical: 10,
+  },
+  deleteCancelText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    fontWeight: "500",
+  },
+  deletePasswordInput: {
+    width: "100%",
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FFF5F5",
+    paddingHorizontal: 14,
+    color: "#0B1A2E",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  deletePasswordError: {
+    fontSize: 13,
+    color: "#D32F2F",
+    marginBottom: 10,
+    textAlign: "center",
   },
 });
