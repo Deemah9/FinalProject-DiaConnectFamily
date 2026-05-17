@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { markPredictionStale } from "@/services/predictionFlag";
 import React, { useState } from "react";
 import {
   Pressable,
@@ -54,6 +55,7 @@ export default function AddMealScreen() {
         timestamp: buildTimestamp(hours, minutes, isPM),
       });
 
+      markPredictionStale();
       router.back();
     } catch (error: any) {
       console.log("add meal error:", error);

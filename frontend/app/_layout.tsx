@@ -12,6 +12,7 @@ import { I18nextProvider } from "react-i18next";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 import { AuthProvider } from "../context/AuthContext";
+import { DrawerProvider } from "../context/DrawerContext";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -41,10 +42,12 @@ export default function RootLayout() {
   return (
     <I18nextProvider i18n={i18n}>
       <AuthProvider>
-        <ThemeProvider value={theme}>
-          <Stack screenOptions={{ headerShown: false }} />
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <DrawerProvider>
+          <ThemeProvider value={theme}>
+            <Stack screenOptions={{ headerShown: false }} />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </DrawerProvider>
       </AuthProvider>
     </I18nextProvider>
   );

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { markPredictionStale } from "@/services/predictionFlag";
 import React, { useState } from "react";
 import {
   Pressable,
@@ -43,6 +44,7 @@ export default function AddGlucoseScreen() {
 
       await addGlucose(numericValue, buildTimestamp(hours, minutes, isPM));
 
+      markPredictionStale();
       router.back();
     } catch (error: any) {
       console.log("add glucose error:", error);

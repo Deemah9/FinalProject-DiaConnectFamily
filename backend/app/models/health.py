@@ -94,14 +94,8 @@ class HealthInfoResponse(BaseModel):
 # ==========================================
 
 class InsulinDoseCreate(BaseEvent):
-    insulin_type: str = Field(..., description="Fast insulin type ID")
+    insulin_type: str = Field(default="fast", description="Insulin type")
     units: float = Field(..., ge=0.5, le=100, description="Dose in units")
-
-    @validator("insulin_type")
-    def validate_insulin_type(cls, v):
-        if v not in FAST_INSULIN_IDS:
-            raise ValueError(f"Invalid fast insulin type: {v}")
-        return v
 
 
 class InsulinDoseResponse(BaseModel):

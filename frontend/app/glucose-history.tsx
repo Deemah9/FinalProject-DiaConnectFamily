@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import { router } from "expo-router";
+import { markPredictionStale } from "@/services/predictionFlag";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -163,6 +164,7 @@ export default function GlucoseHistoryScreen() {
       setDeletingId(confirmId);
       setConfirmId(null);
       await deleteGlucose(confirmId);
+      markPredictionStale();
       setReadings((prev) => prev.filter((r) => r.id !== confirmId));
     } catch (e: any) {
       setErrorMsg(e?.message || "Failed to delete reading");

@@ -14,7 +14,8 @@ import {
 import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
-import { getLogsByDate, deleteMeal, deleteActivity, deleteSleep, deleteInsulinDose } from "@/services/api";
+import { getLogsByDate, deleteMeal, deleteActivity, deleteSleep } from "@/services/api";
+import { markPredictionStale } from "@/services/predictionFlag";
 
 const toLocalDateStr = (d: Date) => {
   const y = d.getFullYear();
@@ -34,8 +35,6 @@ const ACT_COLOR     = "#0D9E6E";
 const ACT_BG        = "#ECFDF5";
 const SLEEP_COLOR   = "#7C3AED";
 const SLEEP_BG      = "#F5F3FF";
-const INSULIN_COLOR = "#7B4FBE";
-const INSULIN_BG    = "#F3EEFF";
 
 function formatTime(raw: string) {
   if (!raw) return "--";
@@ -58,7 +57,7 @@ export default function DailyLogScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
-  const [confirmItem, setConfirmItem] = useState<{ id: string; type: "meal" | "activity" | "sleep" | "insulin" } | null>(null);
+  const [confirmItem, setConfirmItem] = useState<{ id: string; type: "meal" | "activity" | "sleep" } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isToday = selectedDate === todayStr;
@@ -83,7 +82,6 @@ export default function DailyLogScreen() {
   const meals      = Array.isArray(logs?.meals)      ? logs.meals      : [];
   const activities = Array.isArray(logs?.activities) ? logs.activities : [];
   const sleepLogs  = Array.isArray(logs?.sleep)      ? logs.sleep      : logs?.sleep ? [logs.sleep] : [];
-  const insulinLogs = Array.isArray(logs?.insulin)   ? logs.insulin    : [];
 
   const totalCarbs   = meals.reduce((s: number, m: any) => s + Number(m?.carbs || 0), 0);
   const totalMinutes = activities.reduce((s: number, a: any) => s + Number(a?.duration_minutes || 0), 0);
@@ -94,10 +92,9 @@ export default function DailyLogScreen() {
       ...meals.map((m: any) => ({ ...m, _type: "meal" })),
       ...activities.map((a: any) => ({ ...a, _type: "activity" })),
       ...sleepLogs.map((s: any) => ({ ...s, _type: "sleep" })),
-      ...insulinLogs.map((i: any) => ({ ...i, _type: "insulin" })),
     ];
     return items.sort((a, b) => getTimestamp(b) - getTimestamp(a));
-  }, [meals, activities, sleepLogs, insulinLogs]);
+  }, [meals, activities, sleepLogs]);
 
   const selectedLabel = (() => {
     if (isToday) return t("today");
@@ -115,8 +112,8 @@ export default function DailyLogScreen() {
       setConfirmItem(null);
       if (type === "meal") await deleteMeal(id);
       else if (type === "activity") await deleteActivity(id);
-      else if (type === "sleep") await deleteSleep(id);
-      else await deleteInsulinDose(id);
+      else await deleteSleep(id);
+      markPredictionStale();
       await loadDailyLogs(selectedDate);
     } catch (e: any) {
       setErrorMsg(e?.message || "Failed to delete");
@@ -129,23 +126,18 @@ export default function DailyLogScreen() {
     ? t("deleteMeal")
     : confirmItem?.type === "activity"
     ? t("deleteActivity")
-    : confirmItem?.type === "insulin"
-    ? t("deleteInsulinDose")
     : t("deleteSleep");
 
   const deleteMsg = confirmItem?.type === "meal"
     ? t("deleteMealConfirm")
     : confirmItem?.type === "activity"
     ? t("deleteActivityConfirm")
-    : confirmItem?.type === "insulin"
-    ? t("deleteInsulinDoseConfirm")
     : t("deleteSleepConfirm");
 
   const FAB_ACTIONS = [
-    { label: t("addMeal"),        icon: "restaurant-outline", color: MEAL_COLOR,    bg: MEAL_BG,    route: "/add-meal"     },
-    { label: t("addActivity"),    icon: "walk-outline",       color: ACT_COLOR,     bg: ACT_BG,     route: "/add-activity" },
-    { label: t("addSleep"),       icon: "moon-outline",       color: SLEEP_COLOR,   bg: SLEEP_BG,   route: "/add-sleep"    },
-    { label: t("addFastInsulin"), icon: "medical-outline",    color: INSULIN_COLOR, bg: INSULIN_BG, route: "/add-insulin"  },
+    { label: t("addMeal"),     icon: "restaurant-outline", color: MEAL_COLOR,  bg: MEAL_BG,  route: "/add-meal"     },
+    { label: t("addActivity"), icon: "walk-outline",       color: ACT_COLOR,   bg: ACT_BG,   route: "/add-activity" },
+    { label: t("addSleep"),    icon: "moon-outline",       color: SLEEP_COLOR, bg: SLEEP_BG, route: "/add-sleep"    },
   ];
 
   return (
@@ -234,25 +226,20 @@ export default function DailyLogScreen() {
             </View>
           ) : (
             timeline.map((item, idx) => {
-              const isMeal    = item._type === "meal";
-              const isAct     = item._type === "activity";
-              const isInsulin = item._type === "insulin";
-              const color     = isMeal ? MEAL_COLOR : isAct ? ACT_COLOR : isInsulin ? INSULIN_COLOR : SLEEP_COLOR;
-              const bg        = isMeal ? MEAL_BG    : isAct ? ACT_BG    : isInsulin ? INSULIN_BG    : SLEEP_BG;
-              const icon      = isMeal ? "restaurant-outline" : isAct ? "walk-outline" : isInsulin ? "medical-outline" : "moon-outline";
-              const title     = isMeal
+              const isMeal = item._type === "meal";
+              const isAct  = item._type === "activity";
+              const color  = isMeal ? MEAL_COLOR  : isAct ? ACT_COLOR  : SLEEP_COLOR;
+              const bg     = isMeal ? MEAL_BG     : isAct ? ACT_BG     : SLEEP_BG;
+              const icon   = isMeal ? "restaurant-outline" : isAct ? "walk-outline" : "moon-outline";
+              const title  = isMeal
                 ? (item?.foods || item?.name || t("meal"))
                 : isAct
                 ? (item?.type || t("activity"))
-                : isInsulin
-                ? (item?.insulin_type ? t(item.insulin_type) : t("insulinDose"))
                 : `${item?.sleep_hours || 0} ${t("hoursUnit")}`;
-              const sub       = isMeal
+              const sub    = isMeal
                 ? `${item?.meal_type ? t(item.meal_type) + " · " : ""}${item?.carbs || 0} ${t("carbsUnit")}`
                 : isAct
                 ? `${item?.duration_minutes || 0} ${t("minUnit")}`
-                : isInsulin
-                ? `${item?.units || 0} ${t("insulinUnit")}`
                 : (item?.notes || "");
               const time    = formatTime(item?.timestamp || item?.createdAt);
               const isLast  = idx === timeline.length - 1;
@@ -276,7 +263,7 @@ export default function DailyLogScreen() {
                           <Text style={[styles.timeBadgeText, { color }]}>{time}</Text>
                         </View>
                         <Pressable
-                          onPress={() => setConfirmItem({ id: item.id, type: item._type as "meal" | "activity" | "sleep" | "insulin" })}
+                          onPress={() => setConfirmItem({ id: item.id, type: item._type as "meal" | "activity" | "sleep" })}
                           disabled={deletingId === item.id}
                           style={styles.deleteBtn}
                           hitSlop={8}

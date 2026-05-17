@@ -390,49 +390,6 @@ export default function ProfileScreen() {
                 </View>
               </Field>
 
-              <Field label={t("basalInsulinLabel")}>
-                <View style={styles.optionsWrap}>
-                  {SLOW_INSULIN_IDS.map((id) => {
-                    const selected = basalType === id;
-                    return (
-                      <Pressable
-                        key={id}
-                        style={[styles.optionChip, selected && styles.optionChipSelected]}
-                        onPress={() => setBasalType(selected ? "" : id)}
-                      >
-                        <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
-                          {t(id)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </Field>
-
-              {!!basalType && (
-                <>
-                  <Field label={t("basalDose")}>
-                    <TextInput
-                      value={basalDose}
-                      onChangeText={setBasalDose}
-                      placeholder="e.g. 20"
-                      placeholderTextColor={MUTED}
-                      keyboardType="decimal-pad"
-                      style={styles.input}
-                    />
-                  </Field>
-                  <Field label={t("basalTime")}>
-                    <TextInput
-                      value={basalTime}
-                      onChangeText={setBasalTime}
-                      placeholder="22:00"
-                      placeholderTextColor={MUTED}
-                      style={styles.input}
-                    />
-                  </Field>
-                </>
-              )}
-
               <Field label={`${t("insulinSensitivity")} (${t("isfUnit")})`}>
                 <TextInput
                   value={isf}
@@ -461,14 +418,6 @@ export default function ProfileScreen() {
                     : t("noConditionsSelected")
                 }
                 isMultiLine
-              />
-              <InfoRow
-                label={t("basalInsulinLabel")}
-                value={
-                  healthInfo?.basal_insulin
-                    ? `${t(healthInfo.basal_insulin.type)} · ${healthInfo.basal_insulin.dose}u · ${healthInfo.basal_insulin.time}`
-                    : t("notConfigured")
-                }
               />
               <InfoRow
                 label={t("insulinSensitivity")}

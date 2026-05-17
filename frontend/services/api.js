@@ -170,6 +170,8 @@ export const importGlucoseCSV = async (filePayload, fileName, mimeType) => {
 export const getGlucosePrediction = (hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
 
+export const getEstimatedA1C = () => request("GET", "/glucose/a1c");
+
 export const getPatientPrediction = (patientId, hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict/family?patient_id=${patientId}&hours=${hours}&lang=${lang}`);
 

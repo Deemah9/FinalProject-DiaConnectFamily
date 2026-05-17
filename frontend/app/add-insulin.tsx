@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { markPredictionStale } from "@/services/predictionFlag";
 import React, { useState } from "react";
 import {
   Pressable,
@@ -15,19 +16,10 @@ import { Typography } from "@/constants/Typography";
 import { addInsulinDose } from "@/services/api";
 import TimePicker, { buildTimestamp, initTime } from "@/components/TimePicker";
 
-const FAST_INSULIN_IDS = [
-  "insulin_humalog",
-  "insulin_novorapid",
-  "insulin_apidra",
-  "insulin_fiasp",
-] as const;
-type FastInsulinId = typeof FAST_INSULIN_IDS[number];
-
 const PRIMARY = "#1A6FA8";
 
 export default function AddInsulinScreen() {
   const { t } = useTranslation();
-  const [insulinType, setInsulinType] = useState<FastInsulinId | null>(null);
   const [units, setUnits] = useState("");
   const [notes, setNotes] = useState("");
   const [timeState, setTime] = useState(initTime);
@@ -39,11 +31,6 @@ export default function AddInsulinScreen() {
     try {
       setErrorMsg("");
 
-      if (!insulinType) {
-        setErrorMsg(t("invalidInsulinType"));
-        return;
-      }
-
       const unitsVal = Number(units);
       if (!units || Number.isNaN(unitsVal) || unitsVal < 0.5 || unitsVal > 100) {
         setErrorMsg(t("invalidInsulinUnits"));
@@ -53,12 +40,13 @@ export default function AddInsulinScreen() {
       setSaving(true);
 
       await addInsulinDose({
-        insulin_type: insulinType,
+        insulin_type: "fast",
         units: unitsVal,
         notes: notes.trim() || undefined,
         timestamp: buildTimestamp(hours, minutes, isPM),
       });
 
+      markPredictionStale();
       router.back();
     } catch (error: any) {
       setErrorMsg(error?.message || t("saveFailed"));
@@ -84,23 +72,6 @@ export default function AddInsulinScreen() {
         )}
 
         <View style={styles.formCard}>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>{t("fastInsulinType")}</Text>
-            <View style={styles.chipRow}>
-              {FAST_INSULIN_IDS.map((id) => (
-                <Pressable
-                  key={id}
-                  style={[styles.chip, insulinType === id && styles.chipActive]}
-                  onPress={() => setInsulinType(insulinType === id ? null : id)}
-                >
-                  <Text style={[styles.chipText, insulinType === id && styles.chipTextActive]}>
-                    {t(id)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>{t("fastInsulinUnits")}</Text>
@@ -234,36 +205,6 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 80,
     textAlignVertical: "top",
-  },
-
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#E8F1F8",
-  },
-
-  chipActive: {
-    backgroundColor: PRIMARY,
-    borderColor: PRIMARY,
-  },
-
-  chipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4A6480",
-  },
-
-  chipTextActive: {
-    color: "#FFFFFF",
   },
 
   saveBtn: {
