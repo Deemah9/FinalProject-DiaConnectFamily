@@ -4,6 +4,7 @@ import {
   getGlucosePrediction,
   getGlucoseReadings,
   getProfile,
+  getUnreadCount,
   importGlucoseCSV,
   registerPushToken,
   updateProfile,
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   const { logout, user: authUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Redirect family members to their own home screen
   useEffect(() => {
@@ -148,6 +150,7 @@ export default function HomeScreen() {
       loadUser();
       loadGlucose();
       loadPrediction();
+      getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
     }, []),
   );
 
@@ -394,6 +397,16 @@ export default function HomeScreen() {
               onPress={() => setLangOpen((v) => !v)}
             >
               <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Pressable style={styles.topBarBtn} onPress={() => router.push("/notifications" as any)}>
+              <View>
+                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                  </View>
+                )}
+              </View>
             </Pressable>
             <Pressable style={styles.topBarBtn} onPress={openDrawer}>
               <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
@@ -1302,10 +1315,22 @@ export default function HomeScreen() {
               </Pressable>
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => closeDrawer(() => router.push("/alerts" as any))}
+                onPress={() => closeDrawer(() => router.push("/notifications" as any))}
               >
-                <Ionicons name="notifications-outline" size={17} color={Colors.primary} />
-                <Text style={styles.drawerItemText}>{t("alerts")}</Text>
+                <View style={{ position: "relative" }}>
+                  <Ionicons name="mail-outline" size={17} color={Colors.primary} />
+                  {unreadCount > 0 && (
+                    <View style={styles.drawerBadge}>
+                      <Text style={styles.drawerBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.drawerItemText}>{t("notifications", "Notifications")}</Text>
+                {unreadCount > 0 && (
+                  <View style={[styles.drawerBadgeInline, { marginStart: "auto" }]}>
+                    <Text style={styles.drawerBadgeText}>{unreadCount}</Text>
+                  </View>
+                )}
               </Pressable>
 
               {/* Daily Logs section */}
@@ -1449,6 +1474,54 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  bellBadge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: "#1A6FA8",
+  },
+  bellBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+    lineHeight: 12,
+  },
+
+  drawerBadge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  drawerBadgeInline: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  drawerBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
   },
 
   topBarTitle: {

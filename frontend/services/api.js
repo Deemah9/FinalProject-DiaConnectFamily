@@ -250,3 +250,8 @@ export const removeFamilyMember = (linkId) =>
 
 export const removePatientLink = (linkId) =>
   request("DELETE", `/family/patients/${linkId}`);
+
+export const getNotifications = () => request("GET", "/notifications/");
+export const getUnreadCount = () => request("GET", "/notifications/unread-count");
+export const markAllNotificationsRead = () => request("PATCH", "/notifications/read-all");
+

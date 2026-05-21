@@ -3,6 +3,7 @@ import random
 import string
 import urllib.request
 from datetime import datetime, timezone, timedelta
+from app.services.notification_service import save_notification
 from app.config.firebase import db
 
 
@@ -399,6 +400,9 @@ def send_emergency_notification(
                 "sound": "default",
                 "priority": "high",
             }])
+            save_notification(
+                patient_id, "emergency_alert", ptitle, pbody, glucose_value
+            )
 
     # Notify all linked family members
     links = db.collection(FAMILY_LINKS_COLLECTION)\
@@ -425,6 +429,9 @@ def send_emergency_notification(
                     "sound": "default",
                     "priority": "high",
                 })
+                save_notification(
+                    fid, "emergency_alert", ftitle, fbody, glucose_value
+                )
 
     if family_messages:
         _send_expo_push(family_messages, f"Emergency notifications for patient {patient_id}: {glucose_value} mg/dL")

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const HEADER_BG = "#1A6FA8";
-const SLOT_W = 80;
+const SLOT_W = 120;
 
 interface AppHeaderProps {
   left?: React.ReactNode | null;
