@@ -14,7 +14,8 @@ import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
 import { addInsulinDose } from "@/services/api";
-import TimePicker, { buildTimestamp, initTime } from "@/components/TimePicker";
+import ScrollTimePicker from "@/components/ScrollTimePicker";
+import { buildTimestamp, initTime } from "@/components/TimePicker";
 
 const PRIMARY = "#1A6FA8";
 
@@ -98,14 +99,14 @@ export default function AddInsulinScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <TimePicker
+            <ScrollTimePicker
               label={t("time")}
               hours={hours}
               minutes={minutes}
               isPM={isPM}
-              onHoursChange={(v) => setTime((prev) => ({ ...prev, hours: v }))}
-              onMinutesChange={(v) => setTime((prev) => ({ ...prev, minutes: v }))}
-              onTogglePeriod={(v) => setTime((prev) => ({ ...prev, isPM: v }))}
+              onHoursChange={(v: string) => setTime((prev) => ({ ...prev, hours: v }))}
+              onMinutesChange={(v: string) => setTime((prev) => ({ ...prev, minutes: v }))}
+              onTogglePeriod={(v: boolean) => setTime((prev) => ({ ...prev, isPM: v }))}
             />
           </View>
 
