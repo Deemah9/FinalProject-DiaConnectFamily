@@ -57,6 +57,28 @@ def mark_all_read(user_id: str) -> None:
         doc.reference.update({"isRead": True})
 
 
+def delete_all_notifications(user_id: str) -> int:
+    docs = (
+        db.collection(NOTIFICATIONS_COLLECTION)
+        .where("userId", "==", user_id)
+        .stream()
+    )
+    count = 0
+    for doc in docs:
+        doc.reference.delete()
+        count += 1
+    return count
+
+
+def delete_notification(user_id: str, notif_id: str) -> bool:
+    doc_ref = db.collection(NOTIFICATIONS_COLLECTION).document(notif_id)
+    doc = doc_ref.get()
+    if not doc.exists or doc.to_dict().get("userId") != user_id:
+        return False
+    doc_ref.delete()
+    return True
+
+
 def get_unread_count(user_id: str) -> int:
     docs = (
         db.collection(NOTIFICATIONS_COLLECTION)

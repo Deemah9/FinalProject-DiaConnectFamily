@@ -13,14 +13,17 @@ import {
   Text,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  deleteAllNotifications,
+  deleteNotification,
   getNotifications,
   markAllNotificationsRead,
 } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type NotifType = "glucose_reminder" | "emergency_alert" | "all";
+type NotifType = "glucose_reminder" | "emergency_alert" | "all" | "unread";
 
 interface Notification {
   id: string;
@@ -47,7 +50,7 @@ const TYPE_CONFIG: Record<string, { color: string; icon: any; bg: string }> = {
 };
 
 // ─── Notification Card ────────────────────────────────────────────────────────
-function NotifCard({ item, t }: { item: Notification; t: any }) {
+function NotifCard({ item, t, onDelete }: { item: Notification; t: any; onDelete: (id: string) => void }) {
   const cfg = TYPE_CONFIG[item.type] ?? { color: "#718096", icon: "notifications", bg: "#F7FAFC" };
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -62,32 +65,39 @@ function NotifCard({ item, t }: { item: Notification; t: any }) {
     }
   }, [item.isRead]);
 
+  const renderRightActions = () => (
+    <Pressable style={styles.deleteAction} onPress={() => onDelete(item.id)}>
+      <Ionicons name="trash-outline" size={20} color="#fff" />
+      <Text style={styles.deleteActionText}>{t("notif.delete", "Delete")}</Text>
+    </Pressable>
+  );
+
   return (
-    <View style={[styles.card, { backgroundColor: item.isRead ? "#FFFFFF" : cfg.bg }]}>
-      <View style={[styles.cardBorder, { backgroundColor: cfg.color }]} />
-      <View style={[styles.iconWrap, { backgroundColor: cfg.color + "20" }]}>
-        {!item.isRead && (
-          <Animated.View style={[styles.pulseDot, { backgroundColor: cfg.color, opacity: pulseAnim }]} />
-        )}
-        <Ionicons name={cfg.icon as any} size={22} color={cfg.color} />
-      </View>
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: cfg.color }]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.cardTime}>
-            {relativeTime(item.createdAt, t)}
-          </Text>
+    <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+      <View style={[styles.card, { backgroundColor: item.isRead ? "#FFFFFF" : cfg.bg }]}>
+        <View style={[styles.cardBorder, { backgroundColor: cfg.color }]} />
+        <View style={[styles.iconWrap, { backgroundColor: cfg.color + "20" }]}>
+          {!item.isRead && (
+            <Animated.View style={[styles.pulseDot, { backgroundColor: cfg.color, opacity: pulseAnim }]} />
+          )}
+          <Ionicons name={cfg.icon as any} size={22} color={cfg.color} />
         </View>
-        <Text style={styles.cardBody} numberOfLines={2}>{item.body}</Text>
-        {item.glucoseValue != null && (
-          <View style={[styles.glucoseBadge, { backgroundColor: cfg.color }]}>
-            <Text style={styles.glucoseBadgeText}>{item.glucoseValue} mg/dL</Text>
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: cfg.color }]} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardTime}>{relativeTime(item.createdAt, t)}</Text>
           </View>
-        )}
+          <Text style={styles.cardBody} numberOfLines={2}>{item.body}</Text>
+          {item.glucoseValue != null && (
+            <View style={[styles.glucoseBadge, { backgroundColor: cfg.color }]}>
+              <Text style={styles.glucoseBadgeText}>{item.glucoseValue} mg/dL</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+    </Swipeable>
   );
 }
 
@@ -125,8 +135,6 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const filterAnim = useRef(new Animated.Value(0)).current;
-
   const load = useCallback(async () => {
     try {
       const data = await getNotifications();
@@ -148,24 +156,42 @@ export default function NotificationsScreen() {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
-  const handleFilterChange = (f: NotifType, idx: number) => {
-    setFilter(f);
-    Animated.spring(filterAnim, { toValue: idx, useNativeDriver: true }).start();
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch {}
   };
 
-  const filtered = filter === "all" ? notifications : notifications.filter(n => n.type === filter);
-  const unread = notifications.filter(n => !n.isRead).length;
+  const handleClearAll = async () => {
+    try {
+      await deleteAllNotifications();
+      setNotifications([]);
+    } catch {}
+  };
 
-  const tabs: { key: NotifType; label: string }[] = [
-    { key: "all", label: t("notif.all", "All") },
-    { key: "emergency_alert", label: t("notif.emergency", "Alerts") },
-    { key: "glucose_reminder", label: t("notif.reminder", "Reminders") },
+  const unread = notifications.filter(n => !n.isRead).length;
+  const alertCount = notifications.filter(n => n.type === "emergency_alert").length;
+  const reminderCount = notifications.filter(n => n.type === "glucose_reminder").length;
+
+  const filtered = filter === "all"
+    ? notifications
+    : filter === "unread"
+    ? notifications.filter(n => !n.isRead)
+    : notifications.filter(n => n.type === filter);
+
+  const tabs: { key: NotifType; label: string; count: number; color?: string }[] = [
+    { key: "all", label: t("notif.all", "All"), count: notifications.length },
+    { key: "unread", label: t("notif.unread", "Unread"), count: unread, color: "#E53E3E" },
+    { key: "emergency_alert", label: t("notif.emergency", "Alerts"), count: alertCount, color: "#E53E3E" },
+    { key: "glucose_reminder", label: t("notif.reminder", "Reminders"), count: reminderCount, color: "#3182CE" },
   ];
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={["#1A6FA8", "#0D4F7C"]} style={[styles.header, { paddingTop: top + 12 }]}>
+      <LinearGradient colors={["#1A6FA8", "#1A6FA8"]} style={[styles.header, { paddingTop: top + 12 }]}>
+        {/* Top row */}
         <View style={styles.headerRow}>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#fff" />
@@ -178,56 +204,62 @@ export default function NotificationsScreen() {
               </View>
             )}
           </View>
-          {unread > 0 ? (
-            <Pressable style={styles.markReadBtn} onPress={handleMarkAllRead}>
-              <Ionicons name="checkmark-done" size={20} color="#fff" />
-            </Pressable>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
+          <View style={styles.headerActions}>
+            {unread > 0 && (
+              <Pressable style={styles.actionBtn} onPress={handleMarkAllRead}>
+                <Ionicons name="checkmark-done" size={18} color="#fff" />
+              </Pressable>
+            )}
+            {notifications.length > 0 && (
+              <Pressable style={styles.clearBtn} onPress={handleClearAll}>
+                <Ionicons name="trash-outline" size={13} color="#E53E3E" />
+                <Text style={styles.clearBtnText}>{t("notif.clearAll", "Clear")}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statNum}>{notifications.filter(n => n.type === "emergency_alert").length}</Text>
+            <Text style={styles.statNum}>{alertCount}</Text>
             <Text style={styles.statLabel}>{t("notif.alerts", "Alerts")}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNum}>{notifications.filter(n => n.type === "glucose_reminder").length}</Text>
+            <Text style={styles.statNum}>{reminderCount}</Text>
             <Text style={styles.statLabel}>{t("notif.reminders", "Reminders")}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNum}>{unread}</Text>
+            <Text style={[styles.statNum, unread > 0 && { color: "#FEB2B2" }]}>{unread}</Text>
             <Text style={styles.statLabel}>{t("notif.unread", "Unread")}</Text>
           </View>
         </View>
 
-        {/* Filter Tabs */}
-        <View style={styles.tabRow}>
-          {tabs.map((tab, idx) => (
-            <Pressable
-              key={tab.key}
-              style={[styles.tab, filter === tab.key && styles.tabActive]}
-              onPress={() => handleFilterChange(tab.key, idx)}
-            >
-              <Text style={[styles.tabText, filter === tab.key && styles.tabTextActive]}>
-                {tab.label}
-              </Text>
-              {tab.key !== "all" && (
-                <View style={[
-                  styles.tabBadge,
-                  { backgroundColor: tab.key === "emergency_alert" ? "#E53E3E" : "#3182CE" }
-                ]}>
-                  <Text style={styles.tabBadgeText}>
-                    {notifications.filter(n => n.type === tab.key).length}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          ))}
+        {/* Filter Tabs — inside gradient, wrapped in a pill container */}
+        <View style={styles.tabsContainer}>
+          <View style={styles.tabRow}>
+            {tabs.map((tab) => (
+              <Pressable
+                key={tab.key}
+                style={[styles.tab, filter === tab.key && styles.tabActive]}
+                onPress={() => setFilter(tab.key)}
+              >
+                <Text style={[styles.tabText, filter === tab.key && styles.tabTextActive]}>
+                  {tab.label}
+                </Text>
+                {tab.count > 0 && (
+                  <View style={[
+                    styles.tabBadge,
+                    { backgroundColor: filter === tab.key ? (tab.color ?? "#fff") : "rgba(255,255,255,0.25)" }
+                  ]}>
+                    <Text style={styles.tabBadgeText}>{tab.count}</Text>
+                  </View>
+                )}
+              </Pressable>
+            ))}
+          </View>
         </View>
       </LinearGradient>
 
@@ -243,7 +275,7 @@ export default function NotificationsScreen() {
           contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1A6FA8"]} />}
           ListEmptyComponent={<EmptyState t={t} />}
-          renderItem={({ item }) => <NotifCard item={item} t={t} />}
+          renderItem={({ item }) => <NotifCard item={item} t={t} onDelete={handleDelete} />}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -253,30 +285,65 @@ export default function NotificationsScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F4F8" },
+  container: { flex: 1, backgroundColor: "#EBF3FA" },
 
   // Header
   header: { paddingBottom: 0 },
-  headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.15)" },
-  headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  headerRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 16, paddingBottom: 12,
+  },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  headerCenter: {
+    flex: 1, flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 8,
+  },
   headerTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  unreadBadge: { backgroundColor: "#E53E3E", borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  unreadBadge: {
+    backgroundColor: "#E53E3E", borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
   unreadBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  markReadBtn: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.15)" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  actionBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  clearBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6,
+  },
+  clearBtnText: { color: "#E53E3E", fontSize: 11, fontWeight: "700" },
 
   // Stats
-  statsRow: { flexDirection: "row", paddingHorizontal: 24, paddingBottom: 16, justifyContent: "center" },
+  statsRow: {
+    flexDirection: "row", paddingHorizontal: 24,
+    paddingBottom: 16, justifyContent: "center",
+  },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { color: "#fff", fontSize: 22, fontWeight: "800" },
   statLabel: { color: "rgba(255,255,255,0.7)", fontSize: 11 },
   statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.25)", marginVertical: 4 },
 
   // Tabs
-  tabRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8, paddingBottom: 0 },
-  tab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10, borderRadius: 10, gap: 5, backgroundColor: "rgba(255,255,255,0.1)" },
-  tabActive: { backgroundColor: "rgba(255,255,255,0.25)" },
-  tabText: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: "600" },
+  tabsContainer: { paddingHorizontal: 12, paddingBottom: 14 },
+  tabRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(0,0,0,0.18)",
+    borderRadius: 14, padding: 4, gap: 3,
+  },
+  tab: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 8, borderRadius: 10, gap: 4,
+  },
+  tabActive: { backgroundColor: "rgba(255,255,255,0.22)" },
+  tabText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "600" },
   tabTextActive: { color: "#fff" },
   tabBadge: { borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
   tabBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
@@ -288,7 +355,12 @@ const styles = StyleSheet.create({
   loadingText: { color: "#718096", fontSize: 14 },
 
   // Card
-  card: { flexDirection: "row", borderRadius: 16, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+  card: {
+    flexDirection: "row", borderRadius: 16, overflow: "hidden",
+    elevation: 2, shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6,
+  },
   cardBorder: { width: 4 },
   iconWrap: { width: 52, alignItems: "center", justifyContent: "center", position: "relative" },
   pulseDot: { position: "absolute", top: 10, right: 8, width: 8, height: 8, borderRadius: 4 },
@@ -297,8 +369,19 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: "700", flex: 1, marginEnd: 6 },
   cardTime: { fontSize: 11, color: "#A0AEC0" },
   cardBody: { fontSize: 12, color: "#4A5568", lineHeight: 17 },
-  glucoseBadge: { alignSelf: "flex-start", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
+  glucoseBadge: {
+    alignSelf: "flex-start", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, marginTop: 4,
+  },
   glucoseBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+
+  // Swipe delete
+  deleteAction: {
+    backgroundColor: "#E53E3E",
+    justifyContent: "center", alignItems: "center",
+    width: 72, borderRadius: 16, marginLeft: 8, gap: 3,
+  },
+  deleteActionText: { color: "#fff", fontSize: 11, fontWeight: "700" },
 
   // Empty
   emptyWrap: { alignItems: "center", gap: 12, paddingTop: 60 },

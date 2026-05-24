@@ -7,7 +7,7 @@ from app.services.notification_service import save_notification
 USERS_COLLECTION = "users"
 GLUCOSE_COLLECTION = "glucose_readings"
 
-REMINDER_INTERVAL_HOURS = 0.017  # For testing: 1 minute = 0.017 hours
+REMINDER_INTERVAL_HOURS = 4
 
 
 def _send_push(tokens: list[str], title: str, body: str, data: dict) -> None:
