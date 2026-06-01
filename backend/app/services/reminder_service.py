@@ -2,6 +2,7 @@ import json
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from app.config.firebase import db
+from app.services.notification_service import save_notification
 
 USERS_COLLECTION = "users"
 GLUCOSE_COLLECTION = "glucose_readings"
@@ -103,6 +104,11 @@ def send_glucose_reminders() -> None:
             )
 
         _send_push([token], title, body, {"type": "glucose_reminder"})
+        save_notification(
+            user_id, "glucose_reminder", title, body,
+            notif_key="glucose_reminder",
+            notif_params={"name": first_name, "hours": REMINDER_INTERVAL_HOURS},
+        )
         reminded += 1
         print(f"[Reminder] Sent to user {user_id}")
 

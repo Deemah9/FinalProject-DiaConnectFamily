@@ -5,6 +5,8 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import * as Font from "expo-font";
+import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,6 +14,7 @@ import React, { useEffect, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "../context/AuthContext";
 
 // Show notifications while the app is in the foreground
@@ -30,7 +33,10 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setupI18n()
+    Promise.all([
+      setupI18n(),
+      Font.loadAsync(Ionicons.font),
+    ])
       .then(() => setReady(true))
       .catch(() => setReady(true));
   }, []);
@@ -49,13 +55,15 @@ export default function RootLayout() {
   }
 
   return (
-    <I18nextProvider i18n={i18n}>
-      <AuthProvider>
-        <ThemeProvider value={theme}>
-          <Stack screenOptions={{ headerShown: false }} />
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </AuthProvider>
-    </I18nextProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <I18nextProvider i18n={i18n}>
+        <AuthProvider>
+          <ThemeProvider value={theme}>
+            <Stack screenOptions={{ headerShown: false }} />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </AuthProvider>
+      </I18nextProvider>
+    </GestureHandlerRootView>
   );
 }

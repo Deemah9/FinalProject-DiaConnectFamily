@@ -11,6 +11,7 @@ from app.routes import alerts
 from app.routes import family
 from app.routes import prediction
 from app.routes import libreview
+from app.routes import notifications
 from app.services.reminder_service import (
     send_glucose_reminders,
     REMINDER_INTERVAL_HOURS,
@@ -77,6 +78,7 @@ app.include_router(alerts.router)
 app.include_router(family.router)
 app.include_router(prediction.router)
 app.include_router(libreview.router)
+app.include_router(notifications.router)
 
 
 # ==========================================

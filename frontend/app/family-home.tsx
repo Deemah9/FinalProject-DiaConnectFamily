@@ -20,7 +20,7 @@ import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import AppHeader from "@/src/components/AppHeader";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getLinkedPatients, getProfile, registerPushToken, updateProfile } from "@/services/api";
+import { getLinkedPatients, getProfile, getUnreadCount, registerPushToken, updateProfile } from "@/services/api";
 import * as Notifications from "expo-notifications";
 import i18n from "@/src/i18n";
 
@@ -38,6 +38,7 @@ export default function FamilyHomeScreen() {
   const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const openDrawer = () => {
     setMenuOpen(true);
@@ -61,6 +62,7 @@ export default function FamilyHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
     }, [])
   );
 
@@ -113,6 +115,16 @@ export default function FamilyHomeScreen() {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Pressable style={styles.topBarBtn} onPress={() => setLangOpen((v) => !v)}>
               <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+            <Pressable style={styles.topBarBtn} onPress={() => router.push("/notifications" as any)}>
+              <View>
+                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                  </View>
+                )}
+              </View>
             </Pressable>
             <Pressable style={styles.topBarBtn} onPress={openDrawer}>
               <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
@@ -265,6 +277,22 @@ export default function FamilyHomeScreen() {
                 <Ionicons name="link-outline" size={17} color={Colors.primary} />
                 <Text style={styles.drawerItemText}>{t("enterPairingCode")}</Text>
               </Pressable>
+              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/notifications" as any))}>
+                <View style={{ position: "relative" }}>
+                  <Ionicons name="mail-outline" size={17} color={Colors.primary} />
+                  {unreadCount > 0 && (
+                    <View style={styles.drawerBadge}>
+                      <Text style={styles.drawerBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.drawerItemText}>{t("notifications", "Notifications")}</Text>
+                {unreadCount > 0 && (
+                  <View style={[styles.drawerBadgeInline, { marginStart: "auto" }]}>
+                    <Text style={styles.drawerBadgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </Pressable>
 
               <View style={styles.drawerDivider} />
               <Pressable style={styles.drawerLogout} onPress={() => closeDrawer(() => logout())}>
@@ -284,6 +312,43 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
   topBarBtn: { padding: 8 },
+  bellBadge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: "#1A6FA8",
+  },
+  bellBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" as const, lineHeight: 12 },
+  drawerBadge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  drawerBadgeInline: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  drawerBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" as const },
 
   hero: { marginTop: 28, marginBottom: 20 },
   welcomeTitle: { fontSize: 20, fontWeight: "700", color: "#0B1A2E", marginBottom: 6 },
