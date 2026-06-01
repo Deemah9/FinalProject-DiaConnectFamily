@@ -13,17 +13,15 @@ import {
   Text,
   View,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  deleteAllNotifications,
-  deleteNotification,
   getNotifications,
   markAllNotificationsRead,
+  markNotificationRead,
 } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type NotifType = "glucose_reminder" | "emergency_alert" | "all" | "unread";
+type NotifType = "emergency_alert" | "glucose_reminder";
 
 interface Notification {
   id: string;
@@ -33,92 +31,149 @@ interface Notification {
   glucoseValue?: number;
   isRead: boolean;
   createdAt: string;
+  patientName?: string;
+  notifKey?: string;
+  notifParams?: Record<string, any>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function relativeTime(iso: string, t: any): string {
+function relativeTime(iso: string, lang: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60) return t("notif.justNow", "Just now");
-  if (diff < 3600) return t("notif.minutesAgo", { count: Math.floor(diff / 60) }, `${Math.floor(diff / 60)}m ago`);
-  if (diff < 86400) return t("notif.hoursAgo", { count: Math.floor(diff / 3600) }, `${Math.floor(diff / 3600)}h ago`);
-  return t("notif.daysAgo", { count: Math.floor(diff / 86400) }, `${Math.floor(diff / 86400)}d ago`);
+  const isAr = lang === "ar";
+  const isHe = lang === "he";
+
+  if (diff < 60) return isAr ? "الآن" : isHe ? "עכשיו" : "Just now";
+  const mins = Math.floor(diff / 60);
+  if (diff < 3600) {
+    if (isAr) return mins === 1 ? "منذ دقيقة" : `منذ ${mins} دقائق`;
+    if (isHe) return `לפני ${mins} דקות`;
+    return `${mins}m ago`;
+  }
+  const hrs = Math.floor(diff / 3600);
+  if (diff < 86400) {
+    if (isAr) return hrs === 1 ? "منذ ساعة" : `منذ ${hrs} ساعات`;
+    if (isHe) return `לפני ${hrs} שעות`;
+    return `${hrs}h ago`;
+  }
+  const days = Math.floor(diff / 86400);
+  if (isAr) return days === 1 ? "منذ يوم" : `منذ ${days} أيام`;
+  if (isHe) return `לפני ${days} ימים`;
+  return `${days}d ago`;
 }
 
-const TYPE_CONFIG: Record<string, { color: string; icon: any; bg: string }> = {
-  emergency_alert: { color: "#E53E3E", icon: "warning", bg: "#FFF5F5" },
-  glucose_reminder: { color: "#3182CE", icon: "time", bg: "#EBF8FF" },
+const TYPE_CONFIG = {
+  emergency_alert: { color: "#E53E3E", icon: "warning" as const, bg: "#FFF5F5", light: "#FFF0F0" },
+  glucose_reminder: { color: "#1A6FA8", icon: "time" as const, bg: "#EBF8FF", light: "#EBF3FA" },
 };
 
 // ─── Notification Card ────────────────────────────────────────────────────────
-function NotifCard({ item, t, onDelete }: { item: Notification; t: any; onDelete: (id: string) => void }) {
-  const cfg = TYPE_CONFIG[item.type] ?? { color: "#718096", icon: "notifications", bg: "#F7FAFC" };
+function NotifCard({
+  item, lang, t, onPress,
+}: {
+  item: Notification; lang: string; t: any; onPress: (id: string) => void;
+}) {
+  const cfg = TYPE_CONFIG[item.type as NotifType] ?? {
+    color: "#718096", icon: "notifications" as const, bg: "#F7FAFC", light: "#F7FAFC",
+  };
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const displayTitle = item.notifKey
+    ? t(`notif_${item.notifKey}_title`, item.notifParams ?? {}, item.title)
+    : item.title;
+  const displayBody = item.notifKey
+    ? t(`notif_${item.notifKey}_body`, item.notifParams ?? {}, item.body)
+    : item.body;
 
   useEffect(() => {
     if (!item.isRead) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 0.4, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 0.3, duration: 900, useNativeDriver: true }),
           Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
         ])
       ).start();
+    } else {
+      pulseAnim.stopAnimation();
     }
   }, [item.isRead]);
 
-  const renderRightActions = () => (
-    <Pressable style={styles.deleteAction} onPress={() => onDelete(item.id)}>
-      <Ionicons name="trash-outline" size={20} color="#fff" />
-      <Text style={styles.deleteActionText}>{t("notif.delete", "Delete")}</Text>
-    </Pressable>
-  );
-
   return (
-    <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
-      <View style={[styles.card, { backgroundColor: item.isRead ? "#FFFFFF" : cfg.bg }]}>
-        <View style={[styles.cardBorder, { backgroundColor: cfg.color }]} />
-        <View style={[styles.iconWrap, { backgroundColor: cfg.color + "20" }]}>
+    <Pressable
+      onPress={() => !item.isRead && onPress(item.id)}
+      style={({ pressed }) => [{ opacity: pressed ? 0.88 : 1 }]}
+    >
+      <View style={[styles.card, !item.isRead && { backgroundColor: cfg.bg }]}>
+        {/* Left color bar */}
+        <View style={[styles.cardBar, { backgroundColor: cfg.color }]} />
+
+        {/* Icon */}
+        <View style={[styles.iconWrap, { backgroundColor: cfg.color + "18" }]}>
           {!item.isRead && (
             <Animated.View style={[styles.pulseDot, { backgroundColor: cfg.color, opacity: pulseAnim }]} />
           )}
-          <Ionicons name={cfg.icon as any} size={22} color={cfg.color} />
+          <Ionicons name={cfg.icon} size={22} color={cfg.color} />
         </View>
+
+        {/* Content */}
         <View style={styles.cardContent}>
-          <View style={styles.cardHeader}>
+          <View style={styles.cardTop}>
             <Text style={[styles.cardTitle, { color: cfg.color }]} numberOfLines={1}>
-              {item.title}
+              {displayTitle}
             </Text>
-            <Text style={styles.cardTime}>{relativeTime(item.createdAt, t)}</Text>
+            <Text style={styles.cardTime}>{relativeTime(item.createdAt, lang)}</Text>
           </View>
-          <Text style={styles.cardBody} numberOfLines={2}>{item.body}</Text>
+
+          {item.patientName && (
+            <View style={[styles.patientBadge, { backgroundColor: cfg.color + "12" }]}>
+              <Ionicons name="person-outline" size={11} color={cfg.color} />
+              <Text style={[styles.patientText, { color: cfg.color }]}>{item.patientName}</Text>
+            </View>
+          )}
+
+          <Text style={styles.cardBody} numberOfLines={2}>{displayBody}</Text>
+
           {item.glucoseValue != null && (
-            <View style={[styles.glucoseBadge, { backgroundColor: cfg.color }]}>
-              <Text style={styles.glucoseBadgeText}>{item.glucoseValue} mg/dL</Text>
+            <View style={[styles.glucosePill, { backgroundColor: cfg.color }]}>
+              <Ionicons name="water-outline" size={11} color="#fff" />
+              <Text style={styles.glucoseText}>{item.glucoseValue} mg/dL</Text>
             </View>
           )}
         </View>
+
+        {/* Unread dot */}
+        {!item.isRead && (
+          <View style={[styles.unreadDot, { backgroundColor: cfg.color }]} />
+        )}
       </View>
-    </Swipeable>
+    </Pressable>
   );
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
-function EmptyState({ t }: { t: any }) {
+function EmptyState({ filter, t }: { filter: NotifType; t: any }) {
   const bounceAnim = useRef(new Animated.Value(0)).current;
+  const cfg = TYPE_CONFIG[filter];
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(bounceAnim, { toValue: -10, duration: 800, useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: -8, duration: 900, useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
       ])
     ).start();
   }, []);
 
+  const emptyIcon = filter === "emergency_alert" ? "shield-checkmark-outline" : "alarm-outline";
+  const emptyMsg  = filter === "emergency_alert"
+    ? t("notif.emptyAlerts", "No alerts — glucose is in range 🎉")
+    : t("notif.emptyReminders", "No reminders yet");
+
   return (
     <View style={styles.emptyWrap}>
-      <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
-        <Ionicons name="notifications-off-outline" size={72} color="#CBD5E0" />
+      <Animated.View style={[styles.emptyIcon, { backgroundColor: cfg.color + "14", transform: [{ translateY: bounceAnim }] }]}>
+        <Ionicons name={emptyIcon} size={42} color={cfg.color} />
       </Animated.View>
-      <Text style={styles.emptyTitle}>{t("notif.emptyTitle", "No notifications yet")}</Text>
+      <Text style={styles.emptyTitle}>{emptyMsg}</Text>
       <Text style={styles.emptySub}>{t("notif.emptySub", "You'll see glucose reminders and alerts here")}</Text>
     </View>
   );
@@ -126,12 +181,13 @@ function EmptyState({ t }: { t: any }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function NotificationsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { top } = useSafeAreaInsets();
   const isRTL = I18nManager.isRTL;
+  const lang = i18n.language;
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [filter, setFilter] = useState<NotifType>("all");
+  const [filter, setFilter] = useState<NotifType>("emergency_alert");
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -156,42 +212,46 @@ export default function NotificationsScreen() {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
-  const handleDelete = async (id: string) => {
+  const handleMarkOneRead = async (id: string) => {
     try {
-      await deleteNotification(id);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      await markNotificationRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     } catch {}
   };
 
-  const handleClearAll = async () => {
-    try {
-      await deleteAllNotifications();
-      setNotifications([]);
-    } catch {}
-  };
-
-  const unread = notifications.filter(n => !n.isRead).length;
-  const alertCount = notifications.filter(n => n.type === "emergency_alert").length;
+  const unread        = notifications.filter(n => !n.isRead).length;
+  const alertCount    = notifications.filter(n => n.type === "emergency_alert").length;
+  const unreadAlerts  = notifications.filter(n => n.type === "emergency_alert" && !n.isRead).length;
   const reminderCount = notifications.filter(n => n.type === "glucose_reminder").length;
+  const unreadReminders = notifications.filter(n => n.type === "glucose_reminder" && !n.isRead).length;
 
-  const filtered = filter === "all"
-    ? notifications
-    : filter === "unread"
-    ? notifications.filter(n => !n.isRead)
-    : notifications.filter(n => n.type === filter);
+  const filtered = notifications.filter(n => n.type === filter);
 
-  const tabs: { key: NotifType; label: string; count: number; color?: string }[] = [
-    { key: "all", label: t("notif.all", "All"), count: notifications.length },
-    { key: "unread", label: t("notif.unread", "Unread"), count: unread, color: "#E53E3E" },
-    { key: "emergency_alert", label: t("notif.emergency", "Alerts"), count: alertCount, color: "#E53E3E" },
-    { key: "glucose_reminder", label: t("notif.reminder", "Reminders"), count: reminderCount, color: "#3182CE" },
+  const tabs = [
+    {
+      key: "emergency_alert" as NotifType,
+      label: t("notif.emergency", "Alerts"),
+      icon: "warning" as const,
+      total: alertCount,
+      unread: unreadAlerts,
+      color: "#E53E3E",
+      activeBg: "#E53E3E",
+    },
+    {
+      key: "glucose_reminder" as NotifType,
+      label: t("notif.reminder", "Reminders"),
+      icon: "time" as const,
+      total: reminderCount,
+      unread: unreadReminders,
+      color: "#1A6FA8",
+      activeBg: "#1A6FA8",
+    },
   ];
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ── Header ── */}
       <LinearGradient colors={["#1A6FA8", "#1A6FA8"]} style={[styles.header, { paddingTop: top + 12 }]}>
-        {/* Top row */}
         <View style={styles.headerRow}>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#fff" />
@@ -204,66 +264,50 @@ export default function NotificationsScreen() {
               </View>
             )}
           </View>
-          <View style={styles.headerActions}>
-            {unread > 0 && (
-              <Pressable style={styles.actionBtn} onPress={handleMarkAllRead}>
-                <Ionicons name="checkmark-done" size={18} color="#fff" />
-              </Pressable>
-            )}
-            {notifications.length > 0 && (
-              <Pressable style={styles.clearBtn} onPress={handleClearAll}>
-                <Ionicons name="trash-outline" size={13} color="#E53E3E" />
-                <Text style={styles.clearBtnText}>{t("notif.clearAll", "Clear")}</Text>
-              </Pressable>
-            )}
-          </View>
+          {unread > 0 ? (
+            <Pressable style={styles.markReadBtn} onPress={handleMarkAllRead}>
+              <Ionicons name="checkmark-done" size={20} color="#fff" />
+            </Pressable>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{alertCount}</Text>
-            <Text style={styles.statLabel}>{t("notif.alerts", "Alerts")}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{reminderCount}</Text>
-            <Text style={styles.statLabel}>{t("notif.reminders", "Reminders")}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statNum, unread > 0 && { color: "#FEB2B2" }]}>{unread}</Text>
-            <Text style={styles.statLabel}>{t("notif.unread", "Unread")}</Text>
-          </View>
-        </View>
-
-        {/* Filter Tabs — inside gradient, wrapped in a pill container */}
-        <View style={styles.tabsContainer}>
-          <View style={styles.tabRow}>
-            {tabs.map((tab) => (
+        {/* ── Segmented Tabs ── */}
+        <View style={styles.segmentWrap}>
+          {tabs.map((tab) => {
+            const active = filter === tab.key;
+            return (
               <Pressable
                 key={tab.key}
-                style={[styles.tab, filter === tab.key && styles.tabActive]}
+                style={[styles.segment, active && styles.segmentActive]}
                 onPress={() => setFilter(tab.key)}
               >
-                <Text style={[styles.tabText, filter === tab.key && styles.tabTextActive]}>
+                <View style={[styles.segmentIconWrap, active
+                  ? { backgroundColor: tab.color + "22" }
+                  : { backgroundColor: "rgba(255,255,255,0.12)" }
+                ]}>
+                  <Ionicons
+                    name={tab.icon}
+                    size={18}
+                    color={active ? tab.color : "rgba(255,255,255,0.7)"}
+                  />
+                </View>
+                <Text style={[styles.segmentLabel, active && { color: "#0B1A2E", fontWeight: "700" }]}>
                   {tab.label}
                 </Text>
-                {tab.count > 0 && (
-                  <View style={[
-                    styles.tabBadge,
-                    { backgroundColor: filter === tab.key ? (tab.color ?? "#fff") : "rgba(255,255,255,0.25)" }
-                  ]}>
-                    <Text style={styles.tabBadgeText}>{tab.count}</Text>
+                {tab.unread > 0 && (
+                  <View style={[styles.segmentBadge, { backgroundColor: tab.color }]}>
+                    <Text style={styles.segmentBadgeText}>{tab.unread}</Text>
                   </View>
                 )}
               </Pressable>
-            ))}
-          </View>
+            );
+          })}
         </View>
       </LinearGradient>
 
-      {/* List */}
+      {/* ── List ── */}
       {loading ? (
         <View style={styles.loadingWrap}>
           <Text style={styles.loadingText}>{t("notif.loading", "Loading...")}</Text>
@@ -274,8 +318,10 @@ export default function NotificationsScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1A6FA8"]} />}
-          ListEmptyComponent={<EmptyState t={t} />}
-          renderItem={({ item }) => <NotifCard item={item} t={t} onDelete={handleDelete} />}
+          ListEmptyComponent={<EmptyState filter={filter} t={t} />}
+          renderItem={({ item }) => (
+            <NotifCard item={item} lang={lang} t={t} onPress={handleMarkOneRead} />
+          )}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -291,7 +337,7 @@ const styles = StyleSheet.create({
   header: { paddingBottom: 0 },
   headerRow: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingBottom: 12,
+    paddingHorizontal: 16, paddingBottom: 14,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
@@ -308,83 +354,118 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 2,
   },
   unreadBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 6 },
-  actionBtn: {
-    width: 36, height: 36, borderRadius: 10,
+  markReadBtn: {
+    width: 40, height: 40, borderRadius: 12,
     alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.15)",
   },
-  clearBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6,
-  },
-  clearBtnText: { color: "#E53E3E", fontSize: 11, fontWeight: "700" },
 
-  // Stats
-  statsRow: {
-    flexDirection: "row", paddingHorizontal: 24,
-    paddingBottom: 16, justifyContent: "center",
-  },
-  statItem: { flex: 1, alignItems: "center" },
-  statNum: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  statLabel: { color: "rgba(255,255,255,0.7)", fontSize: 11 },
-  statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.25)", marginVertical: 4 },
-
-  // Tabs
-  tabsContainer: { paddingHorizontal: 12, paddingBottom: 14 },
-  tabRow: {
+  // Segmented control
+  segmentWrap: {
     flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 16,
     backgroundColor: "rgba(0,0,0,0.18)",
-    borderRadius: 14, padding: 4, gap: 3,
+    borderRadius: 18,
+    padding: 5,
+    gap: 4,
   },
-  tab: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingVertical: 8, borderRadius: 10, gap: 4,
+  segment: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 14,
+    gap: 7,
   },
-  tabActive: { backgroundColor: "rgba(255,255,255,0.22)" },
-  tabText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "600" },
-  tabTextActive: { color: "#fff" },
-  tabBadge: { borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
-  tabBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  segmentActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  segmentIconWrap: {
+    width: 30, height: 30, borderRadius: 9,
+    alignItems: "center", justifyContent: "center",
+  },
+  segmentLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.75)",
+  },
+  segmentBadge: {
+    borderRadius: 9, minWidth: 18, height: 18,
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  segmentBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
 
   // List
-  listContent: { padding: 12, gap: 10 },
+  listContent: { padding: 14, gap: 10 },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadingText: { color: "#718096", fontSize: 14 },
 
   // Card
   card: {
-    flexDirection: "row", borderRadius: 16, overflow: "hidden",
-    elevation: 2, shadowColor: "#000",
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
-  cardBorder: { width: 4 },
-  iconWrap: { width: 52, alignItems: "center", justifyContent: "center", position: "relative" },
-  pulseDot: { position: "absolute", top: 10, right: 8, width: 8, height: 8, borderRadius: 4 },
-  cardContent: { flex: 1, padding: 12, gap: 4 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardBar: { width: 4 },
+  iconWrap: {
+    width: 54, alignItems: "center",
+    justifyContent: "center", position: "relative",
+  },
+  pulseDot: {
+    position: "absolute", top: 10, right: 8,
+    width: 8, height: 8, borderRadius: 4,
+  },
+  cardContent: { flex: 1, padding: 12, gap: 5 },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   cardTitle: { fontSize: 13, fontWeight: "700", flex: 1, marginEnd: 6 },
   cardTime: { fontSize: 11, color: "#A0AEC0" },
   cardBody: { fontSize: 12, color: "#4A5568", lineHeight: 17 },
-  glucoseBadge: {
-    alignSelf: "flex-start", borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3, marginTop: 4,
-  },
-  glucoseBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
 
-  // Swipe delete
-  deleteAction: {
-    backgroundColor: "#E53E3E",
-    justifyContent: "center", alignItems: "center",
-    width: 72, borderRadius: 16, marginLeft: 8, gap: 3,
+  patientBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    alignSelf: "flex-start", borderRadius: 8,
+    paddingHorizontal: 7, paddingVertical: 2,
   },
-  deleteActionText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  patientText: { fontSize: 11, fontWeight: "700" },
+
+  glucosePill: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    alignSelf: "flex-start", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  glucoseText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+
+  unreadDot: {
+    width: 8, height: 8, borderRadius: 4,
+    alignSelf: "center", marginRight: 12,
+  },
 
   // Empty
-  emptyWrap: { alignItems: "center", gap: 12, paddingTop: 60 },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#4A5568" },
+  emptyWrap: { alignItems: "center", gap: 12, paddingTop: 70 },
+  emptyIcon: {
+    width: 88, height: 88, borderRadius: 44,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#4A5568", textAlign: "center", paddingHorizontal: 32 },
   emptySub: { fontSize: 13, color: "#A0AEC0", textAlign: "center", paddingHorizontal: 40 },
 });

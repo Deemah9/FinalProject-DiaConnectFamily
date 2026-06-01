@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useState } from "react";
 import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -10,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
@@ -56,6 +59,8 @@ export default function ProfileScreen() {
   const [savingLifestyle, setSavingLifestyle] = useState(false);
   const [errorLifestyle, setErrorLifestyle]   = useState("");
 
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting]               = useState(false);
   const [deletePassword, setDeletePassword]   = useState("");
@@ -67,6 +72,9 @@ export default function ProfileScreen() {
       setLoading(true);
       const data = await getProfile();
       setUser(data);
+
+      const savedPhoto = await AsyncStorage.getItem(`profile_photo_${data?.email}`);
+      if (savedPhoto) setPhotoUri(savedPhoto);
 
       setFirstName(data?.firstName || data?.first_name || "");
       setLastName(data?.lastName  || data?.last_name  || "");
@@ -104,6 +112,26 @@ export default function ProfileScreen() {
     } catch (e: any) {
       setDeleting(false);
       setDeleteError(e?.message?.includes("Incorrect") ? t("deleteAccountPasswordError") : e?.message || t("saveFailed"));
+    }
+  };
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets[0]?.uri) {
+      const uri = result.assets[0].uri;
+      setPhotoUri(uri);
+      if (user?.email) {
+        await AsyncStorage.setItem(`profile_photo_${user.email}`, uri);
+      }
     }
   };
 
@@ -193,9 +221,21 @@ export default function ProfileScreen() {
 
         {/* Avatar card */}
         <View style={styles.avatarCard}>
-          <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={40} color={PRIMARY} />
-          </View>
+          <Pressable style={styles.avatarWrap} onPress={pickImage}>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarInitials}>
+                <Text style={styles.avatarInitialsText}>
+                  {user?.firstName?.[0]?.toUpperCase() ?? ""}
+                  {user?.lastName?.[0]?.toUpperCase() ?? ""}
+                </Text>
+              </View>
+            )}
+            <View style={styles.cameraBtn}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </Pressable>
           <Text style={styles.nameText}>
             {loading ? t("loading") : fullName}
           </Text>
@@ -556,14 +596,47 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 999,
+  avatarWrap: {
+    width: 88,
+    height: 88,
+    marginBottom: 12,
+    position: "relative",
+  },
+  avatarImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 3,
+    borderColor: PRIMARY,
+  },
+  avatarInitials: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: "#DBEAFE",
+    borderWidth: 3,
+    borderColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+  },
+  avatarInitialsText: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: PRIMARY,
+    letterSpacing: 1,
+  },
+  cameraBtn: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
   },
 
   nameText: {

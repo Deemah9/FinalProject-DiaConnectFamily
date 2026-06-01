@@ -3,6 +3,7 @@ from app.middleware.dependencies import get_current_user
 from app.services.notification_service import (
     get_notifications,
     mark_all_read,
+    mark_single_read,
     get_unread_count,
     delete_notification,
     delete_all_notifications,
@@ -27,6 +28,18 @@ def fetch_unread_count(current_user: dict = Depends(get_current_user)):
 def read_all_notifications(current_user: dict = Depends(get_current_user)):
     user_id = current_user["sub"]
     mark_all_read(user_id)
+    return {"success": True}
+
+
+@router.patch("/{notif_id}/read")
+def read_single_notification(
+    notif_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = current_user["sub"]
+    success = mark_single_read(user_id, notif_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found")
     return {"success": True}
 
 

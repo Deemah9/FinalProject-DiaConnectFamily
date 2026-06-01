@@ -414,6 +414,22 @@ const resources = {
       highGlucose: "High Glucose",
       lowGlucose: "Low Glucose",
 
+      // Notifications screen
+      "notif.title": "Notifications",
+      "notif.all": "All",
+      "notif.unread": "Unread",
+      "notif.emergency": "Alerts",
+      "notif.reminder": "Reminders",
+      "notif.emptyTitle": "No notifications yet",
+      "notif.emptySub": "You'll see glucose reminders and alerts here",
+      "notif.loading": "Loading...",
+      notif_glucose_low_title: "⚠️ {{name}} - Low Glucose Alert",
+      notif_glucose_low_body: "Glucose is dangerously LOW: {{value}} mg/dL. Please check immediately.",
+      notif_glucose_high_title: "⚠️ {{name}} - High Glucose Alert",
+      notif_glucose_high_body: "Glucose is dangerously HIGH: {{value}} mg/dL. Please check immediately.",
+      notif_glucose_reminder_title: "Glucose Reminder",
+      notif_glucose_reminder_body: "Hi {{name}}, you haven't logged a glucose reading in over {{hours}} hours. Please check now.",
+
       // Delete
       deleteReading: "Delete Reading",
       deleteReadingConfirm: "Are you sure you want to delete this reading?",
@@ -848,6 +864,22 @@ const resources = {
       highGlucose: "ارتفاع السكر",
       lowGlucose: "انخفاض السكر",
 
+      // Notifications screen
+      "notif.title": "الإشعارات",
+      "notif.all": "الكل",
+      "notif.unread": "غير مقروء",
+      "notif.emergency": "التنبيهات",
+      "notif.reminder": "التذكيرات",
+      "notif.emptyTitle": "لا توجد إشعارات بعد",
+      "notif.emptySub": "ستظهر هنا تذكيرات السكر والتنبيهات",
+      "notif.loading": "جاري التحميل...",
+      notif_glucose_low_title: "⚠️ تنبيه انخفاض السكر",
+      notif_glucose_low_body: "مستوى السكر خطير جداً: {{value}} mg/dL. يرجى اتخاذ الإجراء اللازم فوراً.",
+      notif_glucose_high_title: "⚠️ تنبيه ارتفاع السكر",
+      notif_glucose_high_body: "مستوى السكر مرتفع جداً: {{value}} mg/dL. يرجى اتخاذ الإجراء اللازم فوراً.",
+      notif_glucose_reminder_title: "تذكير قياس السكر",
+      notif_glucose_reminder_body: "مرحباً {{name}}، لم تقم بتسجيل قراءة سكر منذ أكثر من {{hours}} ساعات. يرجى القياس الآن.",
+
       // Delete
       deleteReading: "حذف القراءة",
       deleteReadingConfirm: "هل أنت متأكد من حذف هذه القراءة؟",
@@ -1281,6 +1313,22 @@ const resources = {
       markAsRead: "סמן כנקרא",
       highGlucose: "גלוקוז גבוה",
       lowGlucose: "גלוקוז נמוך",
+
+      // Notifications screen
+      "notif.title": "התראות",
+      "notif.all": "הכל",
+      "notif.unread": "לא נקרא",
+      "notif.emergency": "התראות",
+      "notif.reminder": "תזכורות",
+      "notif.emptyTitle": "אין התראות עדיין",
+      "notif.emptySub": "כאן תראה תזכורות גלוקוז והתראות",
+      "notif.loading": "טוען...",
+      notif_glucose_low_title: "⚠️ {{name}} - התראת סוכר נמוך",
+      notif_glucose_low_body: "רמת הסוכר נמוכה מסוכנת: {{value}} mg/dL. אנא בדוק מיד.",
+      notif_glucose_high_title: "⚠️ {{name}} - התראת סוכר גבוה",
+      notif_glucose_high_body: "רמת הסוכר גבוהה מסוכנת: {{value}} mg/dL. אנא בדוק מיד.",
+      notif_glucose_reminder_title: "תזכורת סוכר",
+      notif_glucose_reminder_body: "שלום {{name}}, לא רשמת קריאת סוכר מזה יותר מ-{{hours}} שעות. אנא בדוק עכשיו.",
 
       // Delete
       deleteReading: "מחק קריאה",

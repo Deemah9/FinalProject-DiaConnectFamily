@@ -10,8 +10,11 @@ def save_notification(
     title: str,
     body: str,
     glucose_value: int | None = None,
+    patient_name: str | None = None,
+    notif_key: str | None = None,
+    notif_params: dict | None = None,
 ) -> None:
-    db.collection(NOTIFICATIONS_COLLECTION).add({
+    data = {
         "userId": user_id,
         "type": notif_type,
         "title": title,
@@ -19,7 +22,14 @@ def save_notification(
         "glucoseValue": glucose_value,
         "isRead": False,
         "createdAt": datetime.now(timezone.utc),
-    })
+    }
+    if patient_name:
+        data["patientName"] = patient_name
+    if notif_key:
+        data["notifKey"] = notif_key
+    if notif_params:
+        data["notifParams"] = notif_params
+    db.collection(NOTIFICATIONS_COLLECTION).add(data)
 
 
 def get_notifications(user_id: str, limit: int = 50) -> list:
@@ -42,6 +52,9 @@ def get_notifications(user_id: str, limit: int = 50) -> list:
             "glucoseValue": d.get("glucoseValue"),
             "isRead": d.get("isRead", False),
             "createdAt": created.isoformat() if created else None,
+            "patientName": d.get("patientName"),
+            "notifKey": d.get("notifKey"),
+            "notifParams": d.get("notifParams"),
         })
     return result
 
@@ -55,6 +68,15 @@ def mark_all_read(user_id: str) -> None:
     )
     for doc in docs:
         doc.reference.update({"isRead": True})
+
+
+def mark_single_read(user_id: str, notif_id: str) -> bool:
+    doc_ref = db.collection(NOTIFICATIONS_COLLECTION).document(notif_id)
+    doc = doc_ref.get()
+    if not doc.exists or doc.to_dict().get("userId") != user_id:
+        return False
+    doc_ref.update({"isRead": True})
+    return True
 
 
 def delete_all_notifications(user_id: str) -> int:

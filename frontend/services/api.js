@@ -254,6 +254,7 @@ export const removePatientLink = (linkId) =>
 export const getNotifications = () => request("GET", "/notifications/");
 export const getUnreadCount = () => request("GET", "/notifications/unread-count");
 export const markAllNotificationsRead = () => request("PATCH", "/notifications/read-all");
+export const markNotificationRead = (id) => request("PATCH", `/notifications/${id}/read`);
 export const deleteNotification = (id) => request("DELETE", `/notifications/${id}`);
 export const deleteAllNotifications = () => request("DELETE", "/notifications/clear-all");
 
