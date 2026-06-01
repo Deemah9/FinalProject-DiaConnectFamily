@@ -24,6 +24,7 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Dimensions,
   Modal,
   Pressable,
@@ -62,6 +63,7 @@ export default function HomeScreen() {
   const [showReminder, setShowReminder] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const pickingRef = useRef(false);
   const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
@@ -249,7 +251,8 @@ export default function HomeScreen() {
       : "--";
 
   const pickAndImportCSV = async () => {
-    setShowAddModal(false);
+    if (pickingRef.current) return;
+    pickingRef.current = true;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: [
@@ -261,6 +264,7 @@ export default function HomeScreen() {
         copyToCacheDirectory: true,
       });
 
+      setShowAddModal(false);
       if (result.canceled) return;
 
       const asset = result.assets?.[0];
@@ -298,23 +302,19 @@ export default function HomeScreen() {
       }
 
       if (data.imported_count === 0 && data.skipped_count > 0) {
-        setImportToast({ type: "info", text: t("importAlreadyMessage") });
-        setTimeout(() => setImportToast(null), 5000);
+        Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
       } else {
-        setImportToast({
-          type: "success",
-          text: `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-        });
-        setTimeout(() => {
-          setImportToast(null);
-          router.push("/glucose-history" as any);
-        }, 3000);
+        Alert.alert(
+          t("importSuccessTitle"),
+          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          [{ text: t("close"), onPress: () => router.push("/glucose-history" as any) }],
+        );
       }
     } catch (e: any) {
-      setImportToast({ type: "error", text: e?.message || t("importFailed") });
-      setTimeout(() => setImportToast(null), 5000);
+      Alert.alert(t("importCSV"), e?.message || t("importFailed"));
     } finally {
       setImporting(false);
+      pickingRef.current = false;
     }
   };
 

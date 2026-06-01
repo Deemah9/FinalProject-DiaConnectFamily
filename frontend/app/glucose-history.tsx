@@ -3,7 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import { router } from "expo-router";
 import { markPredictionStale } from "@/services/predictionFlag";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -48,6 +48,7 @@ export default function GlucoseHistoryScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const pickingRef = useRef(false);
 
   const parseDate = (item: any) => {
     const raw = item?.measuredAt || item?.timestamp || item?.createdAt;
@@ -174,12 +175,14 @@ export default function GlucoseHistoryScreen() {
   };
 
   const pickAndImportCSV = async () => {
-    setShowAddModal(false);
+    if (pickingRef.current) return;
+    pickingRef.current = true;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["text/csv", "text/comma-separated-values", "application/csv", "*/*"],
         copyToCacheDirectory: true,
       });
+      setShowAddModal(false);
       if (result.canceled) return;
       const asset = result.assets?.[0];
       if (!asset) return;
@@ -203,6 +206,7 @@ export default function GlucoseHistoryScreen() {
       Alert.alert(t("importCSV"), e.message || t("importFailed"));
     } finally {
       setImporting(false);
+      pickingRef.current = false;
     }
   };
 

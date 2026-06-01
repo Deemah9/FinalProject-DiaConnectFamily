@@ -633,7 +633,7 @@ const resources = {
       linkedSuccess: "تم الاقتران بنجاح!",
       linkedTo: "أنت الآن مرتبط بـ {{name}}",
       linkedNote: "يمكنك الآن متابعة قراءات الجلوكوز الخاصة به.",
-      goHome: "الذهاب للرئيسية",
+      goHome: "الصفحة الرئيسية",
       noPatients: "لا يوجد مرضى مرتبطين بعد",
       noPatientsSubtext: "اطلب من المريض مشاركة رمز الاقتران",
       linkedSince: "مرتبط منذ {{date}}",

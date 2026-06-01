@@ -47,13 +47,13 @@ export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
     <View style={[styles.bar, { paddingTop: top + 8 }]}>
       <View style={styles.topRow}>
         <View style={styles.slot}>{leftNode}</View>
-        <View style={styles.logo}>
+        <Pressable style={styles.logo} onPress={() => router.push("/" as any)}>
           <Ionicons name="heart-outline" size={26} color="#E8A317" />
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.title}>DiaConnect</Text>
             <Text style={styles.sub}>Family</Text>
           </View>
-        </View>
+        </Pressable>
         <View style={[styles.slot, { alignItems: "flex-end" }]}>{rightNode}</View>
       </View>
       {bottom}

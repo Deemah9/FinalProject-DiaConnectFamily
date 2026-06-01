@@ -203,6 +203,19 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
               <Pressable
                 style={styles.drawerItem}
                 onPress={() =>
+                  closeDrawer(() => router.push("/" as any))
+                }
+              >
+                <Ionicons
+                  name="home-outline"
+                  size={17}
+                  color={Colors.primary}
+                />
+                <Text style={styles.drawerItemText}>{t("goHome")}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() =>
                   closeDrawer(() => router.push("/profile" as any))
                 }
               >
