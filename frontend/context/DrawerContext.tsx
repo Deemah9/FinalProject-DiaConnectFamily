@@ -247,7 +247,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                 {
                   icon: "notifications-outline",
                   label: t("alerts"),
-                  route: "/alerts",
+                  route: "/notifications",
                 },
               ].map(({ icon, label, route }) => (
                 <Pressable
