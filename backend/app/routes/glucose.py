@@ -117,6 +117,22 @@ def get_glucose_stats(
 
 
 # ==========================================
+# GET /glucose/a1c
+# ==========================================
+
+@router.get("/a1c")
+def get_estimated_a1c(
+    current_user: dict = Depends(require_role("patient"))
+):
+    """
+    Returns estimated HbA1c from the last 90 days of readings.
+    Formula: eA1C = (avg_mg_dL + 46.7) / 28.7  (Nathan et al., 2008)
+    Also returns Time in Range breakdown and reliability flag.
+    """
+    return glucose_service.get_estimated_a1c(user_id=current_user["sub"])
+
+
+# ==========================================
 # DELETE /glucose/{id}
 # ==========================================
 
@@ -159,10 +175,9 @@ async def import_glucose_csv(
     """
     Import glucose readings from a FreeStyle LibreLink CSV export.
 
-    Quota optimisation:
-      - Only imports the last 90 days (older rows are silently skipped).
-      - Type-0 CGM readings are downsampled to one per 30-minute slot;
-        type-1 manual scans are all kept (they are far fewer).
+    - Only imports the last 90 days (older rows are silently skipped).
+    - Type-0 CGM readings are kept at 15-minute resolution (one per slot);
+      type-1 manual scans are all kept.
 
     CSV format (skip first 2 rows):
       Col 2: Device Timestamp (DD-MM-YYYY HH:MM)
@@ -187,7 +202,7 @@ async def import_glucose_csv(
 
     # ── Parse + filter + downsample in memory ────────────────────
     candidates: list[dict] = []
-    seen_buckets: set[datetime] = set()  # for type-0 30-min dedup
+    seen_buckets: set[datetime] = set()  # for type-0 15-min dedup
     too_old_count = 0  # rows outside 90-day window → count as skipped
 
     for row in data_rows:
@@ -228,10 +243,10 @@ async def import_glucose_csv(
             too_old_count += 1
             continue
 
-        # ── Downsample type-0: one reading per 30-min slot ───────
+        # ── Deduplicate type-0: one reading per 15-min slot ─────
         if record_type == 0:
             bucket = measured_at.replace(
-                minute=(measured_at.minute // 30) * 30,
+                minute=(measured_at.minute // 15) * 15,
                 second=0,
                 microsecond=0,
             )

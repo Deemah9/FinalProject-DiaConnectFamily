@@ -336,7 +336,7 @@ const resources = {
       importCSVTitle: "Add Glucose Reading",
       importCSVOption: "Import from CSV File",
       importCSVOptionSub: "FreeStyle LibreLink export",
-      importCSVInfo: "Last 90 days only · CGM readings every 30 min",
+      importCSVInfo: "Last 90 days only · CGM readings every 15 min",
       manualEntry: "Enter Manually",
       manualEntrySub: "Type a single reading",
       importing: "Importing...",
@@ -347,6 +347,27 @@ const resources = {
       importAlreadyMessage: "All readings in this file already exist in your records.",
       importFailed: "Import failed. Please try again.",
       importNoFile: "No file selected",
+
+      // Estimated A1C
+      estimatedA1C: "Estimated A1C",
+      viewA1C: "View Estimated A1C",
+      a1cTitle: "Estimated A1C (eA1C)",
+      a1cSubtitle: "Based on your last 90 days of readings",
+      a1cResult: "Your Estimated A1C",
+      a1cAvgGlucose: "Average Glucose",
+      a1cDaysCovered: "Days of Data",
+      a1cReadingsCount: "Readings Used",
+      a1cUnreliable: "Needs at least 14 days of data for a reliable estimate",
+      a1cDisclaimer: "This is an estimate only. It is not a substitute for a lab test.",
+      a1cNormal: "Normal",
+      a1cPrediabetes: "Prediabetes",
+      a1cDiabetes: "Diabetes",
+      a1cNoData: "No readings found in the last 90 days",
+      tirVeryLow: "Very Low <54",
+      tirLow: "Low 54–70",
+      tirInRange: "In Range 70–180",
+      tirHigh: "High 180–250",
+      tirVeryHigh: "Very High >250",
 
       // Add Glucose
       addGlucoseDesc: "Add a new glucose reading manually",
@@ -441,6 +462,57 @@ const resources = {
       deleteSleepConfirm: "Are you sure you want to delete this sleep log?",
       delete: "Delete",
       back: "Back",
+
+      saveFailed: "Failed to save",
+
+      // Health Info section
+      healthInfo: "Health Info",
+      chronicConditions: "Chronic Conditions",
+      basalInsulinLabel: "Basal (Slow) Insulin",
+      insulinSensitivity: "Insulin Sensitivity Factor (ISF)",
+      isfUnit: "mg/dL per unit",
+      basalDose: "Dose (units)",
+      basalTime: "Injection Time (e.g. 22:00)",
+      noConditionsSelected: "None",
+      notConfigured: "Not configured",
+      removeBasalInsulin: "Remove",
+
+      // Condition names
+      hypertension: "Hypertension",
+      kidney_disease: "Kidney Disease",
+      heart_disease: "Heart Disease",
+      dyslipidemia: "Dyslipidemia",
+      obesity: "Obesity",
+      neuropathy: "Neuropathy",
+
+      // Insulin type names (brand names)
+      insulin_humalog: "Humalog",
+      insulin_novorapid: "NovoRapid",
+      insulin_apidra: "Apidra",
+      insulin_fiasp: "Fiasp",
+      insulin_lantus: "Lantus",
+      insulin_tresiba: "Tresiba",
+      insulin_toujeo: "Toujeo",
+      insulin_basaglar: "Basaglar",
+      insulin_levemir: "Levemir",
+
+      // Add Fast Insulin screen
+      addFastInsulin: "Add Insulin Dose",
+      logFastInsulin: "Log a fast insulin dose",
+      fastInsulinType: "Insulin Type",
+      fastInsulinUnits: "Dose (units)",
+      fastInsulinUnitsPlaceholder: "e.g. 4",
+      saveFastInsulin: "Save Dose",
+      selectInsulinType: "Select insulin type",
+      invalidInsulinUnits: "Please enter a valid dose (0.5–100)",
+      invalidInsulinType: "Please select an insulin type",
+
+      // Daily log insulin
+      insulinSection: "INSULIN",
+      insulinDose: "Insulin",
+      insulinUnit: "u",
+      deleteInsulinDose: "Delete Dose",
+      deleteInsulinDoseConfirm: "Are you sure you want to delete this insulin dose?",
 
       // Errors
       errors: {
@@ -577,7 +649,7 @@ const resources = {
       linkedSuccess: "تم الاقتران بنجاح!",
       linkedTo: "أنت الآن مرتبط بـ {{name}}",
       linkedNote: "يمكنك الآن متابعة قراءات الجلوكوز الخاصة به.",
-      goHome: "الذهاب للرئيسية",
+      goHome: "الصفحة الرئيسية",
       noPatients: "لا يوجد مرضى مرتبطين بعد",
       noPatientsSubtext: "اطلب من المريض مشاركة رمز الاقتران",
       linkedSince: "مرتبط منذ {{date}}",
@@ -786,7 +858,7 @@ const resources = {
       importCSVTitle: "إضافة قراءة سكر",
       importCSVOption: "استيراد من ملف CSV",
       importCSVOptionSub: "تصدير FreeStyle LibreLink",
-      importCSVInfo: "آخر 90 يوم فقط · قراءة CGM كل 30 دقيقة",
+      importCSVInfo: "آخر 90 يوم فقط · قراءة CGM كل 15 دقيقة",
       manualEntry: "إدخال يدوي",
       manualEntrySub: "إدخال قراءة واحدة",
       importing: "جارٍ الاستيراد...",
@@ -797,6 +869,27 @@ const resources = {
       importAlreadyMessage: "جميع القراءات في هذا الملف موجودة بالفعل في سجلاتك.",
       importFailed: "فشل الاستيراد. حاول مجدداً.",
       importNoFile: "لم يتم اختيار ملف",
+
+      // Estimated A1C
+      estimatedA1C: "مخزون السكر المقدر A1C",
+      viewA1C: "عرض مخزون السكر المقدر A1C",
+      a1cTitle: "مخزون السكر المقدر",
+      a1cSubtitle: "بناءً على قراءاتك في آخر 90 يوماً",
+      a1cResult: "مخزون السكر التقديري",
+      a1cAvgGlucose: "متوسط السكر",
+      a1cDaysCovered: "أيام البيانات",
+      a1cReadingsCount: "عدد القراءات",
+      a1cUnreliable: "يحتاج 14 يوماً على الأقل من البيانات للحصول على تقدير موثوق",
+      a1cDisclaimer: "هذا تقدير فقط. لا يُغني عن الفحص المخبري.",
+      a1cNormal: "طبيعي",
+      a1cPrediabetes: "ما قبل السكري",
+      a1cDiabetes: "سكري",
+      a1cNoData: "لا توجد قراءات في آخر 90 يوماً",
+      tirVeryLow: "منخفض جداً <54",
+      tirLow: "منخفض 54–70",
+      tirInRange: "في النطاق 70–180",
+      tirHigh: "مرتفع 180–250",
+      tirVeryHigh: "مرتفع جداً >250",
 
       // Add Glucose
       addGlucoseDesc: "إضافة قراءة سكر يدوياً",
@@ -891,6 +984,57 @@ const resources = {
       deleteSleepConfirm: "هل أنت متأكد من حذف سجل النوم هذا؟",
       delete: "حذف",
       back: "رجوع",
+
+      saveFailed: "فشل الحفظ",
+
+      // Health Info section
+      healthInfo: "المعلومات الصحية",
+      chronicConditions: "الأمراض المزمنة",
+      basalInsulinLabel: "الأنسولين البطيء",
+      insulinSensitivity: "معامل حساسية الأنسولين",
+      isfUnit: "ملغ/ديسيلتر لكل وحدة",
+      basalDose: "الجرعة (وحدات)",
+      basalTime: "وقت الحقن (مثال: 22:00)",
+      noConditionsSelected: "لا شيء",
+      notConfigured: "غير محدد",
+      removeBasalInsulin: "حذف",
+
+      // Condition names
+      hypertension: "ضغط الدم المرتفع",
+      kidney_disease: "أمراض الكلى",
+      heart_disease: "أمراض القلب",
+      dyslipidemia: "اضطراب الدهون",
+      obesity: "السمنة",
+      neuropathy: "اعتلال الأعصاب",
+
+      // Insulin type names (brand names - same across languages)
+      insulin_humalog: "Humalog",
+      insulin_novorapid: "NovoRapid",
+      insulin_apidra: "Apidra",
+      insulin_fiasp: "Fiasp",
+      insulin_lantus: "Lantus",
+      insulin_tresiba: "Tresiba",
+      insulin_toujeo: "Toujeo",
+      insulin_basaglar: "Basaglar",
+      insulin_levemir: "Levemir",
+
+      // Add Fast Insulin screen
+      addFastInsulin: "إضافة جرعة أنسولين",
+      logFastInsulin: "تسجيل جرعة أنسولين سريع",
+      fastInsulinType: "نوع الأنسولين",
+      fastInsulinUnits: "الجرعة (وحدات)",
+      fastInsulinUnitsPlaceholder: "مثال: 4",
+      saveFastInsulin: "حفظ الجرعة",
+      selectInsulinType: "اختر نوع الأنسولين",
+      invalidInsulinUnits: "يرجى إدخال جرعة صحيحة (0.5–100)",
+      invalidInsulinType: "يرجى اختيار نوع الأنسولين",
+
+      // Daily log insulin
+      insulinSection: "الأنسولين",
+      insulinDose: "أنسولين",
+      insulinUnit: "و",
+      deleteInsulinDose: "حذف الجرعة",
+      deleteInsulinDoseConfirm: "هل أنت متأكد من حذف هذه الجرعة؟",
 
       // Errors
       errors: {
@@ -1236,7 +1380,7 @@ const resources = {
       importCSVTitle: "הוסף קריאת גלוקוז",
       importCSVOption: "ייבוא מקובץ CSV",
       importCSVOptionSub: "ייצוא FreeStyle LibreLink",
-      importCSVInfo: "90 ימים אחרונים בלבד · קריאת CGM כל 30 דקות",
+      importCSVInfo: "90 ימים אחרונים בלבד · קריאת CGM כל 15 דקות",
       manualEntry: "הזנה ידנית",
       manualEntrySub: "הזן קריאה בודדת",
       importing: "מייבא...",
@@ -1247,6 +1391,27 @@ const resources = {
       importAlreadyMessage: "כל הקריאות בקובץ זה כבר קיימות ברשומות שלך.",
       importFailed: "הייבוא נכשל. נסה שוב.",
       importNoFile: "לא נבחר קובץ",
+
+      // Estimated A1C
+      estimatedA1C: "A1C משוער",
+      viewA1C: "הצג A1C משוער",
+      a1cTitle: "A1C משוער (eA1C)",
+      a1cSubtitle: "על בסיס הקריאות שלך מ-90 הימים האחרונים",
+      a1cResult: "ה-A1C המשוער שלך",
+      a1cAvgGlucose: "ממוצע גלוקוז",
+      a1cDaysCovered: "ימי נתונים",
+      a1cReadingsCount: "קריאות בשימוש",
+      a1cUnreliable: "נדרשים לפחות 14 ימי נתונים לאומדן מהימן",
+      a1cDisclaimer: "זהו אומדן בלבד. אינו מחליף בדיקת מעבדה.",
+      a1cNormal: "תקין",
+      a1cPrediabetes: "טרום-סוכרת",
+      a1cDiabetes: "סוכרת",
+      a1cNoData: "לא נמצאו קריאות ב-90 הימים האחרונים",
+      tirVeryLow: "נמוך מאוד <54",
+      tirLow: "נמוך 54–70",
+      tirInRange: "בטווח 70–180",
+      tirHigh: "גבוה 180–250",
+      tirVeryHigh: "גבוה מאוד >250",
 
       // Add Glucose
       addGlucoseDesc: "הוסף קריאת גלוקוז חדשה ידנית",
@@ -1341,6 +1506,57 @@ const resources = {
       deleteSleepConfirm: "האם אתה בטוח שברצונך למחוק יומן שינה זה?",
       delete: "מחק",
       back: "חזרה",
+
+      saveFailed: "שמירה נכשלה",
+
+      // Health Info section
+      healthInfo: "מידע בריאות",
+      chronicConditions: "מחלות כרוניות",
+      basalInsulinLabel: "אינסולין בזאלי (איטי)",
+      insulinSensitivity: "גורם רגישות לאינסולין (ISF)",
+      isfUnit: "מ\"ג/ד\"ל לכל יחידה",
+      basalDose: "מינון (יחידות)",
+      basalTime: "שעת הזרקה (לדוגמה: 22:00)",
+      noConditionsSelected: "אין",
+      notConfigured: "לא הוגדר",
+      removeBasalInsulin: "הסר",
+
+      // Condition names
+      hypertension: "יתר לחץ דם",
+      kidney_disease: "מחלת כליות",
+      heart_disease: "מחלת לב",
+      dyslipidemia: "דיסליפידמיה",
+      obesity: "השמנת יתר",
+      neuropathy: "נוירופתיה",
+
+      // Insulin type names (brand names - same across languages)
+      insulin_humalog: "Humalog",
+      insulin_novorapid: "NovoRapid",
+      insulin_apidra: "Apidra",
+      insulin_fiasp: "Fiasp",
+      insulin_lantus: "Lantus",
+      insulin_tresiba: "Tresiba",
+      insulin_toujeo: "Toujeo",
+      insulin_basaglar: "Basaglar",
+      insulin_levemir: "Levemir",
+
+      // Add Fast Insulin screen
+      addFastInsulin: "הוסף מנת אינסולין",
+      logFastInsulin: "תעד מנת אינסולין מהיר",
+      fastInsulinType: "סוג האינסולין",
+      fastInsulinUnits: "מינון (יחידות)",
+      fastInsulinUnitsPlaceholder: "לדוגמה: 4",
+      saveFastInsulin: "שמור מנה",
+      selectInsulinType: "בחר סוג אינסולין",
+      invalidInsulinUnits: "נא להזין מינון תקין (0.5–100)",
+      invalidInsulinType: "נא לבחור סוג אינסולין",
+
+      // Daily log insulin
+      insulinSection: "אינסולין",
+      insulinDose: "אינסולין",
+      insulinUnit: "י",
+      deleteInsulinDose: "מחק מנה",
+      deleteInsulinDoseConfirm: "האם אתה בטוח שברצונך למחוק מנה זו?",
 
       // Errors
       errors: {

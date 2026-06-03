@@ -25,6 +25,7 @@ from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from firebase_admin import firestore
 from app.services.family_service import send_prediction_alert, send_stale_pattern_alert
+from app.services.health_service import health_service
 
 load_dotenv()
 
@@ -654,6 +655,57 @@ class PredictionService:
         return None
 
     # ==========================================
+    # Insulin Effect
+    # ==========================================
+
+    @staticmethod
+    def _insulin_decay(hours_ago: float) -> float:
+        """
+        Smooth non-linear decay curve for fast-acting insulin.
+        Avoids step-function jumps at hour boundaries.
+          0–1 h : 50% → 100% (linear rise to peak)
+          1–2 h : 100%        (peak)
+          2–4 h : 100% → 50% (linear tail-off)
+          >4 h  : 0%          (cleared)
+        """
+        if hours_ago < 0:
+            return 0.0
+        if hours_ago < 1.0:
+            return 0.5 + 0.5 * hours_ago
+        if hours_ago < 2.0:
+            return 1.0
+        if hours_ago < 4.0:
+            return 1.0 - 0.5 * (hours_ago - 2.0) / 2.0
+        return 0.0
+
+    def _compute_insulin_effect(self, user_id: str, isf: float) -> float:
+        """
+        Estimate the glucose-lowering effect of bolus insulin logged in the
+        last 4 hours, modelled as a non-linear time-dependent function.
+
+        Each dose is clamped to 100 mg/dL individually before summing,
+        and the total is clamped to 150 mg/dL as a physiological safety cap.
+        """
+        now   = datetime.now(timezone.utc)
+        doses = health_service.get_doses_last_hours(user_id=user_id, hours=4)
+        total = 0.0
+        for dose in doses:
+            ts = dose.get("timestamp")
+            if ts is None:
+                continue
+            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            hours_ago   = (now - ts).total_seconds() / 3600.0
+            decay       = self._insulin_decay(hours_ago)
+            dose_effect = min(dose["units"] * isf * decay, 100.0)  # per-dose cap
+            total      += dose_effect
+
+        effect = min(total, 150.0)
+        if effect > 0:
+            print(f"[Insulin] effect={effect:.1f} mg/dL (ISF={isf}, {len(doses)} doses)")
+        return effect
+
+    # ==========================================
     # Elapsed Time String
     # ==========================================
 
@@ -711,6 +763,7 @@ class PredictionService:
         comparison_to_pattern: str | None = None,
         pattern_risk_level:    str | None = None,
         meal_ctx:              dict | None = None,
+        health_ctx:            dict | None = None,
     ) -> dict | None:
         if not GROQ_API_KEY:
             return None
@@ -755,15 +808,37 @@ Prediction context:
         elif not lifestyle_ctx or lifestyle_ctx.get("carbs_2h", 0) == 0:
             meal_line = "\n- No recent meal detected (likely fasting)"
 
+        health_lines = ""
+        if health_ctx:
+            conditions = health_ctx.get("conditions", [])
+            basal      = health_ctx.get("basal_insulin")
+            bolus_now  = health_ctx.get("insulin_effect", 0)
+            if conditions:
+                health_lines += f"\n- Chronic conditions: {', '.join(conditions)}"
+            if basal:
+                health_lines += f"\n- Basal insulin: {basal.get('type', '')} {basal.get('dose', '')}u at {basal.get('time', '')}"
+            if bolus_now > 0:
+                health_lines += f"\n- Active fast insulin effect: ~{bolus_now:.0f} mg/dL drop expected"
+
+        condition_rules = ""
+        if health_ctx and health_ctx.get("conditions"):
+            conds = health_ctx["conditions"]
+            if "kidney_disease" in conds:
+                condition_rules += "\nKIDNEY RULE: Patient has kidney disease — do NOT advise drinking excessive water. Recommend moderate fluid intake only."
+            if "heart_disease" in conds:
+                condition_rules += "\nHEART RULE: Patient has heart disease — avoid recommending intense physical activity."
+            if "hypertension" in conds:
+                condition_rules += "\nBP RULE: Patient has hypertension — mention avoiding salty foods if relevant."
+
         prompt = f"""You are a medical assistant specialized in Type 2 diabetes patients.
-{lang_instruction}{alert_rule}
+{lang_instruction}{alert_rule}{condition_rules}
 
 Patient data:
 - Name: {patient_name}
 - Current glucose: {current} mg/dL
 - Trend: {trend}
 - Predicted glucose in {hours} hour(s): {predicted} mg/dL
-- Alert type: {alert_type or 'none'}{meal_line}{ctx_lines}{pattern_ctx}
+- Alert type: {alert_type or 'none'}{meal_line}{health_lines}{ctx_lines}{pattern_ctx}
 
 Write two short pieces of advice (1-2 sentences each):
 1. For the patient: what should they do right now?
@@ -1053,6 +1128,27 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             meal_ctx=meal_ctx,
         )
 
+        # Insulin effect: subtract estimated bolus impact from prediction
+        health_info    = health_service.get_health_info(user_id)
+        isf            = health_info.insulin_sensitivity
+        insulin_effect = self._compute_insulin_effect(user_id, isf)
+        if insulin_effect > 0:
+            # Trend-aware factor: scale insulin effect based on natural glucose direction
+            # before insulin is applied (i.e. the model's "unadjusted" trend).
+            # Falling trend → conservative (sugar already dropping, avoid over-correction)
+            # Rising trend  → assertive  (insulin working against the rise)
+            pre_insulin_trend = self._calculate_trend(current, predicted)
+            if pre_insulin_trend == "falling":
+                trend_factor = 0.85
+            elif pre_insulin_trend == "rising":
+                trend_factor = 1.15
+            else:
+                trend_factor = 1.0
+            adjusted_effect = insulin_effect * trend_factor
+            predicted = float(np.clip(predicted - adjusted_effect, GLUCOSE_MIN, GLUCOSE_MAX))
+            print(f"[Insulin] trend={pre_insulin_trend} factor={trend_factor} "
+                  f"adjusted={adjusted_effect:.1f} mg/dL")
+
         trend              = self._calculate_trend(current, predicted)
         prob_up, prob_down = self._calculate_probability(current, predicted, sigma)
         probability        = (
@@ -1079,6 +1175,13 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             "activity_level": profile["activity_level"],
         }
 
+        # Build health context for AI advice
+        health_ctx = {
+            "conditions":     health_info.conditions,
+            "basal_insulin":  health_info.basal_insulin.model_dump() if health_info.basal_insulin else None,
+            "insulin_effect": insulin_effect,
+        }
+
         # Always generate advice (not only on alert)
         advice = self._get_ai_advice(
             patient_name=patient_name,
@@ -1093,6 +1196,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             comparison_to_pattern=comparison,
             pattern_risk_level=pattern_risk_level,
             meal_ctx=meal_ctx,
+            health_ctx=health_ctx,
         )
 
         # Family notification (rate-limited)

@@ -317,6 +317,70 @@ class GlucoseService:
             "days": days,
         }
 
+    # ==========================================
+    # Estimated A1C
+    # ==========================================
+
+    def get_estimated_a1c(self, user_id: str) -> dict:
+        """
+        Estimate HbA1c from the last 90 days of glucose readings.
+        Formula: eA1C = (avg_mg_dL + 46.7) / 28.7  (Nathan et al., 2008)
+        Requires >= 14 days of data to be considered reliable.
+        Also returns Time in Range breakdown per ADA targets.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=90)
+
+        docs = self.db.collection(self.collection) \
+            .where("userId", "==", user_id) \
+            .stream()
+
+        entries: list[tuple] = []
+        for doc in docs:
+            data = doc.to_dict()
+            measured = data.get("measuredAt")
+            value = data.get("value")
+            if measured is None or value is None:
+                continue
+            if hasattr(measured, "tzinfo") and measured.tzinfo is None:
+                measured = measured.replace(tzinfo=timezone.utc)
+            if measured >= since:
+                entries.append((measured, int(value)))
+
+        if not entries:
+            return {
+                "estimated_a1c": None,
+                "average_glucose": None,
+                "readings_count": 0,
+                "days_covered": 0,
+                "is_reliable": False,
+                "time_in_range": None,
+            }
+
+        values = [v for _, v in entries]
+        timestamps = [ts for ts, _ in entries]
+        avg = sum(values) / len(values)
+        e_a1c = round((avg + 46.7) / 28.7, 1)
+
+        days_covered = max(1, (max(timestamps) - min(timestamps)).days + 1)
+
+        n = len(values)
+        tir = {
+            "very_low":  round(sum(1 for v in values if v < 54) / n * 100, 1),
+            "low":       round(sum(1 for v in values if 54 <= v < 70) / n * 100, 1),
+            "in_range":  round(sum(1 for v in values if 70 <= v <= 180) / n * 100, 1),
+            "high":      round(sum(1 for v in values if 180 < v <= 250) / n * 100, 1),
+            "very_high": round(sum(1 for v in values if v > 250) / n * 100, 1),
+        }
+
+        return {
+            "estimated_a1c": e_a1c,
+            "average_glucose": round(avg, 1),
+            "readings_count": n,
+            "days_covered": days_covered,
+            "is_reliable": days_covered >= 14,
+            "time_in_range": tir,
+        }
+
 
 # Single instance to be used across the app
 glucose_service = GlucoseService()

@@ -16,6 +16,7 @@ import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "../context/AuthContext";
+import { DrawerProvider } from "../context/DrawerContext";
 
 // Show notifications while the app is in the foreground
 Notifications.setNotificationHandler({
@@ -58,10 +59,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <I18nextProvider i18n={i18n}>
         <AuthProvider>
-          <ThemeProvider value={theme}>
-            <Stack screenOptions={{ headerShown: false }} />
-            <StatusBar style="auto" />
-          </ThemeProvider>
+          <DrawerProvider>
+            <ThemeProvider value={theme}>
+              <Stack screenOptions={{ headerShown: false }} />
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </DrawerProvider>
         </AuthProvider>
       </I18nextProvider>
     </GestureHandlerRootView>
