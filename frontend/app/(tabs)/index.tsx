@@ -90,6 +90,7 @@ export default function HomeScreen() {
   const [importing, setImporting] = useState(false);
   const pickingRef = useRef(false);
   const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
+  const [importDialog, setImportDialog] = useState<{ title: string; message: string; onClose?: () => void } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
@@ -308,36 +309,34 @@ export default function HomeScreen() {
         asset.name,
         asset.mimeType ?? "text/csv",
       );
-      const freshReadings = await loadGlucose();
-      setShowReminder(false); // don't show stale reminder right after an import
-      loadPrediction();
 
-      // Navigate chart to the date of the most recent imported reading
-      if (freshReadings.length > 0) {
-        const latestTs = freshReadings
-          .map((r: any) =>
-            new Date(
-              r?.measuredAt || r?.timestamp || r?.createdAt || 0,
-            ).getTime(),
-          )
-          .filter((t: number) => t > 0)
-          .sort((a: number, b: number) => b - a)[0];
-        if (latestTs > 0) {
-          setSelectedDateStr(toLocalDateStr(new Date(latestTs)));
-        }
-      }
-
+      // Show dialog immediately — doesn't rely on window.alert (works on web)
       if (data.imported_count === 0 && data.skipped_count > 0) {
-        Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
+        setImportDialog({ title: t("importAlreadyTitle"), message: t("importAlreadyMessage") });
       } else {
-        Alert.alert(
-          t("importSuccessTitle"),
-          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-          [{ text: t("close"), onPress: () => router.push("/glucose-history" as any) }],
-        );
+        setImportDialog({
+          title: t("importSuccessTitle"),
+          message: `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          onClose: () => router.push("/glucose-history" as any),
+        });
       }
+
+      // Refresh data in background after showing dialog
+      loadGlucose().then((freshReadings) => {
+        setShowReminder(false);
+        if (freshReadings.length > 0) {
+          const latestTs = freshReadings
+            .map((r: any) =>
+              new Date(r?.measuredAt || r?.timestamp || r?.createdAt || 0).getTime(),
+            )
+            .filter((t: number) => t > 0)
+            .sort((a: number, b: number) => b - a)[0];
+          if (latestTs > 0) setSelectedDateStr(toLocalDateStr(new Date(latestTs)));
+        }
+      });
+      loadPrediction();
     } catch (e: any) {
-      Alert.alert(t("importCSV"), e?.message || t("importFailed"));
+      setImportDialog({ title: t("importCSV"), message: e?.message || t("importFailed") });
     } finally {
       setImporting(false);
       pickingRef.current = false;
@@ -1090,6 +1089,29 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
+      {/* Import result dialog — uses RN Modal (works on web, no window.alert needed) */}
+      <Modal
+        visible={!!importDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImportDialog(null)}
+      >
+        <View style={styles.dialogBackdrop}>
+          <View style={styles.dialogBox}>
+            <Text style={styles.dialogTitle}>{importDialog?.title}</Text>
+            <Text style={styles.dialogMessage}>{importDialog?.message}</Text>
+            <Pressable
+              style={styles.dialogBtn}
+              onPress={() => {
+                setImportDialog(null);
+                importDialog?.onClose?.();
+              }}
+            >
+              <Text style={styles.dialogBtnText}>{t("close")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
     </LinearGradient>
   );
@@ -1099,6 +1121,51 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#EBF3FA",
+  },
+
+  dialogBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  dialogBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  dialogTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#0B1A2E",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  dialogMessage: {
+    fontSize: 14,
+    color: "#4A6480",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  dialogBtn: {
+    backgroundColor: "#1A6FA8",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  dialogBtnText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
   },
 
   importToast: {
