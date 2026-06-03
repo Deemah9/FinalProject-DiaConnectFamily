@@ -4,7 +4,9 @@ import {
   getGlucosePrediction,
   getGlucoseReadings,
   getProfile,
+  getUnreadCount,
   importGlucoseCSV,
+  registerPushToken,
 } from "@/services/api";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
@@ -33,6 +35,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as Notifications from "expo-notifications";
 import { Calendar } from "react-native-calendars";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
@@ -41,6 +44,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const { user: authUser } = useAuth();
   const isFirstFocus = useRef(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Redirect family members to their own home screen
   useEffect(() => {
@@ -49,6 +53,27 @@ export default function HomeScreen() {
     }
   }, [authUser?.role]);
 
+  // Register push token for patient notifications
+  useEffect(() => {
+    const registerPush = async () => {
+      try {
+        const { status: existing } = await Notifications.getPermissionsAsync();
+        let finalStatus = existing;
+        if (existing !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== "granted") return;
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
+        });
+        await registerPushToken(tokenData.data);
+      } catch (e) {
+        console.log("[Push] Error:", e);
+      }
+    };
+    registerPush();
+  }, []);
   const [user, setUser] = useState<any>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [errorUser, setErrorUser] = useState("");
@@ -75,6 +100,7 @@ export default function HomeScreen() {
     useCallback(() => {
       loadUser();
       loadGlucose();
+      getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
 
       // Run on first open OR when new data was saved from another screen
       if (isFirstFocus.current || checkAndClearPredictionStale()) {
@@ -321,19 +347,6 @@ export default function HomeScreen() {
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
       <AppHeader left={null} />
-      {!!importToast && (
-        <View style={[styles.importToast, importToast.type === "success" && styles.importToastSuccess, importToast.type === "error" && styles.importToastError]}>
-          <Ionicons
-            name={importToast.type === "success" ? "checkmark-circle" : importToast.type === "error" ? "alert-circle" : "information-circle"}
-            size={18}
-            color="#FFFFFF"
-          />
-          <Text style={styles.importToastText}>{importToast.text}</Text>
-          <Pressable onPress={() => setImportToast(null)}>
-            <Ionicons name="close" size={18} color="#FFFFFF" />
-          </Pressable>
-        </View>
-      )}
       <ScrollView contentContainerStyle={styles.content}>
         {/* Welcome */}
         <View style={styles.hero}>

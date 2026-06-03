@@ -8,7 +8,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import AppHeader from "@/src/components/AppHeader";
-import { getLinkedPatients, getProfile, registerPushToken } from "@/services/api";
+import { getLinkedPatients, getProfile, getUnreadCount, registerPushToken } from "@/services/api";
 import * as Notifications from "expo-notifications";
 
 export default function FamilyHomeScreen() {
@@ -17,6 +17,7 @@ export default function FamilyHomeScreen() {
   const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     registerForPushNotifications();
@@ -25,6 +26,7 @@ export default function FamilyHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
     }, [])
   );
 
