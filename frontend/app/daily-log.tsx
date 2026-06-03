@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
 import { getLogsByDate, deleteMeal, deleteActivity, deleteSleep } from "@/services/api";
+import { markPredictionStale } from "@/services/predictionFlag";
 
 const toLocalDateStr = (d: Date) => {
   const y = d.getFullYear();
@@ -112,6 +113,7 @@ export default function DailyLogScreen() {
       if (type === "meal") await deleteMeal(id);
       else if (type === "activity") await deleteActivity(id);
       else await deleteSleep(id);
+      markPredictionStale();
       await loadDailyLogs(selectedDate);
     } catch (e: any) {
       setErrorMsg(e?.message || "Failed to delete");
@@ -133,9 +135,9 @@ export default function DailyLogScreen() {
     : t("deleteSleepConfirm");
 
   const FAB_ACTIONS = [
-    { label: t("addMeal"),     icon: "restaurant-outline", color: MEAL_COLOR,  bg: MEAL_BG,  route: "/add-meal"      },
-    { label: t("addActivity"), icon: "walk-outline",       color: ACT_COLOR,   bg: ACT_BG,   route: "/add-activity"  },
-    { label: t("addSleep"),    icon: "moon-outline",       color: SLEEP_COLOR, bg: SLEEP_BG, route: "/add-sleep"     },
+    { label: t("addMeal"),     icon: "restaurant-outline", color: MEAL_COLOR,  bg: MEAL_BG,  route: "/add-meal"     },
+    { label: t("addActivity"), icon: "walk-outline",       color: ACT_COLOR,   bg: ACT_BG,   route: "/add-activity" },
+    { label: t("addSleep"),    icon: "moon-outline",       color: SLEEP_COLOR, bg: SLEEP_BG, route: "/add-sleep"    },
   ];
 
   return (
@@ -224,17 +226,17 @@ export default function DailyLogScreen() {
             </View>
           ) : (
             timeline.map((item, idx) => {
-              const isMeal  = item._type === "meal";
-              const isAct   = item._type === "activity";
-              const color   = isMeal ? MEAL_COLOR : isAct ? ACT_COLOR : SLEEP_COLOR;
-              const bg      = isMeal ? MEAL_BG    : isAct ? ACT_BG    : SLEEP_BG;
-              const icon    = isMeal ? "restaurant-outline" : isAct ? "walk-outline" : "moon-outline";
-              const title   = isMeal
+              const isMeal = item._type === "meal";
+              const isAct  = item._type === "activity";
+              const color  = isMeal ? MEAL_COLOR  : isAct ? ACT_COLOR  : SLEEP_COLOR;
+              const bg     = isMeal ? MEAL_BG     : isAct ? ACT_BG     : SLEEP_BG;
+              const icon   = isMeal ? "restaurant-outline" : isAct ? "walk-outline" : "moon-outline";
+              const title  = isMeal
                 ? (item?.foods || item?.name || t("meal"))
                 : isAct
                 ? (item?.type || t("activity"))
                 : `${item?.sleep_hours || 0} ${t("hoursUnit")}`;
-              const sub     = isMeal
+              const sub    = isMeal
                 ? `${item?.meal_type ? t(item.meal_type) + " · " : ""}${item?.carbs || 0} ${t("carbsUnit")}`
                 : isAct
                 ? `${item?.duration_minutes || 0} ${t("minUnit")}`

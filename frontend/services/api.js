@@ -172,6 +172,8 @@ export const importGlucoseCSV = async (filePayload, fileName, mimeType) => {
 export const getGlucosePrediction = (hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict?hours=${hours}&lang=${lang}`);
 
+export const getEstimatedA1C = () => request("GET", "/glucose/a1c");
+
 export const getPatientPrediction = (patientId, hours = 1, lang = "ar") =>
   request("GET", `/glucose/predict/family?patient_id=${patientId}&hours=${hours}&lang=${lang}`);
 
@@ -260,3 +262,12 @@ export const markNotificationRead = (id) => request("PATCH", `/notifications/${i
 export const deleteNotification = (id) => request("DELETE", `/notifications/${id}`);
 export const deleteAllNotifications = () => request("DELETE", "/notifications/clear-all");
 
+// ==========================================
+// Health Info + Insulin APIs
+// ==========================================
+
+export const getHealthInfo = () => request("GET", "/health/info");
+export const updateHealthInfo = (data) => request("PUT", "/health/info", data);
+export const addInsulinDose = (data) => request("POST", "/health/insulin", data);
+export const getInsulinToday = () => request("GET", "/health/insulin/today");
+export const deleteInsulinDose = (id) => request("DELETE", `/health/insulin/${id}`);

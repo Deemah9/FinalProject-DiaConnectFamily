@@ -16,9 +16,7 @@ import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientAlerts, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, markAllAlertsRead, updateProfile, viewWithCode } from "@/services/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { applyRtlIfNeeded } from "@/src/i18n/rtl";
+import { getPatientAlerts, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, markAllAlertsRead, viewWithCode } from "@/services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -53,8 +51,6 @@ export default function FamilyPatientGlucoseScreen() {
   }>();
 
   const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "alerts">("glucose");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
   const [readings, setReadings] = useState<any[]>([]);
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -308,82 +304,31 @@ export default function FamilyPatientGlucoseScreen() {
     ? { bg: "#FFF7ED", border: "#FED7AA", color: "#92400E", icon: "alert-circle",       iconClr: "#E07B00" }
     : { bg: "#EBF3FA", border: "#B8D0E8", color: "#1A4A6B", icon: "information-circle", iconClr: "#1A6FA8" };
 
+  const tabBar = !familyCode ? (
+    <View style={styles.headerTabs}>
+      {([
+        { key: "glucose",  icon: "pulse-outline",         label: "glucoseTab" },
+        { key: "history",  icon: "time-outline",          label: "readingHistory" },
+        { key: "logs",     icon: "receipt-outline",       label: "dailyLogsTab" },
+        { key: "alerts",   icon: "notifications-outline", label: "glucoseAlerts" },
+      ] as const).map(({ key, icon, label }) => (
+        <Pressable
+          key={key}
+          style={[styles.headerTab, activeTab === key && styles.headerTabActive]}
+          onPress={() => setActiveTab(key)}
+        >
+          <Ionicons name={icon} size={16} color={activeTab === key ? "#FFFFFF" : "rgba(255,255,255,0.6)"} />
+          <Text style={[styles.headerTabText, activeTab === key && styles.headerTabTextActive]}>
+            {t(label)}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  ) : undefined;
+
   return (
     <View style={styles.container}>
-      <AppHeader
-        right={
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable style={styles.topBarBtn} onPress={() => setLangOpen((v) => !v)}>
-              <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
-            </Pressable>
-            {!familyCode && (
-              <Pressable style={styles.topBarBtn} onPress={() => setMenuOpen(true)}>
-                <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
-              </Pressable>
-            )}
-          </View>
-        }
-      />
-
-      {/* Dropdown Menu */}
-      {menuOpen && (
-        <Modal visible={menuOpen} transparent animationType="fade">
-          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-            <View style={styles.menuDropdown}>
-              {([
-                { key: "glucose",  icon: "pulse-outline",         label: "glucoseTab" },
-                { key: "history",  icon: "time-outline",          label: "readingHistory" },
-                { key: "logs",     icon: "receipt-outline",       label: "dailyLogsTab" },
-                { key: "alerts",   icon: "notifications-outline", label: "glucoseAlerts" },
-              ] as const).map(({ key, icon, label }, idx, arr) => (
-                <Pressable
-                  key={key}
-                  style={[styles.menuItem, activeTab === key && styles.menuItemActive, idx < arr.length - 1 && styles.menuItemBorder]}
-                  onPress={() => { setActiveTab(key); setMenuOpen(false); }}
-                >
-                  <Ionicons name={icon} size={18} color={activeTab === key ? "#1A6FA8" : "#4A6480"} />
-                  <Text style={[styles.menuItemText, activeTab === key && styles.menuItemTextActive]}>
-                    {t(label)}
-                  </Text>
-                  {activeTab === key && <Ionicons name="checkmark" size={16} color="#1A6FA8" />}
-                </Pressable>
-              ))}
-            </View>
-          </Pressable>
-        </Modal>
-      )}
-
-      {/* Language Modal */}
-      <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
-        <Pressable style={{ flex: 1 }} onPress={() => setLangOpen(false)}>
-          <View style={styles.langDropdown}>
-            {([
-              { code: "en", label: "English" },
-              { code: "ar", label: "العربية" },
-              { code: "he", label: "עברית" },
-            ] as const).map(({ code, label }, index, arr) => {
-              const active = i18n.language === code;
-              return (
-                <Pressable
-                  key={code}
-                  style={[styles.langOption, index < arr.length - 1 && styles.langOptionBorder, active && styles.langOptionActive]}
-                  onPress={async () => {
-                    setLangOpen(false);
-                    if (i18n.language === code) return;
-                    await AsyncStorage.setItem("app_lang", code);
-                    await i18n.changeLanguage(code);
-                    await applyRtlIfNeeded(code);
-                    updateProfile({ language: code }).catch(() => {});
-                  }}
-                >
-                  <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>{label}</Text>
-                  {active && <Ionicons name="checkmark" size={14} color="#1A6FA8" />}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
+      <AppHeader bottom={tabBar} />
 
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#1A6FA8" />
@@ -1248,50 +1193,4 @@ const styles = StyleSheet.create({
     borderTopColor: "#EBF3FA",
   },
   readMoreText: { fontSize: 13, fontWeight: "600", color: "#1A6FA8" },
-  topBarBtn: { padding: 8 },
-  langDropdown: {
-    position: "absolute", top: 60, right: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14, borderWidth: 1, borderColor: "#D6E8F5",
-    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
-    minWidth: 150, overflow: "hidden",
-  },
-  langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  langOptionBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
-  langOptionActive: { backgroundColor: "#EBF3FA" },
-  langOptionText: { fontSize: 14, color: "#0B1A2E" },
-  langOptionTextActive: { fontWeight: "700", color: "#1A6FA8" },
-  menuBtn: { padding: 8 },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
-    paddingTop: 100,
-    paddingRight: 0,
-  },
-  menuDropdown: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-    width: 220,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 8,
-    overflow: "hidden",
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  menuItemActive: { backgroundColor: "#EBF3FA" },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
-  menuItemText: { flex: 1, fontSize: 14, fontWeight: "500", color: "#4A6480" },
-  menuItemTextActive: { color: "#1A6FA8", fontWeight: "700" },
 });

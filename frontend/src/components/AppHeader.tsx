@@ -1,3 +1,4 @@
+import { useDrawer } from "@/context/DrawerContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
@@ -13,16 +14,20 @@ interface AppHeaderProps {
   bottom?: React.ReactNode;
 }
 
-/**
- * Consistent blue top bar used on every screen.
- *
- * Layout:  [left slot 80px]  [logo — centered flex:1]  [right slot 80px]
- *
- * Both slots are always the same fixed width so the logo stays
- * perfectly centered regardless of what icons appear on either side.
- */
 export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
   const { top } = useSafeAreaInsets();
+  const { openDrawer, openLang } = useDrawer();
+
+  const defaultRight = (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <Pressable style={styles.iconBtn} onPress={openLang}>
+        <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+      </Pressable>
+      <Pressable style={styles.iconBtn} onPress={openDrawer}>
+        <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+      </Pressable>
+    </View>
+  );
 
   const leftNode =
     left === null
@@ -36,19 +41,19 @@ export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
   const rightNode =
     right === null
       ? <View style={styles.slot} />
-      : right ?? <View style={styles.slot} />;
+      : right ?? defaultRight;
 
   return (
     <View style={[styles.bar, { paddingTop: top + 8 }]}>
       <View style={styles.topRow}>
         <View style={styles.slot}>{leftNode}</View>
-        <View style={styles.logo}>
+        <Pressable style={styles.logo} onPress={() => router.push("/" as any)}>
           <Ionicons name="heart-outline" size={26} color="#E8A317" />
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.title}>DiaConnect</Text>
             <Text style={styles.sub}>Family</Text>
           </View>
-        </View>
+        </Pressable>
         <View style={[styles.slot, { alignItems: "flex-end" }]}>{rightNode}</View>
       </View>
       {bottom}

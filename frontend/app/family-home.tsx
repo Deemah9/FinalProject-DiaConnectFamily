@@ -2,59 +2,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Animated,
-  I18nManager,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
-import { useAuth } from "@/context/AuthContext";
 import AppHeader from "@/src/components/AppHeader";
-import { applyRtlIfNeeded } from "@/src/i18n/rtl";
-import { getLinkedPatients, getProfile, getUnreadCount, registerPushToken, updateProfile } from "@/services/api";
+import { getLinkedPatients, getProfile, getUnreadCount, registerPushToken } from "@/services/api";
 import * as Notifications from "expo-notifications";
-import i18n from "@/src/i18n";
 
 export default function FamilyHomeScreen() {
   const { t } = useTranslation();
-  const { logout } = useAuth();
-
-  const DRAWER_W = 270;
-  const isRTL = I18nManager.isRTL;
-  const slideAnim = useRef(new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
 
   const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  const openDrawer = () => {
-    setMenuOpen(true);
-    Animated.parallel([
-      Animated.timing(slideAnim,   { toValue: 0, duration: 260, useNativeDriver: true }),
-      Animated.timing(backdropAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
-    ]).start();
-  };
-
-  const closeDrawer = (cb?: () => void) => {
-    Animated.parallel([
-      Animated.timing(slideAnim,   { toValue: isRTL ? DRAWER_W : -DRAWER_W, duration: 220, useNativeDriver: true }),
-      Animated.timing(backdropAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-    ]).start(() => { setMenuOpen(false); cb?.(); });
-  };
 
   useEffect(() => {
     registerForPushNotifications();
@@ -76,7 +39,7 @@ export default function FamilyHomeScreen() {
       ]);
       setUser(profileData);
       setPatients(Array.isArray(patientsData) ? patientsData : []);
-    } catch (e) {
+    } catch {
       // silent
     } finally {
       setLoading(false);
@@ -98,7 +61,7 @@ export default function FamilyHomeScreen() {
       });
       await registerPushToken(tokenData.data);
     } catch {
-      // silent — push notifications are non-critical
+      // silent
     }
   };
 
@@ -113,33 +76,10 @@ export default function FamilyHomeScreen() {
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
-      <AppHeader
-        left={null}
-        right={
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable style={styles.topBarBtn} onPress={() => setLangOpen((v) => !v)}>
-              <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
-            </Pressable>
-            <Pressable style={styles.topBarBtn} onPress={() => router.push("/notifications" as any)}>
-              <View>
-                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-                {unreadCount > 0 && (
-                  <View style={styles.bellBadge}>
-                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
-                  </View>
-                )}
-              </View>
-            </Pressable>
-            <Pressable style={styles.topBarBtn} onPress={openDrawer}>
-              <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
-            </Pressable>
-          </View>
-        }
-      />
+      <AppHeader left={null} />
 
       <ScrollView contentContainerStyle={styles.content}>
 
-        {/* Welcome */}
         <View style={styles.hero}>
           <Text style={styles.welcomeTitle}>
             {loading ? t("loading") : `${getGreeting()} ${fullName}`}
@@ -147,7 +87,6 @@ export default function FamilyHomeScreen() {
           <Text style={styles.welcomeSub}>{t("familyWelcomeSubtitle")}</Text>
         </View>
 
-        {/* Patients */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("myPatients")}</Text>
 
@@ -189,7 +128,6 @@ export default function FamilyHomeScreen() {
           )}
         </View>
 
-        {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("quickActions")}</Text>
           <View style={styles.quickRow}>
@@ -204,110 +142,6 @@ export default function FamilyHomeScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
-
-      {/* Language Modal */}
-      <Modal visible={langOpen} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setLangOpen(false)}>
-        <Pressable style={styles.langModalBackdrop} onPress={() => setLangOpen(false)}>
-          <View style={styles.langDropdown}>
-            {[
-              { code: "en", label: "English" },
-              { code: "ar", label: "العربية" },
-              { code: "he", label: "עברית" },
-            ].map(({ code, label }, index, arr) => {
-              const active = i18n.language === code;
-              return (
-                <Pressable
-                  key={code}
-                  style={[
-                    styles.langOption,
-                    index < arr.length - 1 && styles.langOptionBorder,
-                    active && styles.langOptionActive,
-                  ]}
-                  onPress={async () => {
-                    setLangOpen(false);
-                    const lng = code as "en" | "ar" | "he";
-                    if (i18n.language === lng) return;
-                    await AsyncStorage.setItem("app_lang", lng);
-                    await i18n.changeLanguage(lng);
-                    await applyRtlIfNeeded(lng);
-                    updateProfile({ language: lng }).catch(() => {});
-                  }}
-                >
-                  <Text style={[styles.langOptionText, active && styles.langOptionTextActive]}>{label}</Text>
-                  {active && <Ionicons name="checkmark" size={14} color="#1A6FA8" />}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Side Drawer */}
-      {menuOpen && (
-        <View style={styles.overlay} pointerEvents="box-none">
-          <Animated.View style={[styles.overlayBackdrop, { opacity: backdropAnim }]} pointerEvents="box-none">
-            <Pressable style={{ flex: 1 }} onPress={() => closeDrawer()} />
-          </Animated.View>
-          <Animated.View style={[styles.drawer, isRTL ? { right: 0 } : { left: 0 }, { transform: [{ translateX: slideAnim }] }]}>
-            <View style={styles.drawerHeader}>
-              <View style={styles.drawerSlot} />
-              <View style={styles.drawerLogoRow}>
-                <Ionicons name="heart-outline" size={22} color="#E8A317" />
-                <View style={{ marginLeft: 7 }}>
-                  <Text style={styles.drawerLogoText}>{t("appName1")}</Text>
-                  <Text style={styles.drawerLogoSub}>{t("appName2")}</Text>
-                </View>
-              </View>
-              <View style={[styles.drawerSlot, { alignItems: "flex-end" }]}>
-                <Pressable style={styles.drawerCloseBtn} onPress={() => closeDrawer()}>
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                </Pressable>
-              </View>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.drawerScroll}>
-              <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
-              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/family-profile" as any))}>
-                <Ionicons name="person-outline" size={17} color={Colors.primary} />
-                <Text style={styles.drawerItemText}>{t("openProfile")}</Text>
-              </Pressable>
-
-              <Text style={styles.drawerSection}>{t("familySection")}</Text>
-              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/family-patients" as any))}>
-                <Ionicons name="people-outline" size={17} color={Colors.primary} />
-                <Text style={styles.drawerItemText}>{t("myPatients")}</Text>
-              </Pressable>
-              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/family-join" as any))}>
-                <Ionicons name="link-outline" size={17} color={Colors.primary} />
-                <Text style={styles.drawerItemText}>{t("enterPairingCode")}</Text>
-              </Pressable>
-              <Pressable style={styles.drawerItem} onPress={() => closeDrawer(() => router.push("/notifications" as any))}>
-                <View style={{ position: "relative" }}>
-                  <Ionicons name="mail-outline" size={17} color={Colors.primary} />
-                  {unreadCount > 0 && (
-                    <View style={styles.drawerBadge}>
-                      <Text style={styles.drawerBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.drawerItemText}>{t("notifications", "Notifications")}</Text>
-                {unreadCount > 0 && (
-                  <View style={[styles.drawerBadgeInline, { marginStart: "auto" }]}>
-                    <Text style={styles.drawerBadgeText}>{unreadCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-
-              <View style={styles.drawerDivider} />
-              <Pressable style={styles.drawerLogout} onPress={() => closeDrawer(() => logout())}>
-                <Ionicons name="log-out-outline" size={17} color="#D32F2F" />
-                <Text style={styles.drawerLogoutText}>{t("logout")}</Text>
-              </Pressable>
-              <View style={{ height: 32 }} />
-            </ScrollView>
-          </Animated.View>
-        </View>
-      )}
     </LinearGradient>
   );
 }
@@ -315,44 +149,6 @@ export default function FamilyHomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
-  topBarBtn: { padding: 8 },
-  bellBadge: {
-    position: "absolute",
-    top: -4,
-    right: -6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#E53E3E",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: "#1A6FA8",
-  },
-  bellBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" as const, lineHeight: 12 },
-  drawerBadge: {
-    position: "absolute",
-    top: -4,
-    right: -6,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#E53E3E",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  drawerBadgeInline: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#E53E3E",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 5,
-  },
-  drawerBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" as const },
 
   hero: { marginTop: 28, marginBottom: 20 },
   welcomeTitle: { fontSize: 20, fontWeight: "700", color: "#0B1A2E", marginBottom: 6 },
@@ -425,37 +221,4 @@ const styles = StyleSheet.create({
   },
   quickIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   quickLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E", textAlign: "center" },
-
-  // Language modal
-  langModalBackdrop: { flex: 1 },
-  langDropdown: {
-    position: "absolute", top: 60, right: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14, borderWidth: 1, borderColor: "#D6E8F5",
-    shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
-    minWidth: 150, overflow: "hidden",
-  },
-  langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  langOptionBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
-  langOptionActive: { backgroundColor: "#EBF3FA" },
-  langOptionText: { fontSize: 14, color: "#0B1A2E" },
-  langOptionTextActive: { fontWeight: "700", color: "#1A6FA8" },
-
-  // Drawer
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
-  overlayBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)" },
-  drawer: { position: "absolute", top: 0, bottom: 0, width: 270, backgroundColor: "#FFFFFF", zIndex: 101 },
-  drawerHeader: { backgroundColor: Colors.primary, paddingTop: 52, paddingBottom: 18, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  drawerSlot: { width: 36 },
-  drawerLogoRow: { flexDirection: "row", alignItems: "center" },
-  drawerLogoText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
-  drawerLogoSub: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
-  drawerCloseBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  drawerScroll: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  drawerSection: { fontSize: 10, fontWeight: "700", color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginTop: 16, marginBottom: 6 },
-  drawerItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderRadius: 10 },
-  drawerItemText: { fontSize: 14, color: "#0B1A2E", fontWeight: "500" },
-  drawerDivider: { height: 1, backgroundColor: "#EBF3FA", marginVertical: 12 },
-  drawerLogout: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11 },
-  drawerLogoutText: { fontSize: 14, color: "#D32F2F", fontWeight: "600" },
 });

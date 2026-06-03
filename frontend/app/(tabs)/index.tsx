@@ -7,14 +7,13 @@ import {
   getUnreadCount,
   importGlucoseCSV,
   registerPushToken,
-  updateProfile,
 } from "@/services/api";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { checkAndClearPredictionStale } from "@/services/predictionFlag";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -28,9 +27,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  Animated,
   Dimensions,
-  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -46,9 +43,8 @@ import { Calendar } from "react-native-calendars";
 // ───────────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
-  const { logout, user: authUser } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [langOpen, setLangOpen] = useState(false);
+  const { user: authUser } = useAuth();
+  const isFirstFocus = useRef(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Redirect family members to their own home screen
@@ -69,64 +65,17 @@ export default function HomeScreen() {
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
         }
-        if (finalStatus !== "granted") {
-          console.log("[Push] Permission not granted:", finalStatus);
-          return;
-        }
+        if (finalStatus !== "granted") return;
         const tokenData = await Notifications.getExpoPushTokenAsync({
           projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
         });
-        console.log("[Push] Token:", tokenData.data);
         await registerPushToken(tokenData.data);
-        console.log("[Push] Token registered successfully");
       } catch (e) {
         console.log("[Push] Error:", e);
       }
     };
     registerPush();
   }, []);
-
-  const DRAWER_W = 270;
-  const isRTL = I18nManager.isRTL;
-  const slideAnim = useRef(
-    new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W),
-  ).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-
-  const openDrawer = () => {
-    setMenuOpen(true);
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdropAnim, {
-        toValue: 1,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeDrawer = (cb?: () => void) => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: isRTL ? DRAWER_W : -DRAWER_W,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdropAnim, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setMenuOpen(false);
-      cb?.();
-    });
-  };
-
   const [user, setUser] = useState<any>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [errorUser, setErrorUser] = useState("");
@@ -141,6 +90,8 @@ export default function HomeScreen() {
   const [showReminder, setShowReminder] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const pickingRef = useRef(false);
+  const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
@@ -151,8 +102,17 @@ export default function HomeScreen() {
     useCallback(() => {
       loadUser();
       loadGlucose();
-      loadPrediction();
       getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
+
+      // Run on first open OR when new data was saved from another screen
+      if (isFirstFocus.current || checkAndClearPredictionStale()) {
+        loadPrediction();
+        isFirstFocus.current = false;
+      }
+
+      // Auto-refresh every hour while this screen is in focus
+      const interval = setInterval(loadPrediction, 60 * 60 * 1000);
+      return () => clearInterval(interval);
     }, []),
   );
 
@@ -319,7 +279,8 @@ export default function HomeScreen() {
       : "--";
 
   const pickAndImportCSV = async () => {
-    setShowAddModal(false);
+    if (pickingRef.current) return;
+    pickingRef.current = true;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: [
@@ -331,6 +292,7 @@ export default function HomeScreen() {
         copyToCacheDirectory: true,
       });
 
+      setShowAddModal(false);
       if (result.canceled) return;
 
       const asset = result.assets?.[0];
@@ -373,49 +335,20 @@ export default function HomeScreen() {
         Alert.alert(
           t("importSuccessTitle"),
           `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-          [
-            {
-              text: t("ok"),
-              onPress: () => router.push("/glucose-history" as any),
-            },
-          ],
+          [{ text: t("close"), onPress: () => router.push("/glucose-history" as any) }],
         );
       }
     } catch (e: any) {
-      Alert.alert(t("importCSV"), e.message || t("importFailed"));
+      Alert.alert(t("importCSV"), e?.message || t("importFailed"));
     } finally {
       setImporting(false);
+      pickingRef.current = false;
     }
   };
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
-      <AppHeader
-        left={null}
-        right={
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable
-              style={styles.topBarBtn}
-              onPress={() => setLangOpen((v) => !v)}
-            >
-              <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
-            </Pressable>
-            <Pressable style={styles.topBarBtn} onPress={() => router.push("/notifications" as any)}>
-              <View>
-                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-                {unreadCount > 0 && (
-                  <View style={styles.bellBadge}>
-                    <Text style={styles.bellBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
-                  </View>
-                )}
-              </View>
-            </Pressable>
-            <Pressable style={styles.topBarBtn} onPress={openDrawer}>
-              <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
-            </Pressable>
-          </View>
-        }
-      />
+      <AppHeader left={null} />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Welcome */}
         <View style={styles.hero}>
@@ -1160,270 +1093,6 @@ export default function HomeScreen() {
       </Modal>
 
 
-      {/* Language dropdown — rendered as Modal so it floats above all content */}
-      <Modal
-        visible={langOpen}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setLangOpen(false)}
-      >
-        <Pressable
-          style={styles.langModalBackdrop}
-          onPress={() => setLangOpen(false)}
-        >
-          <View style={styles.langDropdown}>
-            {[
-              { code: "en", label: "English" },
-              { code: "ar", label: "العربية" },
-              { code: "he", label: "עברית" },
-            ].map(({ code, label }, index, arr) => {
-              const active = i18n.language === code;
-              return (
-                <Pressable
-                  key={code}
-                  style={[
-                    styles.langOption,
-                    index < arr.length - 1 && styles.langOptionBorder,
-                    active && styles.langOptionActive,
-                  ]}
-                  onPress={async () => {
-                    setLangOpen(false);
-                    const lng = code as "en" | "ar" | "he";
-                    if (i18n.language === lng) return;
-                    await AsyncStorage.setItem("app_lang", lng);
-                    await i18n.changeLanguage(lng);
-                    await applyRtlIfNeeded(lng);
-                    updateProfile({ language: lng }).catch(() => {});
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.langOptionText,
-                      active && styles.langOptionTextActive,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                  {active && (
-                    <Ionicons name="checkmark" size={14} color="#1A6FA8" />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Side Drawer — Animated, slides from left (LTR) or right (RTL) */}
-      {menuOpen && (
-        <View style={styles.overlay} pointerEvents="box-none">
-          {/* Dimmed backdrop */}
-          <Animated.View
-            style={[styles.overlayBackdrop, { opacity: backdropAnim }]}
-            pointerEvents="box-none"
-          >
-            <Pressable style={{ flex: 1 }} onPress={() => closeDrawer()} />
-          </Animated.View>
-
-          {/* Sliding drawer panel */}
-          <Animated.View
-            style={[
-              styles.drawer,
-              isRTL ? { right: 0 } : { left: 0 },
-              { transform: [{ translateX: slideAnim }] },
-            ]}
-          >
-            {/* Blue header */}
-            <View style={styles.drawerHeader}>
-              <View style={styles.drawerSlot} />
-              <View style={styles.drawerLogoRow}>
-                <Ionicons name="heart-outline" size={22} color="#E8A317" />
-                <View style={{ marginLeft: 7 }}>
-                  <Text style={styles.drawerLogoText}>{t("appName1")}</Text>
-                  <Text style={styles.drawerLogoSub}>{t("appName2")}</Text>
-                </View>
-              </View>
-              <View style={[styles.drawerSlot, { alignItems: "flex-end" }]}>
-                <Pressable
-                  style={styles.drawerCloseBtn}
-                  onPress={() => closeDrawer()}
-                >
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                </Pressable>
-              </View>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={styles.drawerScroll}
-            >
-              {/* Profile section */}
-              <Text style={styles.drawerSection}>{t("profileNavigation")}</Text>
-              {[
-                {
-                  icon: "person-outline",
-                  label: t("openProfile"),
-                  route: "/profile",
-                },
-              ].map(({ icon, label, route }) => (
-                <Pressable
-                  key={route}
-                  style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push(route as any))}
-                >
-                  <Ionicons
-                    name={icon as any}
-                    size={17}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
-
-              {/* Glucose section */}
-              <Text style={styles.drawerSection}>{t("glucoseNavigation")}</Text>
-              {[
-                {
-                  icon: "stats-chart-outline",
-                  label: t("glucoseHistory"),
-                  route: "/glucose-history",
-                },
-                {
-                  icon: "bar-chart-outline",
-                  label: t("glucoseStats"),
-                  route: "/glucose-stats",
-                },
-              ].map(({ icon, label, route }) => (
-                <Pressable
-                  key={route}
-                  style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push(route as any))}
-                >
-                  <Ionicons
-                    name={icon as any}
-                    size={17}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
-              <Pressable
-                style={styles.drawerItem}
-                onPress={() => closeDrawer(() => setShowAddModal(true))}
-              >
-                <Ionicons name="add-circle-outline" size={17} color={Colors.primary} />
-                <Text style={styles.drawerItemText}>{t("addGlucose")}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.drawerItem}
-                onPress={() => closeDrawer(() => router.push("/notifications" as any))}
-              >
-                <View style={{ position: "relative" }}>
-                  <Ionicons name="mail-outline" size={17} color={Colors.primary} />
-                  {unreadCount > 0 && (
-                    <View style={styles.drawerBadge}>
-                      <Text style={styles.drawerBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.drawerItemText}>{t("notifications", "Notifications")}</Text>
-                {unreadCount > 0 && (
-                  <View style={[styles.drawerBadgeInline, { marginStart: "auto" }]}>
-                    <Text style={styles.drawerBadgeText}>{unreadCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-
-              {/* Daily Logs section */}
-              <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>
-              {[
-                {
-                  icon: "calendar-outline",
-                  label: t("dailyLog"),
-                  route: "/daily-log",
-                },
-              ].map(({ icon, label, route }) => (
-                <Pressable
-                  key={route}
-                  style={styles.drawerItem}
-                  onPress={() => closeDrawer(() => router.push(route as any))}
-                >
-                  <Ionicons
-                    name={icon as any}
-                    size={17}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
-
-              {/* Family Connection section */}
-              <Text style={styles.drawerSection}>{t("familySection")}</Text>
-              {user?.role === "patient" && (
-                <Pressable
-                  style={styles.drawerItem}
-                  onPress={() =>
-                    closeDrawer(() => router.push("/family-invite" as any))
-                  }
-                >
-                  <Ionicons
-                    name="person-add-outline"
-                    size={17}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.drawerItemText}>{t("inviteFamily")}</Text>
-                </Pressable>
-              )}
-              {user?.role === "family_member" && (
-                <>
-                  <Pressable
-                    style={styles.drawerItem}
-                    onPress={() =>
-                      closeDrawer(() => router.push("/family-patients" as any))
-                    }
-                  >
-                    <Ionicons
-                      name="people-outline"
-                      size={17}
-                      color={Colors.primary}
-                    />
-                    <Text style={styles.drawerItemText}>{t("myPatients")}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.drawerItem}
-                    onPress={() =>
-                      closeDrawer(() => router.push("/family-join" as any))
-                    }
-                  >
-                    <Ionicons
-                      name="link-outline"
-                      size={17}
-                      color={Colors.primary}
-                    />
-                    <Text style={styles.drawerItemText}>
-                      {t("enterPairingCode")}
-                    </Text>
-                  </Pressable>
-                </>
-              )}
-
-              <View style={styles.drawerDivider} />
-
-              {/* Logout */}
-              <Pressable
-                style={styles.drawerLogout}
-                onPress={() => closeDrawer(() => logout())}
-              >
-                <Ionicons name="log-out-outline" size={17} color="#D32F2F" />
-                <Text style={styles.drawerLogoutText}>{t("logout")}</Text>
-              </Pressable>
-
-              <View style={{ height: 32 }} />
-            </ScrollView>
-          </Animated.View>
-        </View>
-      )}
     </LinearGradient>
   );
 }
@@ -1434,118 +1103,31 @@ const styles = StyleSheet.create({
     backgroundColor: "#EBF3FA",
   },
 
+  importToast: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#1A6FA8",
+    zIndex: 100,
+  },
+  importToastSuccess: { backgroundColor: "#16A34A" },
+  importToastError: { backgroundColor: "#B91C1C" },
+  importToastText: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+
   content: {
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 80,
-  },
-
-  // ── Blue top bar ──────────────────────────────────────────────────────────
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1A6FA8",
-    paddingHorizontal: 12,
-    paddingTop: 48,
-    paddingBottom: 14,
-  },
-
-  topBarSpacer: {
-    width: 80, // mirrors topBarRight width to keep logo visually centered
-  },
-
-  topBarLogo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  topBarRight: {
-    width: 80,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 2,
-  },
-
-  topBarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  bellBadge: {
-    position: "absolute",
-    top: -4,
-    right: -6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#E53E3E",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: "#1A6FA8",
-  },
-  bellBadgeText: {
-    color: "#fff",
-    fontSize: 9,
-    fontWeight: "800",
-    lineHeight: 12,
-  },
-
-  drawerBadge: {
-    position: "absolute",
-    top: -4,
-    right: -6,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#E53E3E",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  drawerBadgeInline: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#E53E3E",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 5,
-  },
-  drawerBadgeText: {
-    color: "#fff",
-    fontSize: 9,
-    fontWeight: "800",
-  },
-
-  topBarTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-
-  topBarSub: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-    fontWeight: "300",
-    lineHeight: 15,
-  },
-
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   hero: {
@@ -1945,191 +1527,6 @@ const styles = StyleSheet.create({
   recentTime: {
     color: "#7A96B0",
     fontSize: 11,
-  },
-
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-  },
-
-  overlayBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
-
-  drawer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 270,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 4, height: 0 },
-    elevation: 10,
-  },
-
-  drawerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1A6FA8",
-    paddingHorizontal: 16,
-    paddingTop: 44,
-    paddingBottom: 14,
-  },
-
-  drawerSlot: {
-    width: 36,
-  },
-
-  drawerLogoRow: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  drawerLogoText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    lineHeight: 18,
-  },
-
-  drawerLogoSub: {
-    fontSize: 12,
-    fontWeight: "300",
-    color: "rgba(255,255,255,0.75)",
-    lineHeight: 15,
-  },
-
-  drawerCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  drawerScroll: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-
-  drawerSection: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#7A96B0",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginTop: 16,
-    marginBottom: 4,
-    paddingHorizontal: 4,
-  },
-
-  drawerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 2,
-  },
-
-  drawerItemText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#0B1A2E",
-  },
-
-  drawerDivider: {
-    height: 1,
-    backgroundColor: "#D6E8F5",
-    marginVertical: 12,
-    marginHorizontal: 4,
-  },
-
-  drawerLogout: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-  },
-
-  drawerLogoutText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#D32F2F",
-  },
-
-  langModalBackdrop: {
-    flex: 1,
-    paddingTop: 70, // clears the header height
-    paddingLeft: 16, // aligns dropdown under the globe button
-  },
-
-  langWrap: {
-    position: "relative",
-  },
-
-  globeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#EBF3FA",
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  langDropdown: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 8,
-    zIndex: 999,
-    minWidth: 120,
-    overflow: "hidden",
-  },
-
-  langOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-  },
-
-  langOptionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#D6E8F5",
-  },
-
-  langOptionActive: {
-    backgroundColor: "#EBF3FA",
-  },
-
-  langOptionText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#1E3A52",
-  },
-
-  langOptionTextActive: {
-    fontWeight: "700",
-    color: "#1A6FA8",
   },
 
   // Prediction Card

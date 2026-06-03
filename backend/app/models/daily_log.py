@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
 from app.models.base_event import BaseEvent
+from app.models.health import InsulinDoseResponse
 
 
 # ==========================================
@@ -104,11 +105,12 @@ class SleepResponse(BaseModel):
 class TodaySummaryResponse(BaseModel):
     """
     Combined response for GET /daily-logs/today.
-    Returns all meals, activities, and sleep logs from the last 24 hours.
+    Returns all meals, activities, sleep logs, and insulin doses from the last 24 hours.
     """
     meals: list[MealResponse]
     activities: list[ActivityResponse]
     sleep: list[SleepResponse]
+    insulin: list[InsulinDoseResponse] = []
 
 
 # ==========================================
