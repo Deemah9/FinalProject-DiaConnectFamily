@@ -1,3 +1,4 @@
+import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -150,7 +151,7 @@ function NotifCard({
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
-function EmptyState({ filter, t }: { filter: NotifType; t: any }) {
+function EmptyState({ filter, t, isFamily }: { filter: NotifType; t: any; isFamily: boolean }) {
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const cfg = TYPE_CONFIG[filter];
 
@@ -164,9 +165,14 @@ function EmptyState({ filter, t }: { filter: NotifType; t: any }) {
   }, []);
 
   const emptyIcon = filter === "emergency_alert" ? "shield-checkmark-outline" : "alarm-outline";
-  const emptyMsg  = filter === "emergency_alert"
-    ? t("notif.emptyAlerts", "No alerts — glucose is in range 🎉")
+  const emptyMsg = filter === "emergency_alert"
+    ? (isFamily
+        ? t("notif.emptyAlertsFamily", "All patients have normal glucose 🎉")
+        : t("notif.emptyAlerts", "No alerts — glucose is in range 🎉"))
     : t("notif.emptyReminders", "No reminders yet");
+  const emptySub = isFamily
+    ? t("notif.emptySubFamily", "You'll be notified when a patient has dangerous glucose levels")
+    : t("notif.emptySub", "You'll see glucose reminders and alerts here");
 
   return (
     <View style={styles.emptyWrap}>
@@ -174,7 +180,7 @@ function EmptyState({ filter, t }: { filter: NotifType; t: any }) {
         <Ionicons name={emptyIcon} size={42} color={cfg.color} />
       </Animated.View>
       <Text style={styles.emptyTitle}>{emptyMsg}</Text>
-      <Text style={styles.emptySub}>{t("notif.emptySub", "You'll see glucose reminders and alerts here")}</Text>
+      <Text style={styles.emptySub}>{emptySub}</Text>
     </View>
   );
 }
@@ -185,6 +191,8 @@ export default function NotificationsScreen() {
   const { top } = useSafeAreaInsets();
   const isRTL = I18nManager.isRTL;
   const lang = i18n.language;
+  const { user } = useAuth();
+  const isFamily = user?.role === "family_member";
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotifType>("emergency_alert");
@@ -273,38 +281,40 @@ export default function NotificationsScreen() {
           )}
         </View>
 
-        {/* ── Segmented Tabs ── */}
-        <View style={styles.segmentWrap}>
-          {tabs.map((tab) => {
-            const active = filter === tab.key;
-            return (
-              <Pressable
-                key={tab.key}
-                style={[styles.segment, active && styles.segmentActive]}
-                onPress={() => setFilter(tab.key)}
-              >
-                <View style={[styles.segmentIconWrap, active
-                  ? { backgroundColor: tab.color + "22" }
-                  : { backgroundColor: "rgba(255,255,255,0.12)" }
-                ]}>
-                  <Ionicons
-                    name={tab.icon}
-                    size={18}
-                    color={active ? tab.color : "rgba(255,255,255,0.7)"}
-                  />
-                </View>
-                <Text style={[styles.segmentLabel, active && { color: "#0B1A2E", fontWeight: "700" }]}>
-                  {tab.label}
-                </Text>
-                {tab.unread > 0 && (
-                  <View style={[styles.segmentBadge, { backgroundColor: tab.color }]}>
-                    <Text style={styles.segmentBadgeText}>{tab.unread}</Text>
+        {/* ── Segmented Tabs — patients only ── */}
+        {!isFamily && (
+          <View style={styles.segmentWrap}>
+            {tabs.map((tab) => {
+              const active = filter === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  style={[styles.segment, active && styles.segmentActive]}
+                  onPress={() => setFilter(tab.key)}
+                >
+                  <View style={[styles.segmentIconWrap, active
+                    ? { backgroundColor: tab.color + "22" }
+                    : { backgroundColor: "rgba(255,255,255,0.12)" }
+                  ]}>
+                    <Ionicons
+                      name={tab.icon}
+                      size={18}
+                      color={active ? tab.color : "rgba(255,255,255,0.7)"}
+                    />
                   </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text style={[styles.segmentLabel, active && { color: "#0B1A2E", fontWeight: "700" }]}>
+                    {tab.label}
+                  </Text>
+                  {tab.unread > 0 && (
+                    <View style={[styles.segmentBadge, { backgroundColor: tab.color }]}>
+                      <Text style={styles.segmentBadgeText}>{tab.unread}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </LinearGradient>
 
       {/* ── List ── */}
@@ -318,10 +328,11 @@ export default function NotificationsScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1A6FA8"]} />}
-          ListEmptyComponent={<EmptyState filter={filter} t={t} />}
+
           renderItem={({ item }) => (
             <NotifCard item={item} lang={lang} t={t} onPress={handleMarkOneRead} />
           )}
+          ListEmptyComponent={<EmptyState filter={filter} t={t} isFamily={isFamily} />}
           showsVerticalScrollIndicator={false}
         />
       )}

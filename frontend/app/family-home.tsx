@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import AppHeader from "@/src/components/AppHeader";
@@ -47,6 +47,7 @@ export default function FamilyHomeScreen() {
   };
 
   const registerForPushNotifications = async () => {
+    if (Platform.OS === "web") return;
     try {
       const { status: existing } = await Notifications.getPermissionsAsync();
       let finalStatus = existing;
@@ -55,7 +56,9 @@ export default function FamilyHomeScreen() {
         finalStatus = status;
       }
       if (finalStatus !== "granted") return;
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
+      });
       await registerPushToken(tokenData.data);
     } catch {
       // silent

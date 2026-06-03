@@ -34,6 +34,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Platform,
 } from "react-native";
 import * as Notifications from "expo-notifications";
 import { Calendar } from "react-native-calendars";
@@ -56,6 +57,7 @@ export default function HomeScreen() {
   // Register push token for patient notifications
   useEffect(() => {
     const registerPush = async () => {
+      if (Platform.OS === "web") return;
       try {
         const { status: existing } = await Notifications.getPermissionsAsync();
         let finalStatus = existing;
