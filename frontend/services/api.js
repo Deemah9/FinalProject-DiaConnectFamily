@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:8000";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ??
+  (Platform.OS === "web" ? "http://localhost:8000" : "http://10.0.2.2:8000");
 
 // ==========================================
 // Helper — get token from storage

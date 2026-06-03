@@ -8,6 +8,7 @@ import {
   Animated,
   I18nManager,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -83,6 +84,7 @@ export default function FamilyHomeScreen() {
   };
 
   const registerForPushNotifications = async () => {
+    if (Platform.OS === "web") return;
     try {
       const { status: existing } = await Notifications.getPermissionsAsync();
       let finalStatus = existing;
@@ -91,7 +93,9 @@ export default function FamilyHomeScreen() {
         finalStatus = status;
       }
       if (finalStatus !== "granted") return;
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
+      });
       await registerPushToken(tokenData.data);
     } catch {
       // silent — push notifications are non-critical

@@ -59,7 +59,11 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:8081",
+        "http://localhost:8082",
+        "http://localhost:19006",
+        "http://localhost:19000",
         "exp://localhost:8081",
+        "exp://localhost:19000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
