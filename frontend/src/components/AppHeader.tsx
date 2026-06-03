@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const HEADER_BG = "#1A6FA8";
-const SLOT_W = 120;
+const SLOT_W = 90;
 
 interface AppHeaderProps {
   left?: React.ReactNode | null;
@@ -54,7 +54,7 @@ export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
             <Text style={styles.sub}>Family</Text>
           </View>
         </Pressable>
-        <View style={[styles.slot, { alignItems: "flex-end" }]}>{rightNode}</View>
+        <View style={[styles.slot, { justifyContent: "flex-end" }]}>{rightNode}</View>
       </View>
       {bottom}
     </View>
@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
   },
   slot: {
     width: SLOT_W,
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
   },
