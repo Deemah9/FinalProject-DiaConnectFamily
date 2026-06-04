@@ -50,7 +50,7 @@ export default function FamilyPatientGlucoseScreen() {
     familyCode?: string;
   }>();
 
-  const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "stats">("glucose");
+  const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "a1c">("glucose");
   const [readings, setReadings] = useState<any[]>([]);
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -294,7 +294,7 @@ export default function FamilyPatientGlucoseScreen() {
         { key: "glucose",  icon: "pulse-outline",         label: "glucoseTab" },
         { key: "history",  icon: "time-outline",          label: "readingHistory" },
         { key: "logs",     icon: "receipt-outline",       label: "dailyLogsTab" },
-        { key: "stats",    icon: "bar-chart-outline",     label: "glucoseStats" },
+        { key: "a1c",      icon: "analytics-outline",     label: "estimatedA1C" },
       ] as const).map(({ key, icon, label }) => (
         <Pressable
           key={key}
@@ -331,7 +331,7 @@ export default function FamilyPatientGlucoseScreen() {
                 {activeTab === "glucose"  && t("monitoringPatient", { name: patientName })}
                 {activeTab === "history"  && t("patientReadingHistory", { name: patientName })}
                 {activeTab === "logs"     && t("patientDailyLogs", { name: patientName })}
-                {activeTab === "stats"    && t("patientGlucoseStats", { name: patientName })}
+                {activeTab === "a1c"      && t("patientA1C", { name: patientName })}
               </Text>
             </View>
           </View>
@@ -779,60 +779,46 @@ export default function FamilyPatientGlucoseScreen() {
             </>
           )}
 
-          {/* ── STATS TAB ── */}
-          {activeTab === "stats" && !familyCode && (() => {
+          {/* ── A1C TAB ── */}
+          {activeTab === "a1c" && !familyCode && (() => {
             const vals = readings.map((r) => Number(r?.value || 0)).filter(Boolean);
             if (vals.length === 0) return (
               <View style={styles.card}>
                 <View style={styles.emptyState}>
-                  <Ionicons name="bar-chart-outline" size={30} color="#94A3B8" />
+                  <Ionicons name="analytics-outline" size={30} color="#94A3B8" />
                   <Text style={styles.emptyTitle}>{t("noReadings")}</Text>
                 </View>
               </View>
             );
-            const avg = Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
-            const min = Math.min(...vals);
-            const max = Math.max(...vals);
+            const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+            const a1c = ((avg + 46.7) / 28.7).toFixed(1);
+            const a1cNum = parseFloat(a1c);
+            const a1cColor = a1cNum >= 8 ? "#D32F2F" : a1cNum >= 6.5 ? "#E07B00" : "#0D9E6E";
+            const a1cBg    = a1cNum >= 8 ? "#FDEDED"  : a1cNum >= 6.5 ? "#FEF3E2"  : "#E6F7F2";
+            const a1cLabel = a1cNum >= 8 ? t("diabetes") : a1cNum >= 5.7 ? t("preDiabetes") : t("normal");
             const inRange = vals.filter((v) => v >= 70 && v <= 180).length;
             const tir = Math.round((inRange / vals.length) * 100);
-            const high = vals.filter((v) => v > 180).length;
-            const low  = vals.filter((v) => v < 70).length;
             return (
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Ionicons name="bar-chart-outline" size={18} color="#1A6FA8" />
-                  <Text style={styles.cardTitle}>{t("glucoseStats")}</Text>
+              <View>
+                <View style={[styles.card, { backgroundColor: a1cBg, alignItems: "center", paddingVertical: 28 }]}>
+                  <Text style={styles.cardTitle}>{t("yourEstimatedA1C")}</Text>
+                  <View style={[styles.a1cCircle, { borderColor: a1cColor }]}>
+                    <Text style={[styles.a1cValue, { color: a1cColor }]}>{a1c}%</Text>
+                  </View>
+                  <View style={[styles.a1cBadge, { backgroundColor: a1cColor }]}>
+                    <Text style={styles.a1cBadgeText}>{a1cLabel}</Text>
+                  </View>
                 </View>
                 <View style={styles.statsGrid}>
-                  <View style={[styles.statBox, { backgroundColor: "#EBF3FA" }]}>
+                  <View style={[styles.statBox, { backgroundColor: "#DBEAFE", borderWidth: 1, borderColor: "#BFDBFE" }]}>
                     <Text style={styles.statLabel}>{t("average")}</Text>
-                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{avg}</Text>
+                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{Math.round(avg)}</Text>
                     <Text style={styles.statUnit}>{t("mgdL")}</Text>
                   </View>
                   <View style={[styles.statBox, { backgroundColor: "#E6F7F2" }]}>
                     <Text style={styles.statLabel}>{t("timeInRange")}</Text>
                     <Text style={[styles.statValue, { color: "#0D9E6E" }]}>{tir}%</Text>
                     <Text style={styles.statUnit}>{inRange}/{vals.length}</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: "#FDEDED" }]}>
-                    <Text style={styles.statLabel}>{t("highGlucose")}</Text>
-                    <Text style={[styles.statValue, { color: "#D32F2F" }]}>{high}</Text>
-                    <Text style={styles.statUnit}>{t("readings")}</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: "#FEF3E2" }]}>
-                    <Text style={styles.statLabel}>{t("lowGlucose")}</Text>
-                    <Text style={[styles.statValue, { color: "#E07B00" }]}>{low}</Text>
-                    <Text style={styles.statUnit}>{t("readings")}</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: "#F8FAFC" }]}>
-                    <Text style={styles.statLabel}>{t("minimum")}</Text>
-                    <Text style={[styles.statValue, { color: "#334155" }]}>{min}</Text>
-                    <Text style={styles.statUnit}>{t("mgdL")}</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: "#F8FAFC" }]}>
-                    <Text style={styles.statLabel}>{t("maximum")}</Text>
-                    <Text style={[styles.statValue, { color: "#334155" }]}>{max}</Text>
-                    <Text style={styles.statUnit}>{t("mgdL")}</Text>
                   </View>
                 </View>
                 <Text style={styles.statFooter}>{t("basedOnReadings", { count: vals.length })}</Text>
@@ -1193,4 +1179,17 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 26, fontWeight: "800", lineHeight: 30 },
   statUnit:  { fontSize: 11, color: "#7A96B0", marginTop: 2 },
   statFooter: { fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 12 },
+
+  a1cCircle: {
+    width: 140, height: 140, borderRadius: 70,
+    borderWidth: 5, backgroundColor: "#FFFFFF",
+    alignItems: "center", justifyContent: "center",
+    marginVertical: 16,
+  },
+  a1cValue: { fontSize: 38, fontWeight: "800" },
+  a1cBadge: {
+    paddingHorizontal: 20, paddingVertical: 8,
+    borderRadius: 20, marginTop: 4,
+  },
+  a1cBadgeText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 });

@@ -289,6 +289,8 @@ const resources = {
       // Glucose History
       trackReadingsTime: "Track your glucose readings over time",
       monitoringPatient: "Monitoring {{name}}'s glucose readings",
+      patientA1C: "{{name}}'s Estimated A1C",
+      yourEstimatedA1C: "Estimated A1C",
       patientReadingHistory: "{{name}}'s reading history",
       patientDailyLogs: "{{name}}'s daily logs",
       patientGlucoseStats: "{{name}}'s glucose statistics",
@@ -355,7 +357,7 @@ const resources = {
       // Estimated A1C
       estimatedA1C: "Estimated A1C",
       viewA1C: "View Estimated A1C",
-      a1cTitle: "Estimated A1C (eA1C)",
+      a1cTitle: "Estimated A1C",
       a1cSubtitle: "Based on your last 90 days of readings",
       a1cResult: "Your Estimated A1C",
       a1cAvgGlucose: "Average Glucose",
@@ -819,6 +821,8 @@ const resources = {
       // Glucose History
       trackReadingsTime: "تتبع قراءات السكر عبر الزمن",
       monitoringPatient: "متابعة قراءات سكر {{name}}",
+      patientA1C: "مخزون السكر المقدر لـ {{name}}",
+      yourEstimatedA1C: "مخزون السكر المقدر",
       patientReadingHistory: "سجل قراءات {{name}}",
       patientDailyLogs: "سجلات {{name}} اليومية",
       patientGlucoseStats: "إحصائيات سكر {{name}}",
@@ -1349,6 +1353,8 @@ const resources = {
       // Glucose History
       trackReadingsTime: "עקוב אחר קריאות הגלוקוז לאורך זמן",
       monitoringPatient: "מעקב אחר קריאות הגלוקוז של {{name}}",
+      patientA1C: "A1C משוער של {{name}}",
+      yourEstimatedA1C: "A1C משוער",
       patientReadingHistory: "היסטוריית קריאות של {{name}}",
       patientDailyLogs: "יומן יומי של {{name}}",
       patientGlucoseStats: "סטטיסטיקות גלוקוז של {{name}}",
@@ -1415,7 +1421,7 @@ const resources = {
       // Estimated A1C
       estimatedA1C: "A1C משוער",
       viewA1C: "הצג A1C משוער",
-      a1cTitle: "A1C משוער (eA1C)",
+      a1cTitle: "A1C משוער",
       a1cSubtitle: "על בסיס הקריאות שלך מ-90 הימים האחרונים",
       a1cResult: "ה-A1C המשוער שלך",
       a1cAvgGlucose: "ממוצע גלוקוז",

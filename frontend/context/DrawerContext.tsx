@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { getProfile, updateProfile } from "@/services/api";
+import { updateProfile } from "@/services/api";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -9,7 +9,6 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -43,22 +42,17 @@ const DRAWER_W = 270;
 
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
-  const { logout } = useAuth();
+  const { logout, user: authUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const userRole = authUser?.role ?? null;
 
   const isRTL = I18nManager.isRTL;
   const slideAnim = useRef(
     new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W),
   ).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    getProfile()
-      .then((data: any) => setUserRole(data?.role ?? null))
-      .catch(() => {});
-  }, []);
 
   const openDrawer = useCallback(() => {
     setMenuOpen(true);
