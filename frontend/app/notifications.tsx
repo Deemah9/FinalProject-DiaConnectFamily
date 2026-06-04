@@ -168,7 +168,7 @@ function EmptyState({ filter, t, isFamily }: { filter: NotifType; t: any; isFami
   const emptyIcon = filter === "emergency_alert" ? "shield-checkmark-outline" : "alarm-outline";
   const emptyMsg = filter === "emergency_alert"
     ? (isFamily
-        ? t("notif.emptyAlertsFamily", "All patients have normal glucose 🎉")
+        ? t("notif.emptyAlertsFamily", "All patients have normal glucose")
         : t("notif.emptyAlerts", "No alerts — glucose is in range 🎉"))
     : t("notif.emptyReminders", "No reminders yet");
   const emptySub = isFamily
