@@ -344,6 +344,9 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* ── Medical Info, Health Info, Lifestyle — patient only ─────── */}
+        {user?.role !== "family_member" && (<>
+
         {/* ── Medical Info ───────────────────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -558,6 +561,8 @@ export default function ProfileScreen() {
             </>
           )}
         </View>
+
+        </>)}
 
         {/* ── Change Password ────────────────────────────────────── */}
         <Pressable

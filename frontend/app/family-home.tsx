@@ -76,7 +76,7 @@ export default function FamilyHomeScreen() {
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
-      <AppHeader left={null} />
+      <AppHeader left={null} unreadCount={unreadCount} />
 
       <ScrollView contentContainerStyle={styles.content}>
 
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
-  hero: { marginTop: 28, marginBottom: 20 },
+  hero: { marginTop: 12, marginBottom: 16 },
   welcomeTitle: { fontSize: 20, fontWeight: "700", color: "#0B1A2E", marginBottom: 6 },
   welcomeSub: { fontSize: 14, color: "#4A6480" },
 

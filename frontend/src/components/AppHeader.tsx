@@ -12,9 +12,10 @@ interface AppHeaderProps {
   left?: React.ReactNode | null;
   right?: React.ReactNode | null;
   bottom?: React.ReactNode;
+  unreadCount?: number;
 }
 
-export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
+export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppHeaderProps) {
   const { top } = useSafeAreaInsets();
   const { openDrawer, openLang } = useDrawer();
 
@@ -22,6 +23,16 @@ export default function AppHeader({ left, right, bottom }: AppHeaderProps) {
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <Pressable style={styles.iconBtn} onPress={openLang}>
         <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+      </Pressable>
+      <Pressable style={styles.iconBtn} onPress={() => router.push("/notifications" as any)}>
+        <View>
+          <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+            </View>
+          )}
+        </View>
       </Pressable>
       <Pressable style={styles.iconBtn} onPress={openDrawer}>
         <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
@@ -90,6 +101,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: HEADER_BG,
+  },
+  badgeText: { color: "#fff", fontSize: 9, fontWeight: "800" as const, lineHeight: 12 },
   title: {
     color: "#FFFFFF",
     fontSize: 16,
