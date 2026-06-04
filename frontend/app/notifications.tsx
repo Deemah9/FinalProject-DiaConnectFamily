@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useDrawer } from "@/context/DrawerContext";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -193,6 +194,7 @@ export default function NotificationsScreen() {
   const lang = i18n.language;
   const { user } = useAuth();
   const isFamily = user?.role === "family_member";
+  const { openDrawer, openLang } = useDrawer();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotifType>("emergency_alert");
@@ -272,7 +274,16 @@ export default function NotificationsScreen() {
               </View>
             )}
           </View>
-          {unread > 0 ? (
+          {isFamily ? (
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Pressable style={styles.backBtn} onPress={openLang}>
+                <Ionicons name="earth-outline" size={20} color="#fff" />
+              </Pressable>
+              <Pressable style={styles.backBtn} onPress={openDrawer}>
+                <Ionicons name="menu-outline" size={22} color="#fff" />
+              </Pressable>
+            </View>
+          ) : unread > 0 ? (
             <Pressable style={styles.markReadBtn} onPress={handleMarkAllRead}>
               <Ionicons name="checkmark-done" size={20} color="#fff" />
             </Pressable>
@@ -326,6 +337,7 @@ export default function NotificationsScreen() {
         <FlatList
           data={filtered}
           keyExtractor={item => item.id}
+          style={filtered.length === 0 ? { flex: 1 } : undefined}
           contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1A6FA8"]} />}
 
@@ -353,7 +365,6 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
     alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
   },
   headerCenter: {
     flex: 1, flexDirection: "row", alignItems: "center",
@@ -416,7 +427,7 @@ const styles = StyleSheet.create({
 
   // List
   listContent: { padding: 14, gap: 10 },
-  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  emptyContainer: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingBottom: 120 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   loadingText: { color: "#718096", fontSize: 14 },
 

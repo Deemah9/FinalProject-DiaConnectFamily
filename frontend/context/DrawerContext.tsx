@@ -227,73 +227,77 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                 <Text style={styles.drawerItemText}>{t("openProfile")}</Text>
               </Pressable>
 
-              <Text style={styles.drawerSection}>{t("glucoseNavigation")}</Text>
-              {[
-                {
-                  icon: "stats-chart-outline",
-                  label: t("glucoseHistory"),
-                  route: "/glucose-history",
-                },
-                {
-                  icon: "bar-chart-outline",
-                  label: t("glucoseStats"),
-                  route: "/glucose-stats",
-                },
-                {
-                  icon: "analytics-outline",
-                  label: t("estimatedA1C"),
-                  route: "/a1c",
-                },
-                {
-                  icon: "notifications-outline",
-                  label: t("alerts"),
-                  route: "/alerts",
-                },
-              ].map(({ icon, label, route }) => (
-                <Pressable
-                  key={route}
-                  style={styles.drawerItem}
-                  onPress={() =>
-                    closeDrawer(() => router.push(route as any))
-                  }
-                >
-                  <Ionicons
-                    name={icon as any}
-                    size={17}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
+              {userRole !== "family_member" && (
+                <>
+                  <Text style={styles.drawerSection}>{t("glucoseNavigation")}</Text>
+                  {[
+                    {
+                      icon: "stats-chart-outline",
+                      label: t("glucoseHistory"),
+                      route: "/glucose-history",
+                    },
+                    {
+                      icon: "bar-chart-outline",
+                      label: t("glucoseStats"),
+                      route: "/glucose-stats",
+                    },
+                    {
+                      icon: "analytics-outline",
+                      label: t("estimatedA1C"),
+                      route: "/a1c",
+                    },
+                    {
+                      icon: "notifications-outline",
+                      label: t("alerts"),
+                      route: "/notifications",
+                    },
+                  ].map(({ icon, label, route }) => (
+                    <Pressable
+                      key={route}
+                      style={styles.drawerItem}
+                      onPress={() =>
+                        closeDrawer(() => router.push(route as any))
+                      }
+                    >
+                      <Ionicons
+                        name={icon as any}
+                        size={17}
+                        color={Colors.primary}
+                      />
+                      <Text style={styles.drawerItemText}>{label}</Text>
+                    </Pressable>
+                  ))}
 
-              <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>
-              {[
-                {
-                  icon: "calendar-outline",
-                  label: t("dailyLog"),
-                  route: "/daily-log",
-                },
-                {
-                  icon: "medical-outline",
-                  label: t("addFastInsulin"),
-                  route: "/add-insulin",
-                },
-              ].map(({ icon, label, route }) => (
-                <Pressable
-                  key={route}
-                  style={styles.drawerItem}
-                  onPress={() =>
-                    closeDrawer(() => router.push(route as any))
-                  }
-                >
-                  <Ionicons
-                    name={icon as any}
-                    size={17}
-                    color={Colors.primary}
-                  />
-                  <Text style={styles.drawerItemText}>{label}</Text>
-                </Pressable>
-              ))}
+                  <Text style={styles.drawerSection}>{t("dailyLogsSection")}</Text>
+                  {[
+                    {
+                      icon: "calendar-outline",
+                      label: t("dailyLog"),
+                      route: "/daily-log",
+                    },
+                    {
+                      icon: "medical-outline",
+                      label: t("addFastInsulin"),
+                      route: "/add-insulin",
+                    },
+                  ].map(({ icon, label, route }) => (
+                    <Pressable
+                      key={route}
+                      style={styles.drawerItem}
+                      onPress={() =>
+                        closeDrawer(() => router.push(route as any))
+                      }
+                    >
+                      <Ionicons
+                        name={icon as any}
+                        size={17}
+                        color={Colors.primary}
+                      />
+                      <Text style={styles.drawerItemText}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </>
+              )}
 
               <Text style={styles.drawerSection}>{t("familySection")}</Text>
               {userRole === "patient" && (
@@ -313,6 +317,19 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
               )}
               {userRole === "family_member" && (
                 <>
+                  <Pressable
+                    style={styles.drawerItem}
+                    onPress={() =>
+                      closeDrawer(() => router.push("/notifications" as any))
+                    }
+                  >
+                    <Ionicons
+                      name="notifications-outline"
+                      size={17}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.drawerItemText}>{t("notif.title", "Notifications")}</Text>
+                  </Pressable>
                   <Pressable
                     style={styles.drawerItem}
                     onPress={() =>

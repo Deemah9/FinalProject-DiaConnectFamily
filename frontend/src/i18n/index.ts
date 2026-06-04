@@ -288,6 +288,10 @@ const resources = {
 
       // Glucose History
       trackReadingsTime: "Track your glucose readings over time",
+      monitoringPatient: "Monitoring {{name}}'s glucose readings",
+      patientReadingHistory: "{{name}}'s reading history",
+      patientDailyLogs: "{{name}}'s daily logs",
+      patientGlucoseStats: "{{name}}'s glucose statistics",
       glucoseTrend: "Glucose Trend",
       loadingChart: "Loading chart...",
       noChartData: "No chart data yet",
@@ -814,6 +818,10 @@ const resources = {
 
       // Glucose History
       trackReadingsTime: "تتبع قراءات السكر عبر الزمن",
+      monitoringPatient: "متابعة قراءات سكر {{name}}",
+      patientReadingHistory: "سجل قراءات {{name}}",
+      patientDailyLogs: "سجلات {{name}} اليومية",
+      patientGlucoseStats: "إحصائيات سكر {{name}}",
       glucoseTrend: "مؤشر السكر",
       loadingChart: "جاري تحميل الرسم البياني...",
       noChartData: "لا توجد بيانات بعد",
@@ -1340,6 +1348,10 @@ const resources = {
 
       // Glucose History
       trackReadingsTime: "עקוב אחר קריאות הגלוקוז לאורך זמן",
+      monitoringPatient: "מעקב אחר קריאות הגלוקוז של {{name}}",
+      patientReadingHistory: "היסטוריית קריאות של {{name}}",
+      patientDailyLogs: "יומן יומי של {{name}}",
+      patientGlucoseStats: "סטטיסטיקות גלוקוז של {{name}}",
       glucoseTrend: "מגמת גלוקוז",
       loadingChart: "טוען גרף...",
       noChartData: "אין נתוני גרף עדיין",

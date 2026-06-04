@@ -76,7 +76,7 @@ export default function FamilyHomeScreen() {
 
   return (
     <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
-      <AppHeader left={null} />
+      <AppHeader left={null} unreadCount={unreadCount} />
 
       <ScrollView contentContainerStyle={styles.content}>
 

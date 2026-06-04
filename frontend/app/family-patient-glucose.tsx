@@ -16,7 +16,7 @@ import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientAlerts, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, markAllAlertsRead, viewWithCode } from "@/services/api";
+import { getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -50,20 +50,17 @@ export default function FamilyPatientGlucoseScreen() {
     familyCode?: string;
   }>();
 
-  const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "alerts">("glucose");
+  const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "stats">("glucose");
   const [readings, setReadings] = useState<any[]>([]);
   const [dailyLogs, setDailyLogs] = useState<{ meals: any[]; activities: any[]; sleep: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedLogDate, setSelectedLogDate] = useState<string | null>(null);
   const [showAllReadings, setShowAllReadings] = useState(false);
-  const [showAllAlerts, setShowAllAlerts] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -113,7 +110,6 @@ export default function FamilyPatientGlucoseScreen() {
           setDailyLogs({ meals: [], activities: [], sleep: [] });
         }
         loadPrediction();
-        loadAlerts();
       }
     } catch (e: any) {
       setError(e.message || t("familyLinkFailed"));
@@ -135,18 +131,6 @@ export default function FamilyPatientGlucoseScreen() {
     }
   };
 
-  const loadAlerts = async () => {
-    if (!patientId) return;
-    try {
-      setLoadingAlerts(true);
-      const data = await getPatientAlerts(patientId, 20);
-      setAlerts(Array.isArray(data) ? data : []);
-    } catch {
-      setAlerts([]);
-    } finally {
-      setLoadingAlerts(false);
-    }
-  };
 
   const formatTime = (raw: string) => {
     if (!raw) return "--";
@@ -310,14 +294,14 @@ export default function FamilyPatientGlucoseScreen() {
         { key: "glucose",  icon: "pulse-outline",         label: "glucoseTab" },
         { key: "history",  icon: "time-outline",          label: "readingHistory" },
         { key: "logs",     icon: "receipt-outline",       label: "dailyLogsTab" },
-        { key: "alerts",   icon: "notifications-outline", label: "glucoseAlerts" },
+        { key: "stats",    icon: "bar-chart-outline",     label: "glucoseStats" },
       ] as const).map(({ key, icon, label }) => (
         <Pressable
           key={key}
           style={[styles.headerTab, activeTab === key && styles.headerTabActive]}
           onPress={() => setActiveTab(key)}
         >
-          <Ionicons name={icon} size={16} color={activeTab === key ? "#FFFFFF" : "rgba(255,255,255,0.6)"} />
+          <Ionicons name={icon} size={16} color={activeTab === key ? "#1A6FA8" : "#7A96B0"} />
           <Text style={[styles.headerTabText, activeTab === key && styles.headerTabTextActive]}>
             {t(label)}
           </Text>
@@ -343,12 +327,17 @@ export default function FamilyPatientGlucoseScreen() {
           <View style={styles.heroRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.screenTitle}>{patientName}</Text>
-              <Text style={styles.screenSub}>{t("trackReadingsTime")}</Text>
+              <Text style={styles.screenSub}>
+                {activeTab === "glucose"  && t("monitoringPatient", { name: patientName })}
+                {activeTab === "history"  && t("patientReadingHistory", { name: patientName })}
+                {activeTab === "logs"     && t("patientDailyLogs", { name: patientName })}
+                {activeTab === "stats"    && t("patientGlucoseStats", { name: patientName })}
+              </Text>
             </View>
           </View>
 
-          {/* AI Prediction Card — only for authenticated family members */}
-          {!familyCode && (
+          {/* AI Prediction Card — only on Glucose tab */}
+          {!familyCode && activeTab === "glucose" && (
             <View style={styles.predictionCard}>
               <View style={styles.predictionHeader}>
                 <Ionicons
@@ -790,73 +779,66 @@ export default function FamilyPatientGlucoseScreen() {
             </>
           )}
 
-          {/* ── ALERTS TAB ── */}
-          {activeTab === "alerts" && !familyCode && (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="notifications-outline" size={18} color="#1A6FA8" />
-                <Text style={styles.cardTitle}>{t("glucoseAlerts")}</Text>
-                {alerts.some((a: any) => !a.read) && (
-                  <Pressable
-                    style={styles.alertReadAllBtn}
-                    onPress={async () => {
-                      try {
-                        await markAllAlertsRead(patientId);
-                        setAlerts((prev: any[]) => prev.map((a) => ({ ...a, read: true })));
-                      } catch {}
-                    }}
-                  >
-                    <Text style={styles.alertReadAllText}>{t("markAsRead")}</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {loadingAlerts ? (
-                <ActivityIndicator size="small" color="#1A6FA8" style={{ marginVertical: 16 }} />
-              ) : alerts.length === 0 ? (
+          {/* ── STATS TAB ── */}
+          {activeTab === "stats" && !familyCode && (() => {
+            const vals = readings.map((r) => Number(r?.value || 0)).filter(Boolean);
+            if (vals.length === 0) return (
+              <View style={styles.card}>
                 <View style={styles.emptyState}>
-                  <Ionicons name="checkmark-circle-outline" size={30} color="#94A3B8" />
-                  <Text style={styles.emptyTitle}>{t("noAlerts")}</Text>
-                  <Text style={{ color: "#7A96B0", fontSize: 13, marginTop: 4 }}>{t("noAlertsSub")}</Text>
+                  <Ionicons name="bar-chart-outline" size={30} color="#94A3B8" />
+                  <Text style={styles.emptyTitle}>{t("noReadings")}</Text>
                 </View>
-              ) : (
-                <>
-                  {(showAllAlerts ? alerts : alerts.slice(0, 5)).map((alert: any, idx: number) => {
-                    const isHigh = alert.type === "high";
-                    const isRead = !!alert.read;
-                    const color  = isHigh ? "#D32F2F" : "#E07B00";
-                    const bg     = isRead ? "#F8FAFC" : (isHigh ? "#FDEDED" : "#FEF3E2");
-                    const label  = isHigh ? t("highGlucose") : t("lowGlucose");
-                    const raw    = alert.createdAt || "";
-                    const time   = raw ? new Date(raw).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "--";
-                    return (
-                      <View key={alert.id || idx} style={[styles.alertRow, { backgroundColor: bg }]}>
-                        <Ionicons name={isHigh ? "arrow-up-circle" : "arrow-down-circle"} size={22} color={isRead ? "#94A3B8" : color} />
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                            <Text style={[styles.alertLabel, { color: isRead ? "#94A3B8" : color }]}>{label}</Text>
-                            {!isRead && <View style={styles.alertUnreadDot} />}
-                          </View>
-                          <Text style={[styles.alertValue, isRead && { color: "#94A3B8" }]}>
-                            {alert.value} <Text style={styles.alertUnit}>{t("mgdL")}</Text>
-                          </Text>
-                        </View>
-                        <Text style={styles.alertTime}>{time}</Text>
-                      </View>
-                    );
-                  })}
-                  {alerts.length > 5 && (
-                    <Pressable style={styles.showMoreBtn} onPress={() => setShowAllAlerts((v) => !v)}>
-                      <Text style={styles.showMoreText}>
-                        {showAllAlerts ? t("showLess") : t("showPreviousAlerts")}
-                      </Text>
-                      <Ionicons name={showAllAlerts ? "chevron-up" : "chevron-down"} size={14} color="#1A6FA8" />
-                    </Pressable>
-                  )}
-                </>
-              )}
-            </View>
-          )}
+              </View>
+            );
+            const avg = Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
+            const min = Math.min(...vals);
+            const max = Math.max(...vals);
+            const inRange = vals.filter((v) => v >= 70 && v <= 180).length;
+            const tir = Math.round((inRange / vals.length) * 100);
+            const high = vals.filter((v) => v > 180).length;
+            const low  = vals.filter((v) => v < 70).length;
+            return (
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Ionicons name="bar-chart-outline" size={18} color="#1A6FA8" />
+                  <Text style={styles.cardTitle}>{t("glucoseStats")}</Text>
+                </View>
+                <View style={styles.statsGrid}>
+                  <View style={[styles.statBox, { backgroundColor: "#EBF3FA" }]}>
+                    <Text style={styles.statLabel}>{t("average")}</Text>
+                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{avg}</Text>
+                    <Text style={styles.statUnit}>{t("mgdL")}</Text>
+                  </View>
+                  <View style={[styles.statBox, { backgroundColor: "#E6F7F2" }]}>
+                    <Text style={styles.statLabel}>{t("timeInRange")}</Text>
+                    <Text style={[styles.statValue, { color: "#0D9E6E" }]}>{tir}%</Text>
+                    <Text style={styles.statUnit}>{inRange}/{vals.length}</Text>
+                  </View>
+                  <View style={[styles.statBox, { backgroundColor: "#FDEDED" }]}>
+                    <Text style={styles.statLabel}>{t("highGlucose")}</Text>
+                    <Text style={[styles.statValue, { color: "#D32F2F" }]}>{high}</Text>
+                    <Text style={styles.statUnit}>{t("readings")}</Text>
+                  </View>
+                  <View style={[styles.statBox, { backgroundColor: "#FEF3E2" }]}>
+                    <Text style={styles.statLabel}>{t("lowGlucose")}</Text>
+                    <Text style={[styles.statValue, { color: "#E07B00" }]}>{low}</Text>
+                    <Text style={styles.statUnit}>{t("readings")}</Text>
+                  </View>
+                  <View style={[styles.statBox, { backgroundColor: "#F8FAFC" }]}>
+                    <Text style={styles.statLabel}>{t("minimum")}</Text>
+                    <Text style={[styles.statValue, { color: "#334155" }]}>{min}</Text>
+                    <Text style={styles.statUnit}>{t("mgdL")}</Text>
+                  </View>
+                  <View style={[styles.statBox, { backgroundColor: "#F8FAFC" }]}>
+                    <Text style={styles.statLabel}>{t("maximum")}</Text>
+                    <Text style={[styles.statValue, { color: "#334155" }]}>{max}</Text>
+                    <Text style={styles.statUnit}>{t("mgdL")}</Text>
+                  </View>
+                </View>
+                <Text style={styles.statFooter}>{t("basedOnReadings", { count: vals.length })}</Text>
+              </View>
+            );
+          })()}
 
           <View style={{ height: 24 }} />
         </ScrollView>
@@ -871,12 +853,12 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
   heroRow: {
-    marginTop: 28,
+    marginTop: 12,
     marginBottom: 20,
     flexDirection: "row",
     alignItems: "flex-start",
   },
-  screenTitle: { color: "#0B1A2E", fontSize: 28, fontWeight: "700", marginBottom: 8 },
+  screenTitle: { color: "#0B1A2E", fontSize: 20, fontWeight: "700", marginBottom: 4 },
   screenSub: { color: "#4A6480", fontSize: 14 },
 
   errorBox: {
@@ -1136,11 +1118,11 @@ const styles = StyleSheet.create({
 
   headerTabs: {
     flexDirection: "row",
-    backgroundColor: "#1A6FA8",
+    backgroundColor: "#C8DFF0",
     paddingHorizontal: 12,
     paddingBottom: 0,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.15)",
+    borderBottomColor: "#B8D0E8",
   },
   headerTab: {
     flex: 1,
@@ -1153,11 +1135,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   headerTabActive: {
-    borderBottomColor: "#FFFFFF",
-    backgroundColor: "rgba(255,255,255,0.1)",
+    borderBottomColor: "#1A6FA8",
+    backgroundColor: "transparent",
   },
-  headerTabText: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.7)" },
-  headerTabTextActive: { color: "#FFFFFF" },
+  headerTabText: { fontSize: 12, fontWeight: "600", color: "#7A96B0" },
+  headerTabTextActive: { color: "#1A6FA8", fontWeight: "700" },
 
   logDayNav: {
     flexDirection: "row",
@@ -1193,4 +1175,22 @@ const styles = StyleSheet.create({
     borderTopColor: "#EBF3FA",
   },
   readMoreText: { fontSize: 13, fontWeight: "600", color: "#1A6FA8" },
+
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 4,
+  },
+  statBox: {
+    flex: 1,
+    minWidth: "45%",
+    borderRadius: 14,
+    padding: 14,
+    alignItems: "center",
+  },
+  statLabel: { fontSize: 11, fontWeight: "600", color: "#4A6480", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+  statValue: { fontSize: 26, fontWeight: "800", lineHeight: 30 },
+  statUnit:  { fontSize: 11, color: "#7A96B0", marginTop: 2 },
+  statFooter: { fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 12 },
 });
