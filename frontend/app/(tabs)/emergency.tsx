@@ -10,6 +10,7 @@ import {
   Alert,
   I18nManager,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -36,6 +37,7 @@ export default function EmergencyScreen() {
 
   const [contact, setContact] = useState<EmergencyContact | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
 
@@ -71,24 +73,14 @@ export default function EmergencyScreen() {
     );
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      t("emergency.deleteTitle", "Remove Contact"),
-      t("emergency.deleteConfirm", "Are you sure you want to remove this emergency contact?"),
-      [
-        { text: t("cancel", "Cancel"), style: "cancel" },
-        {
-          text: t("delete", "Remove"),
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.removeItem(storageKey);
-            setContact(null);
-            setNameInput("");
-            setPhoneInput("");
-          },
-        },
-      ]
-    );
+  const handleDelete = () => setShowDeleteConfirm(true);
+
+  const confirmDelete = async () => {
+    await AsyncStorage.removeItem(storageKey);
+    setContact(null);
+    setNameInput("");
+    setPhoneInput("");
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -99,11 +91,16 @@ export default function EmergencyScreen() {
       {/* ── Header ── */}
       <LinearGradient
         colors={["#C0392B", "#E53E3E"]}
-        style={[styles.header, { paddingTop: top + 16 }]}
+        style={[styles.header, { paddingTop: top + 10 }]}
       >
         <View style={styles.headerContent}>
-          <View style={styles.sosCircle}>
-            <Ionicons name="call" size={32} color="#fff" />
+          <View style={styles.headerIcons}>
+            <View style={styles.sosCircle}>
+              <Ionicons name="call" size={22} color="#fff" />
+            </View>
+            <View style={styles.sosCircle}>
+              <Ionicons name="accessibility" size={22} color="#fff" />
+            </View>
           </View>
           <Text style={styles.headerTitle}>
             {t("emergency.title", "Emergency Contact")}
@@ -155,6 +152,9 @@ export default function EmergencyScreen() {
                 <Text style={styles.contactPhone}>{contact.phone}</Text>
               </View>
               <View style={styles.contactActions}>
+                <Pressable style={styles.callSmallBtn} onPress={handleCall}>
+                  <Ionicons name="call" size={18} color="#fff" />
+                </Pressable>
                 <Pressable style={styles.editSmallBtn} onPress={() => setIsEditing(true)}>
                   <Ionicons name="pencil-outline" size={18} color={theme.primary} />
                 </Pressable>
@@ -246,6 +246,36 @@ export default function EmergencyScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#D32F2F" />
+            </View>
+            <Text style={styles.modalTitle}>
+              {t("emergency.deleteTitle", "Remove Contact")}
+            </Text>
+            <Text style={styles.modalMsg}>
+              {t("emergency.deleteConfirm", "Are you sure you want to remove this emergency contact?")}
+            </Text>
+            <View style={styles.modalBtns}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteConfirm(false)}>
+                <Text style={styles.modalCancelText}>{t("cancel", "Cancel")}</Text>
+              </Pressable>
+              <Pressable style={styles.modalDeleteBtn} onPress={confirmDelete}>
+                <Text style={styles.modalDeleteText}>{t("delete", "Remove")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -255,15 +285,15 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     container: { flex: 1, backgroundColor: theme.bg },
 
     // Header
-    header: { paddingBottom: 28 },
-    headerContent: { alignItems: "center", paddingHorizontal: 24, gap: 10 },
+    header: { paddingBottom: 14 },
+    headerContent: { alignItems: "center", paddingHorizontal: 24, gap: 6 },
+    headerIcons: { flexDirection: "row", gap: 12, marginBottom: 2 },
     sosCircle: {
-      width: 72, height: 72, borderRadius: 36,
+      width: 52, height: 52, borderRadius: 26,
       backgroundColor: "rgba(255,255,255,0.2)",
       alignItems: "center", justifyContent: "center",
-      marginBottom: 4,
     },
-    headerTitle: { color: "#fff", fontSize: 22, fontWeight: "800" },
+    headerTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
     headerSub: { color: "rgba(255,255,255,0.8)", fontSize: 13, textAlign: "center" },
 
     content: { padding: 20, gap: 16 },
@@ -319,6 +349,11 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     contactName: { fontSize: 16, fontWeight: "700", color: theme.text },
     contactPhone: { fontSize: 13, color: theme.textLight, marginTop: 2 },
     contactActions: { flexDirection: "row", gap: 8 },
+    callSmallBtn: {
+      width: 36, height: 36, borderRadius: 10,
+      backgroundColor: "#E53E3E",
+      alignItems: "center", justifyContent: "center",
+    },
     editSmallBtn: {
       width: 36, height: 36, borderRadius: 10,
       backgroundColor: theme.primaryBg,
@@ -329,6 +364,37 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.dangerBg,
       alignItems: "center", justifyContent: "center",
     },
+
+    // Delete confirmation modal
+    modalBackdrop: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+    },
+    modalBox: {
+      backgroundColor: theme.bgCard, borderRadius: 24,
+      padding: 24, width: "100%", alignItems: "center",
+      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    },
+    modalIconWrap: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: "#FDEDED", alignItems: "center",
+      justifyContent: "center", marginBottom: 16,
+    },
+    modalTitle: { fontSize: 17, fontWeight: "700", color: theme.text, marginBottom: 8 },
+    modalMsg: { fontSize: 14, color: theme.textMuted, textAlign: "center", marginBottom: 24, lineHeight: 20 },
+    modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+    modalCancelBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      borderWidth: 1, borderColor: theme.border,
+      alignItems: "center", justifyContent: "center",
+    },
+    modalCancelText: { fontSize: 15, fontWeight: "600", color: theme.textMuted },
+    modalDeleteBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      backgroundColor: "#D32F2F",
+      alignItems: "center", justifyContent: "center",
+    },
+    modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 
     // Call button
     callBtn: { borderRadius: 24, overflow: "hidden", elevation: 6, shadowColor: "#E53E3E", shadowOpacity: 0.4, shadowRadius: 12 },

@@ -545,6 +545,20 @@ const resources = {
       deleteInsulinDose: "Delete Dose",
       deleteInsulinDoseConfirm: "Are you sure you want to delete this insulin dose?",
 
+      // Reminder Settings
+      customReminders: "Reminder Settings",
+      reminderSettings: "Glucose Reminder Settings",
+      enableCustomReminders: "Enable Custom Reminders",
+      reminderTimesSection: "REMINDER TIMES",
+      addReminderTime: "Add Time",
+      maxRemindersNote: "Maximum {{max}} reminders",
+      noRemindersAdded: "No reminder times added yet",
+      reminderInfoNote: "You'll receive a daily notification at each set time",
+      reminderNotifTitle: "Glucose Reminder",
+      reminderNotifBody: "Time to measure your blood glucose 🩸",
+      selectTime: "Select Time",
+      reminderPermission: "Allow notifications to use custom reminders",
+
       // Errors
       errors: {
         emailRequired: "Email is required",
@@ -1098,6 +1112,20 @@ const resources = {
       deleteInsulinDose: "حذف الجرعة",
       deleteInsulinDoseConfirm: "هل أنت متأكد من حذف هذه الجرعة؟",
 
+      // Reminder Settings
+      customReminders: "إعدادات التذكيرات",
+      reminderSettings: "إعدادات تذكيرات السكر",
+      enableCustomReminders: "تفعيل التذكيرات المخصصة",
+      reminderTimesSection: "أوقات التذكير",
+      addReminderTime: "إضافة وقت",
+      maxRemindersNote: "الحد الأقصى {{max}} تذكيرات",
+      noRemindersAdded: "لا توجد أوقات مضافة",
+      reminderInfoNote: "ستتلقى إشعاراً يومياً في كل وقت محدد",
+      reminderNotifTitle: "تذكير قياس السكر",
+      reminderNotifBody: "حان وقت قياس مستوى السكر في الدم 🩸",
+      selectTime: "اختر الوقت",
+      reminderPermission: "السماح بالإشعارات لاستخدام التذكيرات المخصصة",
+
       // Errors
       errors: {
         emailRequired: "البريد الإلكتروني مطلوب",
@@ -1650,6 +1678,20 @@ const resources = {
       insulinUnit: "י",
       deleteInsulinDose: "מחק מנה",
       deleteInsulinDoseConfirm: "האם אתה בטוח שברצונך למחוק מנה זו?",
+
+      // Reminder Settings
+      customReminders: "הגדרות תזכורות",
+      reminderSettings: "הגדרות תזכורות גלוקוז",
+      enableCustomReminders: "הפעל תזכורות מותאמות",
+      reminderTimesSection: "זמני תזכורות",
+      addReminderTime: "הוסף זמן",
+      maxRemindersNote: "מקסימום {{max}} תזכורות",
+      noRemindersAdded: "לא נוספו זמני תזכורות",
+      reminderInfoNote: "תקבל התראה יומית בכל זמן שנקבע",
+      reminderNotifTitle: "תזכורת גלוקוז",
+      reminderNotifBody: "הגיע הזמן למדוד את רמת הסוכר בדם 🩸",
+      selectTime: "בחר זמן",
+      reminderPermission: "אפשר התראות לשימוש בתזכורות מותאמות",
 
       // Errors
       errors: {
