@@ -21,6 +21,8 @@ import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import { useTheme } from "@/context/ThemeContext";
+import { Switch } from "react-native";
 
 const PRIMARY   = "#1A6FA8";
 
@@ -32,6 +34,7 @@ export default function ProfileScreen() {
   const { logout } = useAuth();
   const theme = useAppTheme();
   const styles = createStyles(theme);
+  const { isDark, toggleTheme } = useTheme();
 
   // ── Raw data ───────────────────────────────────────────────────────────────
   const [user, setUser]       = useState<any>(null);
@@ -580,6 +583,26 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={16} color={PRIMARY} />
         </Pressable>
 
+        {/* Dark Mode Toggle */}
+        <View style={styles.darkModeRow}>
+          <View style={styles.darkModeLeft}>
+            <Ionicons
+              name={isDark ? "moon" : "sunny-outline"}
+              size={18}
+              color={isDark ? "#8DA4BC" : "#E8A317"}
+            />
+            <Text style={styles.darkModeText}>
+              {t("darkMode", isDark ? "Dark Mode" : "Light Mode")}
+            </Text>
+          </View>
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: theme.borderStrong, true: theme.primary }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+
         {/* Delete Account */}
         <Pressable style={styles.deleteAccountBtn} onPress={() => setShowDeleteModal(true)}>
           <Ionicons name="trash-outline" size={18} color="#D32F2F" />
@@ -1008,6 +1031,31 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       color: PRIMARY,
       fontSize: 15,
       fontWeight: "600",
+    },
+
+    darkModeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: theme.bgCard,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+      marginBottom: 8,
+    },
+
+    darkModeLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+
+    darkModeText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
     },
 
     deleteAccountBtn: {

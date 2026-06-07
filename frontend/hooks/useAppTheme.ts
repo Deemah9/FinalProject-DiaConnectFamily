@@ -1,9 +1,9 @@
 import { darkColors, lightColors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/context/ThemeContext";
 
 export function useAppTheme() {
-  const scheme = useColorScheme();
-  return scheme === "dark" ? darkColors : lightColors;
+  const { isDark } = useTheme();
+  return isDark ? darkColors : lightColors;
 }
 
 export type AppTheme = typeof lightColors;
