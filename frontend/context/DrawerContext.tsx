@@ -21,10 +21,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
+import CustomSwitch from "@/src/components/CustomSwitch";
 
 interface DrawerContextValue {
   openDrawer: () => void;
@@ -374,11 +374,11 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                     {t("darkMode", "Dark Mode")}
                   </Text>
                 </View>
-                <Switch
+                <CustomSwitch
                   value={isDark}
                   onValueChange={toggleTheme}
-                  trackColor={{ false: theme.borderStrong, true: theme.primary }}
-                  thumbColor="#FFFFFF"
+                  colorOn={theme.primary}
+                  colorOff={theme.borderStrong}
                 />
               </View>
 

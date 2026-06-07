@@ -8,10 +8,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
+import CustomSwitch from "@/src/components/CustomSwitch";
 
 import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { useAppTheme } from "@/hooks/useAppTheme";
@@ -125,11 +125,11 @@ export default function ReminderSettingsScreen() {
               />
               <Text style={styles.toggleLabel}>{t("enableCustomReminders")}</Text>
             </View>
-            <Switch
+            <CustomSwitch
               value={enabled}
               onValueChange={handleToggleEnabled}
-              trackColor={{ false: theme.borderStrong, true: PRIMARY }}
-              thumbColor="#fff"
+              colorOn={PRIMARY}
+              colorOff={theme.borderStrong}
             />
           </View>
         </View>

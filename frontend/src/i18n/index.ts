@@ -552,6 +552,8 @@ const resources = {
 
       // Reminder Settings
       customReminders: "Reminder Settings",
+      speakBtn: "Listen",
+      speakGlucoseText: "Your current glucose is {{value}} milligrams per deciliter. Status: {{status}}.",
       reminderSettings: "Glucose Reminder Settings",
       enableCustomReminders: "Enable Custom Reminders",
       reminderTimesSection: "REMINDER TIMES",
@@ -1124,6 +1126,8 @@ const resources = {
 
       // Reminder Settings
       customReminders: "إعدادات التذكيرات",
+      speakBtn: "اسمع",
+      speakGlucoseText: "سكرك الحالي {{value}} ملغ لكل ديسيلتر، الحالة: {{status}}",
       reminderSettings: "إعدادات تذكيرات السكر",
       enableCustomReminders: "تفعيل التذكيرات المخصصة",
       reminderTimesSection: "أوقات التذكير",
@@ -1696,6 +1700,8 @@ const resources = {
 
       // Reminder Settings
       customReminders: "הגדרות תזכורות",
+      speakBtn: "האזן",
+      speakGlucoseText: "רמת הגלוקוז הנוכחית שלך היא {{value}} מ\"ג לד\"ל. סטטוס: {{status}}.",
       reminderSettings: "הגדרות תזכורות גלוקוז",
       enableCustomReminders: "הפעל תזכורות מותאמות",
       reminderTimesSection: "זמני תזכורות",

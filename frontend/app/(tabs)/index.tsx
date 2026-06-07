@@ -37,6 +37,7 @@ import {
   Platform,
 } from "react-native";
 import * as Notifications from "expo-notifications";
+import * as Speech from "expo-speech";
 import { Calendar } from "react-native-calendars";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
@@ -98,6 +99,7 @@ export default function HomeScreen() {
   const pickingRef = useRef(false);
   const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -199,6 +201,26 @@ export default function HomeScreen() {
   const getGreeting = () => {
     const hour = new Date().getHours();
     return hour < 12 ? t("goodMorning") : t("goodEvening");
+  };
+
+  const speakGlucose = () => {
+    if (typeof latest !== "number") return;
+    if (speaking) {
+      Speech.stop();
+      setSpeaking(false);
+      return;
+    }
+    const text = t("speakGlucoseText", {
+      value: latest,
+      status: latestStatus,
+    });
+    setSpeaking(true);
+    Speech.speak(text, {
+      language: i18n.language === "ar" ? "ar" : i18n.language === "he" ? "he-IL" : "en-US",
+      rate: 0.9,
+      onDone:  () => setSpeaking(false),
+      onError: () => setSpeaking(false),
+    });
   };
 
   const toLocalDateStr = (d: Date) =>
@@ -831,6 +853,23 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
+
+            {/* TTS Listen button */}
+            {typeof latest === "number" && (
+              <Pressable
+                style={[styles.speakBtn, speaking && styles.speakBtnActive]}
+                onPress={speakGlucose}
+              >
+                <Ionicons
+                  name={speaking ? "stop-circle-outline" : "volume-high-outline"}
+                  size={16}
+                  color={speaking ? "#D32F2F" : "#1A6FA8"}
+                />
+                <Text style={[styles.speakBtnText, speaking && { color: "#D32F2F" }]}>
+                  {speaking ? t("close", "Stop") : t("speakBtn", "Listen")}
+                </Text>
+              </Pressable>
+            )}
 
             {/* Day Navigator */}
             <View style={styles.dayNav}>
@@ -1621,6 +1660,28 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       borderRadius: 12,
       padding: 12,
       borderWidth: 1,
+    },
+    speakBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      alignSelf: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: "#1A6FA8",
+      marginBottom: 10,
+    },
+    speakBtnActive: {
+      borderColor: "#D32F2F",
+      backgroundColor: "#FFF1F1",
+    },
+    speakBtnText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#1A6FA8",
     },
     dayNav: {
       flexDirection: "row",

@@ -11,10 +11,10 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
+import CustomSwitch from "./CustomSwitch";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const HEADER_BG = "#1A6FA8";
@@ -131,11 +131,10 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                   {t("darkMode", "Dark Mode")}
                 </Text>
               </View>
-              <Switch
+              <CustomSwitch
                 value={isDark}
                 onValueChange={toggleTheme}
-                trackColor={{ false: "#CBD5E1", true: HEADER_BG }}
-                thumbColor="#FFFFFF"
+                colorOn={HEADER_BG}
               />
             </View>
 
