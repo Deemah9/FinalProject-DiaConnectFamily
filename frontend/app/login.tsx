@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 
 import {
+  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Login() {
   const { t } = useTranslation();
   const { login } = useAuth();
+  const isRTL = I18nManager.isRTL;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -70,7 +72,7 @@ export default function Login() {
     <View style={styles.container}>
       <View style={styles.topRow}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.white} />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color={Colors.white} />
         </Pressable>
       </View>
 

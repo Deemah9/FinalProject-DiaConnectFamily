@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   Dimensions,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -41,6 +42,8 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
+const isRTL = I18nManager.isRTL;
+
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const { user: authUser } = useAuth();
@@ -835,7 +838,7 @@ export default function HomeScreen() {
                 style={styles.navArrow}
                 onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}
               >
-                <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color="#1A6FA8" />
               </Pressable>
               <Pressable
                 style={styles.dayNavCenter}
@@ -851,7 +854,7 @@ export default function HomeScreen() {
                 }
                 disabled={!canNext}
               >
-                <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#1A6FA8" />
               </Pressable>
             </View>
 
@@ -1019,7 +1022,7 @@ export default function HomeScreen() {
                 <Text style={styles.addCardSubBlue}>{t("manualEntrySub")}</Text>
               </View>
               <View style={styles.addCardArrowBlue}>
-                <Ionicons name="chevron-forward" size={16} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#1A6FA8" />
               </View>
             </Pressable>
 
@@ -1045,7 +1048,7 @@ export default function HomeScreen() {
               </View>
               {!importing && (
                 <View style={styles.addCardArrowGreen}>
-                  <Ionicons name="chevron-forward" size={16} color="#16A34A" />
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#16A34A" />
                 </View>
               )}
             </Pressable>

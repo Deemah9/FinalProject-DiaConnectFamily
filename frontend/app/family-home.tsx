@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import AppHeader from "@/src/components/AppHeader";
 import { getLinkedPatients, getProfile, getUnreadCount, registerPushToken } from "@/services/api";
@@ -124,7 +124,7 @@ export default function FamilyHomeScreen() {
                   <Text style={styles.patientName}>{p.patient_name}</Text>
                   <Text style={styles.patientSub}>{t("viewGlucose")}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+                <Ionicons name={I18nManager.isRTL ? "chevron-back" : "chevron-forward"} size={18} color={theme.textMuted} />
               </Pressable>
             ))
           )}

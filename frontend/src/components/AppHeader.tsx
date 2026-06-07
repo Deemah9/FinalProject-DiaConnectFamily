@@ -2,7 +2,7 @@ import { useDrawer } from "@/context/DrawerContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const HEADER_BG = "#1A6FA8";
@@ -18,6 +18,7 @@ interface AppHeaderProps {
 export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppHeaderProps) {
   const { top } = useSafeAreaInsets();
   const { openDrawer, openLang } = useDrawer();
+  const isRTL = I18nManager.isRTL;
 
   const defaultRight = (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -45,7 +46,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
       ? <View style={styles.slot} />
       : left ?? (
           <Pressable style={styles.iconBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#FFFFFF" />
           </Pressable>
         );
 
@@ -104,7 +105,8 @@ const styles = StyleSheet.create({
   badge: {
     position: "absolute",
     top: -4,
-    right: -6,
+    right: I18nManager.isRTL ? undefined : -6,
+    left: I18nManager.isRTL ? -6 : undefined,
     minWidth: 16,
     height: 16,
     borderRadius: 8,

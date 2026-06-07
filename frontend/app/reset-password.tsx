@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import { resetPassword } from "@/services/api";
 
 export default function ResetPassword() {
   const { t } = useTranslation();
+  const isRTL = I18nManager.isRTL;
   const { token } = useLocalSearchParams<{ token: string }>();
 
   const [newPassword, setNewPassword] = useState("");
@@ -73,7 +75,7 @@ export default function ResetPassword() {
     <View style={styles.container}>
       <View style={styles.topRow}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.white} />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color={Colors.white} />
         </Pressable>
       </View>
 

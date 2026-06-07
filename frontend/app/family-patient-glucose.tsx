@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -42,6 +43,8 @@ const dayStats = (items: any[]) => {
     max: Math.max(...vals),
   };
 };
+
+const isRTL = I18nManager.isRTL;
 
 export default function FamilyPatientGlucoseScreen() {
   const { t, i18n } = useTranslation();
@@ -514,7 +517,7 @@ export default function FamilyPatientGlucoseScreen() {
                           style={[styles.dayNavArrow, !canPrev && { opacity: 0.3 }]}
                           disabled={!canPrev}
                         >
-                          <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
+                          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color={theme.textMuted} />
                         </Pressable>
                         <View style={styles.dayNavCenter}>
                           <Pressable onPress={() => setShowCalendar(true)}>
@@ -527,7 +530,7 @@ export default function FamilyPatientGlucoseScreen() {
                           style={[styles.dayNavArrow, !canNext && { opacity: 0.3 }]}
                           disabled={!canNext}
                         >
-                          <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+                          <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={theme.textMuted} />
                         </Pressable>
                       </View>
                     );
@@ -583,7 +586,7 @@ export default function FamilyPatientGlucoseScreen() {
                   onPress={() => selectedDateStr && setSelectedDateStr(shiftDay(selectedDateStr, -1))}
                   style={styles.dayNavArrow}
                 >
-                  <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
+                  <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color={theme.textMuted} />
                 </Pressable>
                 <View style={styles.dayNavCenter}>
                   <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
@@ -594,7 +597,7 @@ export default function FamilyPatientGlucoseScreen() {
                   style={[styles.dayNavArrow, selectedDateStr === toLocalDateStr(new Date()) && { opacity: 0.3 }]}
                   disabled={selectedDateStr === toLocalDateStr(new Date())}
                 >
-                  <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={theme.textMuted} />
                 </Pressable>
               </View>
 
@@ -679,7 +682,7 @@ export default function FamilyPatientGlucoseScreen() {
                         onPress={() => selectedLogDate && setSelectedLogDate(shiftDay(selectedLogDate, -1))}
                         style={styles.dayNavArrow}
                       >
-                        <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
+                        <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color={theme.textMuted} />
                       </Pressable>
                       <View style={styles.dayNavCenter}>
                         <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
@@ -694,7 +697,7 @@ export default function FamilyPatientGlucoseScreen() {
                         style={[styles.dayNavArrow, selectedLogDate === toLocalDateStr(new Date()) && { opacity: 0.3 }]}
                         disabled={selectedLogDate === toLocalDateStr(new Date())}
                       >
-                        <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+                        <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={theme.textMuted} />
                       </Pressable>
                     </View>
 

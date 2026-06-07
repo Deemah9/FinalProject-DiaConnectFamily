@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  I18nManager,
   Pressable,
   StyleSheet,
   Text,
@@ -29,6 +30,7 @@ export default function FamilyAccessScreen() {
 
   const theme = useAppTheme();
   const styles = createStyles(theme);
+  const isRTL = I18nManager.isRTL;
 
   const handleChange = (text: string, index: number) => {
     const char = text.toUpperCase().slice(-1);
@@ -82,7 +84,7 @@ export default function FamilyAccessScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#fff" />
         </Pressable>
         <Ionicons name="people-outline" size={52} color={Colors.gold} />
         <Text style={styles.title}>{t("familyAccessTitle")}</Text>

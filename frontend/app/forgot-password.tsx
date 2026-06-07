@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ForgotPassword() {
   const { t } = useTranslation();
+  const isRTL = I18nManager.isRTL;
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -51,7 +53,7 @@ export default function ForgotPassword() {
     <View style={styles.container}>
       <View style={styles.topRow}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.white} />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color={Colors.white} />
         </Pressable>
       </View>
 

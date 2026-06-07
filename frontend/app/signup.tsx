@@ -3,6 +3,7 @@ import { Link, router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function SignUp() {
   const { t } = useTranslation();
   const { register } = useAuth();
+  const isRTL = I18nManager.isRTL;
   const { role } = useLocalSearchParams<{ role?: string }>();
   const isFamilyMember = role === "family_member";
 
@@ -89,7 +91,7 @@ export default function SignUp() {
     <View style={styles.container}>
       <View style={styles.topRow}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={Colors.white} />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color={Colors.white} />
         </Pressable>
       </View>
 

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -36,6 +37,8 @@ const shiftDay = (dateStr: string, delta: number) => {
   const d = new Date(y, m - 1, day + delta);
   return toLocalDateStr(d);
 };
+
+const isRTL = I18nManager.isRTL;
 
 export default function GlucoseHistoryScreen() {
   const { t } = useTranslation();
@@ -282,7 +285,7 @@ export default function GlucoseHistoryScreen() {
                   disabled={!canPrev}
                   style={[styles.navArrow, !canPrev && { opacity: 0.3 }]}
                 >
-                  <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+                  <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color="#1A6FA8" />
                 </Pressable>
                 <Pressable style={styles.dayNavCenter} onPress={() => setShowCalendar(true)}>
                   <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
@@ -293,7 +296,7 @@ export default function GlucoseHistoryScreen() {
                   disabled={!canNext}
                   style={[styles.navArrow, !canNext && { opacity: 0.3 }]}
                 >
-                  <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#1A6FA8" />
                 </Pressable>
               </View>
 
@@ -428,7 +431,7 @@ export default function GlucoseHistoryScreen() {
                 <Text style={styles.addCardSubBlue}>{t("manualEntrySub")}</Text>
               </View>
               <View style={styles.addCardArrowBlue}>
-                <Ionicons name="chevron-forward" size={16} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#1A6FA8" />
               </View>
             </Pressable>
 
@@ -445,7 +448,7 @@ export default function GlucoseHistoryScreen() {
               </View>
               {!importing && (
                 <View style={styles.addCardArrowGreen}>
-                  <Ionicons name="chevron-forward" size={16} color="#16A34A" />
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#16A34A" />
                 </View>
               )}
             </Pressable>

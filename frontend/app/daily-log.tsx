@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -49,6 +50,8 @@ function getTimestamp(item: any) {
   const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 }
+
+const isRTL = I18nManager.isRTL;
 
 export default function DailyLogScreen() {
   const { t } = useTranslation();
@@ -178,7 +181,7 @@ export default function DailyLogScreen() {
         {/* Day Navigator */}
         <View style={styles.dayNav}>
           <Pressable style={styles.navArrow} onPress={() => setSelectedDate(shiftDay(selectedDate, -1))}>
-            <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+            <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color="#1A6FA8" />
           </Pressable>
           <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
           <Pressable
@@ -186,7 +189,7 @@ export default function DailyLogScreen() {
             onPress={() => canNext && setSelectedDate(shiftDay(selectedDate, 1))}
             disabled={!canNext}
           >
-            <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#1A6FA8" />
           </Pressable>
         </View>
 
@@ -310,7 +313,7 @@ export default function DailyLogScreen() {
                   <Ionicons name={icon as any} size={22} color={color} />
                 </View>
                 <Text style={styles.fabActionLabel}>{label}</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.inactive} />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={theme.inactive} />
               </Pressable>
             ))}
           </View>
