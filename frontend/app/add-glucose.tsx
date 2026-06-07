@@ -16,9 +16,13 @@ import { Typography } from "@/constants/Typography";
 import { addGlucose } from "@/services/api";
 import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { buildTimestamp, initTime } from "@/components/TimePicker";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 export default function AddGlucoseScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+
   const [value, setValue] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [saving, setSaving] = useState(false);
@@ -83,7 +87,7 @@ export default function AddGlucoseScreen() {
               value={value}
               onChangeText={setValue}
               placeholder={t("glucosePlaceholder")}
-              placeholderTextColor={stylesVars.muted}
+              placeholderTextColor={theme.placeholder}
               keyboardType="number-pad"
               style={styles.input}
             />
@@ -116,161 +120,154 @@ export default function AddGlucoseScreen() {
   );
 }
 
-const stylesVars = {
-  primary: "#1A6FA8",
-  bg: "#EBF3FA",
-  text: "#0B1A2E",
-  muted: "#4A6480",
-  border: "#B8D0E8",
-  soft: "#E8F1F8",
-};
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: stylesVars.bg,
-  },
+    content: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
 
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+    topHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingBottom: 16,
+      backgroundColor: "#1A6FA8",
+    },
 
-  topHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 16,
-    backgroundColor: "#1A6FA8",
-  },
+    menuBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  menuBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    placeholder: {
+      width: 40,
+    },
 
-  placeholder: {
-    width: 40,
-  },
+    logoWrap: {
+      flex: 1,
+      justifyContent: 'center',
+      flexDirection: "row",
+      alignItems: "center",
+    },
 
-  logoWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: "row",
-    alignItems: "center",
-  },
+    logoTitle: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      lineHeight: 18,
+      fontWeight: "600",
+    },
 
-  logoTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
+    logoSub: {
+      color: "rgba(255,255,255,0.75)",
+      fontSize: 14,
+      lineHeight: 16,
+      fontWeight: "300",
+    },
 
-  logoSub: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: "300",
-  },
+    hero: {
+      marginTop: 28,
+      marginBottom: 20,
+    },
 
-  hero: {
-    marginTop: 28,
-    marginBottom: 20,
-  },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 28,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
 
-  screenTitle: {
-    color: stylesVars.text,
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
+    screenSub: {
+      color: theme.textMuted,
+      fontSize: 14,
+    },
 
-  screenSub: {
-    color: stylesVars.muted,
-    fontSize: 14,
-  },
+    errorBox: {
+      marginBottom: 16,
+      backgroundColor: "#FDEDED",
+      borderWidth: 1,
+      borderColor: "#F5C2C2",
+      borderRadius: 16,
+      padding: 12,
+    },
 
-  errorBox: {
-    marginBottom: 16,
-    backgroundColor: "#FDEDED",
-    borderWidth: 1,
-    borderColor: "#F5C2C2",
-    borderRadius: 16,
-    padding: 12,
-  },
+    errorText: {
+      color: "#B91C1C",
+      fontSize: 13,
+      fontWeight: "500",
+    },
 
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 13,
-    fontWeight: "500",
-  },
+    formCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 24,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
 
-  formCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
+    formGroup: {
+      marginBottom: 18,
+    },
 
-  formGroup: {
-    marginBottom: 18,
-  },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 10,
+    },
 
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E3A52",
-    marginBottom: 10,
-  },
+    input: {
+      height: 48,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgInput,
+      paddingHorizontal: 14,
+      color: theme.text,
+      ...Typography.button,
+    },
 
-  input: {
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#E8F1F8",
-    paddingHorizontal: 14,
-    color: "#0B1A2E",
-    ...Typography.button,
-  },
+    helperText: {
+      marginTop: 8,
+      fontSize: 12,
+      color: theme.textMuted,
+    },
 
-  helperText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: stylesVars.muted,
-  },
+    saveBtn: {
+      marginTop: 10,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
 
-  saveBtn: {
-    marginTop: 10,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: stylesVars.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
+    disabledBtn: {
+      opacity: 0.7,
+    },
 
-  disabledBtn: {
-    opacity: 0.7,
-  },
-
-  saveBtnText: {
-    color: "#FFFFFF",
-    ...Typography.button,
-  },
-});
+    saveBtnText: {
+      color: "#FFFFFF",
+      ...Typography.button,
+    },
+  });
+}

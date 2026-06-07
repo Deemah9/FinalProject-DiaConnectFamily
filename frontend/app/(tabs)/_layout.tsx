@@ -1,20 +1,41 @@
 import { HapticTab } from "@/components/haptic-tab";
-import { Colors } from "@/constants/theme";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useAuth } from "@/context/AuthContext";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import React from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+
+const tabStyles = StyleSheet.create({
+  sosButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#E53E3E",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    shadowColor: "#E53E3E",
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  sosLabel: {
+    color: "#E53E3E",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+});
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const theme = useAppTheme();
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.bg }}>
+        <ActivityIndicator color={theme.primary} />
       </View>
     );
   }
@@ -23,19 +44,17 @@ export default function TabLayout() {
     return <Redirect href="/welcome" />;
   }
 
-  const activeColor = Colors[colorScheme ?? "light"].tint;
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: activeColor,
-        tabBarInactiveTintColor: "#94A3B8",
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.inactive,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: "#E2EDF5",
-          backgroundColor: "#FFFFFF",
+          borderTopColor: theme.tabBorder,
+          backgroundColor: theme.tabBar,
           height: 60,
           paddingBottom: 8,
         },
@@ -55,11 +74,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="stats"
+        name="emergency"
         options={{
-          title: "Stats",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart" size={size} color={color} />
+          title: "SOS",
+          tabBarLabel: () => <Text style={tabStyles.sosLabel}>SOS</Text>,
+          tabBarIcon: () => (
+            <View style={tabStyles.sosButton}>
+              <Ionicons name="call" size={26} color="#fff" />
+            </View>
           ),
         }}
       />
@@ -72,11 +94,9 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hide explore from tabs */}
-      <Tabs.Screen
-        name="explore"
-        options={{ href: null }}
-      />
+      {/* Hidden tabs */}
+      <Tabs.Screen name="stats"   options={{ href: null }} />
+      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }

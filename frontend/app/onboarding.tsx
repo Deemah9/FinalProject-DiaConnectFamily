@@ -11,12 +11,14 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { Colors } from "@/constants/Colors";
 import { Typography } from "@/constants/Typography";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { updateLifestyle } from "@/services/api";
 
 const DIET_OPTIONS = ["balanced", "low_carb", "vegetarian", "other"] as const;
 const ACTIVITY_OPTIONS = ["low", "moderate", "high"] as const;
+
+const PRIMARY = "#1A6FA8";
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
@@ -27,6 +29,9 @@ export default function OnboardingScreen() {
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const dietLabels: Record<string, string> = {
     balanced: t("onboardingDietBalanced"),
@@ -73,7 +78,7 @@ export default function OnboardingScreen() {
       >
         {/* Header */}
         <View style={styles.logoWrap}>
-          <Ionicons name="heart-outline" size={36} color={Colors.gold} />
+          <Ionicons name="heart-outline" size={36} color={theme.gold} />
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
             <Text style={styles.logoSub}>{t("family")}</Text>
@@ -130,7 +135,7 @@ export default function OnboardingScreen() {
             value={sleepHours}
             onChangeText={setSleepHours}
             placeholder={t("sleepHoursPlaceholder")}
-            placeholderTextColor={MUTED}
+            placeholderTextColor={theme.placeholder}
             keyboardType="numeric"
             style={styles.input}
           />
@@ -187,173 +192,172 @@ export default function OnboardingScreen() {
   );
 }
 
-const PRIMARY = "#1A6FA8";
-const MUTED = "#4A6480";
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+    content: {
+      paddingHorizontal: 24,
+      paddingTop: 60,
+      paddingBottom: 40,
+    },
 
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
+    logoWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 32,
+    },
 
-  logoWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 32,
-  },
+    logoTitle: {
+      color: theme.text,
+      fontSize: 20,
+      fontWeight: "700",
+      lineHeight: 22,
+    },
 
-  logoTitle: {
-    color: "#0B1A2E",
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 22,
-  },
+    logoSub: {
+      color: theme.textMuted,
+      fontSize: 16,
+      fontWeight: "300",
+      lineHeight: 18,
+    },
 
-  logoSub: {
-    color: MUTED,
-    fontSize: 16,
-    fontWeight: "300",
-    lineHeight: 18,
-  },
+    hero: {
+      marginBottom: 24,
+    },
 
-  hero: {
-    marginBottom: 24,
-  },
+    screenTitle: {
+      fontSize: 26,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 8,
+    },
 
-  screenTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    marginBottom: 8,
-  },
+    screenSub: {
+      fontSize: 14,
+      color: theme.textMuted,
+      lineHeight: 20,
+    },
 
-  screenSub: {
-    fontSize: 14,
-    color: MUTED,
-    lineHeight: 20,
-  },
+    errorBox: {
+      marginBottom: 16,
+      backgroundColor: "#FDEDED",
+      borderWidth: 1,
+      borderColor: "#F5C2C2",
+      borderRadius: 16,
+      padding: 12,
+    },
 
-  errorBox: {
-    marginBottom: 16,
-    backgroundColor: "#FDEDED",
-    borderWidth: 1,
-    borderColor: "#F5C2C2",
-    borderRadius: 16,
-    padding: 12,
-  },
+    errorText: {
+      color: "#B91C1C",
+      fontSize: 13,
+      fontWeight: "500",
+    },
 
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 13,
-    fontWeight: "500",
-  },
+    card: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 20,
+      marginBottom: 16,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
 
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
+    cardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 16,
+    },
 
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
+    cardTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.text,
+    },
 
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0B1A2E",
-  },
+    optionsWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
 
-  optionsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.borderStrong,
+      backgroundColor: theme.bgInput,
+    },
 
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#E8F1F8",
-  },
+    chipSelected: {
+      backgroundColor: "#EEF4FF",
+      borderColor: PRIMARY,
+    },
 
-  chipSelected: {
-    backgroundColor: "#EEF4FF",
-    borderColor: PRIMARY,
-  },
+    chipText: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      fontWeight: "500",
+    },
 
-  chipText: {
-    fontSize: 13,
-    color: "#1E3A52",
-    fontWeight: "500",
-  },
+    chipTextSelected: {
+      color: PRIMARY,
+      fontWeight: "700",
+    },
 
-  chipTextSelected: {
-    color: PRIMARY,
-    fontWeight: "700",
-  },
+    input: {
+      height: 48,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgInput,
+      paddingHorizontal: 14,
+      color: theme.text,
+      ...Typography.button,
+    },
 
-  input: {
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#E8F1F8",
-    paddingHorizontal: 14,
-    color: "#0B1A2E",
-    ...Typography.button,
-  },
+    completeBtn: {
+      marginTop: 8,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: PRIMARY,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
 
-  completeBtn: {
-    marginTop: 8,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
+    disabledBtn: {
+      opacity: 0.7,
+    },
 
-  disabledBtn: {
-    opacity: 0.7,
-  },
+    completeBtnText: {
+      color: "#FFFFFF",
+      ...Typography.button,
+    },
 
-  completeBtnText: {
-    color: "#FFFFFF",
-    ...Typography.button,
-  },
+    skipBtn: {
+      marginTop: 14,
+      alignItems: "center",
+      paddingVertical: 10,
+    },
 
-  skipBtn: {
-    marginTop: 14,
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-
-  skipBtnText: {
-    color: MUTED,
-    fontSize: 14,
-  },
-});
+    skipBtnText: {
+      color: theme.textMuted,
+      fontSize: 14,
+    },
+  });
+}

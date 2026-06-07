@@ -20,14 +20,9 @@ import { getProfile, updateLifestyle, updateMedical, updateProfile, deleteAccoun
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const PRIMARY   = "#1A6FA8";
-const BG        = "#FFFFFF";
-const TEXT      = "#0B1A2E";
-const MUTED     = "#4A6480";
-const BORDER    = "#D6E8F5";
-const SOFT      = "#E8F1F8";
-const INPUT_BDR = "#B8D0E8";
 
 const CONDITION_IDS  = ["hypertension", "kidney_disease", "heart_disease", "dyslipidemia", "obesity", "neuropathy"] as const;
 const SLOW_INSULIN_IDS = ["insulin_lantus", "insulin_tresiba", "insulin_toujeo", "insulin_basaglar", "insulin_levemir"] as const;
@@ -35,6 +30,8 @@ const SLOW_INSULIN_IDS = ["insulin_lantus", "insulin_tresiba", "insulin_toujeo",
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { logout } = useAuth();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   // ── Raw data ───────────────────────────────────────────────────────────────
   const [user, setUser]       = useState<any>(null);
@@ -314,17 +311,17 @@ export default function ProfileScreen() {
 
           {editBasic ? (
             <>
-              <Field label={t("firstName")}>
+              <Field label={t("firstName")} styles={styles}>
                 <TextInput value={firstName} onChangeText={setFirstName}
-                  placeholder={t("firstName")} placeholderTextColor={MUTED} style={styles.input} />
+                  placeholder={t("firstName")} placeholderTextColor={theme.textMuted} style={styles.input} />
               </Field>
-              <Field label={t("lastName")}>
+              <Field label={t("lastName")} styles={styles}>
                 <TextInput value={lastName} onChangeText={setLastName}
-                  placeholder={t("lastName")} placeholderTextColor={MUTED} style={styles.input} />
+                  placeholder={t("lastName")} placeholderTextColor={theme.textMuted} style={styles.input} />
               </Field>
-              <Field label={t("phone")}>
+              <Field label={t("phone")} styles={styles}>
                 <TextInput value={phone} onChangeText={setPhone}
-                  placeholder={t("phone")} placeholderTextColor={MUTED}
+                  placeholder={t("phone")} placeholderTextColor={theme.textMuted}
                   keyboardType="phone-pad" style={styles.input} />
               </Field>
               <SaveCancelRow
@@ -332,14 +329,15 @@ export default function ProfileScreen() {
                 onSave={saveBasic}
                 onCancel={() => { setEditBasic(false); load(); }}
                 t={t}
+                styles={styles}
               />
             </>
           ) : (
             <>
-              <InfoRow label={t("firstName")} value={user?.firstName || "--"} />
-              <InfoRow label={t("lastName")}  value={user?.lastName  || "--"} />
-              <InfoRow label={t("email")}     value={user?.email     || "--"} />
-              <InfoRow label={t("phone")}     value={user?.phone     || "--"} />
+              <InfoRow label={t("firstName")} value={user?.firstName || "--"} styles={styles} />
+              <InfoRow label={t("lastName")}  value={user?.lastName  || "--"} styles={styles} />
+              <InfoRow label={t("email")}     value={user?.email     || "--"} styles={styles} />
+              <InfoRow label={t("phone")}     value={user?.phone     || "--"} styles={styles} />
             </>
           )}
         </View>
@@ -369,9 +367,9 @@ export default function ProfileScreen() {
 
           {editMedical ? (
             <>
-              <Field label={t("medications")}>
+              <Field label={t("medications")} styles={styles}>
                 <TextInput value={medications} onChangeText={setMedications}
-                  placeholder={t("medicationsPlaceholder")} placeholderTextColor={MUTED}
+                  placeholder={t("medicationsPlaceholder")} placeholderTextColor={theme.textMuted}
                   style={styles.input} />
               </Field>
               <SaveCancelRow
@@ -379,11 +377,12 @@ export default function ProfileScreen() {
                 onSave={saveMedical}
                 onCancel={() => { setEditMedical(false); load(); }}
                 t={t}
+                styles={styles}
               />
             </>
           ) : (
             <>
-              <InfoRow label={t("medications")}   value={medicationsDisplay} isMultiLine />
+              <InfoRow label={t("medications")}   value={medicationsDisplay} isMultiLine styles={styles} />
             </>
           )}
         </View>
@@ -410,7 +409,7 @@ export default function ProfileScreen() {
 
           {editHealth ? (
             <>
-              <Field label={t("chronicConditions")}>
+              <Field label={t("chronicConditions")} styles={styles}>
                 <View style={styles.optionsWrap}>
                   {CONDITION_IDS.map((id) => {
                     const selected = conditions.includes(id);
@@ -433,12 +432,12 @@ export default function ProfileScreen() {
                 </View>
               </Field>
 
-              <Field label={`${t("insulinSensitivity")} (${t("isfUnit")})`}>
+              <Field label={`${t("insulinSensitivity")} (${t("isfUnit")})`} styles={styles}>
                 <TextInput
                   value={isf}
                   onChangeText={setIsf}
                   placeholder="30"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="decimal-pad"
                   style={styles.input}
                 />
@@ -449,6 +448,7 @@ export default function ProfileScreen() {
                 onSave={saveHealth}
                 onCancel={() => { setEditHealth(false); load(); }}
                 t={t}
+                styles={styles}
               />
             </>
           ) : (
@@ -461,10 +461,12 @@ export default function ProfileScreen() {
                     : t("noConditionsSelected")
                 }
                 isMultiLine
+                styles={styles}
               />
               <InfoRow
                 label={t("insulinSensitivity")}
                 value={`${healthInfo?.insulin_sensitivity ?? 30} ${t("isfUnit")}`}
+                styles={styles}
               />
             </>
           )}
@@ -492,7 +494,7 @@ export default function ProfileScreen() {
 
           {editLifestyle ? (
             <>
-              <Field label={t("activityLevel")}>
+              <Field label={t("activityLevel")} styles={styles}>
                 <View style={styles.optionsWrap}>
                   {activityOptions.map((opt) => {
                     const selected = activityLevel === opt;
@@ -510,12 +512,12 @@ export default function ProfileScreen() {
                   })}
                 </View>
               </Field>
-              <Field label={t("sleepHours")}>
+              <Field label={t("sleepHours")} styles={styles}>
                 <TextInput value={sleepHours} onChangeText={setSleepHours}
-                  placeholder={t("sleepHoursPlaceholder")} placeholderTextColor={MUTED}
+                  placeholder={t("sleepHoursPlaceholder")} placeholderTextColor={theme.textMuted}
                   keyboardType="numeric" style={styles.input} />
               </Field>
-              <Field label={t("dietType")}>
+              <Field label={t("dietType")} styles={styles}>
                 <View style={styles.optionsWrap}>
                   {dietOptions.map((opt) => {
                     const selected = dietType === opt;
@@ -538,6 +540,7 @@ export default function ProfileScreen() {
                 onSave={saveLifestyle}
                 onCancel={() => { setEditLifestyle(false); load(); }}
                 t={t}
+                styles={styles}
               />
             </>
           ) : (
@@ -545,6 +548,7 @@ export default function ProfileScreen() {
               <InfoRow
                 label={t("activityLevel")}
                 value={life?.activity_level || user?.activity_level || "--"}
+                styles={styles}
               />
               <InfoRow
                 label={t("sleepHours")}
@@ -553,10 +557,12 @@ export default function ProfileScreen() {
                   user?.sleep_hours?.toString() ||
                   "--"
                 }
+                styles={styles}
               />
               <InfoRow
                 label={t("dietType")}
                 value={life?.diet_type ? t(`diet_${life.diet_type}`) : "--"}
+                styles={styles}
               />
             </>
           )}
@@ -602,7 +608,7 @@ export default function ProfileScreen() {
               value={deletePassword}
               onChangeText={setDeletePassword}
               placeholder={t("deleteAccountPasswordPlaceholder")}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.inactive}
               secureTextEntry
               editable={!deleting}
             />
@@ -632,7 +638,7 @@ export default function ProfileScreen() {
 
 // ── Small shared components ─────────────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, styles }: { label: string; children: React.ReactNode; styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.fieldBlock}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -645,10 +651,12 @@ function InfoRow({
   label,
   value,
   isMultiLine = false,
+  styles,
 }: {
   label: string;
   value: string;
   isMultiLine?: boolean;
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={[styles.rowBox, isMultiLine && styles.rowBoxMulti]}>
@@ -663,11 +671,13 @@ function SaveCancelRow({
   onSave,
   onCancel,
   t,
+  styles,
 }: {
   saving: boolean;
   onSave: () => void;
   onCancel: () => void;
   t: (k: string) => string;
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={styles.saveCancelRow}>
@@ -687,416 +697,418 @@ function SaveCancelRow({
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EBF3FA",
-  },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
 
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+    content: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
 
-  hero: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
+    hero: {
+      marginTop: 20,
+      marginBottom: 20,
+    },
 
-  screenTitle: {
-    color: TEXT,
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 28,
+      fontWeight: "700",
+      marginBottom: 6,
+    },
 
-  screenSub: {
-    color: MUTED,
-    fontSize: 14,
-  },
+    screenSub: {
+      color: theme.textMuted,
+      fontSize: 14,
+    },
 
-  // Avatar card
-  avatarCard: {
-    backgroundColor: "#F8FBFF",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: BORDER,
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
+    // Avatar card
+    avatarCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      marginBottom: 16,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
 
-  avatarWrap: {
-    width: 88,
-    height: 88,
-    marginBottom: 12,
-    position: "relative",
-  },
-  avatarImage: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: PRIMARY,
-  },
-  avatarInitials: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#DBEAFE",
-    borderWidth: 3,
-    borderColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarInitialsText: {
-    fontSize: 30,
-    fontWeight: "800",
-    color: PRIMARY,
-    letterSpacing: 1,
-  },
-  cameraBtn: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
+    avatarWrap: {
+      width: 88,
+      height: 88,
+      marginBottom: 12,
+      position: "relative",
+    },
+    avatarImage: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      borderWidth: 3,
+      borderColor: PRIMARY,
+    },
+    avatarInitials: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: "#DBEAFE",
+      borderWidth: 3,
+      borderColor: PRIMARY,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarInitialsText: {
+      fontSize: 30,
+      fontWeight: "800",
+      color: PRIMARY,
+      letterSpacing: 1,
+    },
+    cameraBtn: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: PRIMARY,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: "#fff",
+    },
 
-  nameText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: TEXT,
-    marginBottom: 2,
-    textAlign: "center",
-  },
+    nameText: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 2,
+      textAlign: "center",
+    },
 
-  emailText: {
-    fontSize: 12,
-    color: MUTED,
-    marginBottom: 8,
-    textAlign: "center",
-  },
+    emailText: {
+      fontSize: 12,
+      color: theme.textMuted,
+      marginBottom: 8,
+      textAlign: "center",
+    },
 
-  // Section card
-  card: {
-    backgroundColor: BG,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
+    // Section card
+    card: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 20,
+      marginBottom: 16,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
 
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
+    cardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16,
+    },
 
-  cardHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+    cardHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
 
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: TEXT,
-  },
+    cardTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.text,
+    },
 
-  editBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
-    backgroundColor: "#EEF4FF",
-  },
+    editBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 14,
+      backgroundColor: "#EEF4FF",
+    },
 
-  editBtnText: {
-    color: PRIMARY,
-    fontSize: 13,
-    fontWeight: "600",
-  },
+    editBtnText: {
+      color: PRIMARY,
+      fontSize: 13,
+      fontWeight: "600",
+    },
 
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 13,
-    marginBottom: 10,
-  },
+    errorText: {
+      color: "#B91C1C",
+      fontSize: 13,
+      marginBottom: 10,
+    },
 
-  // Display rows
-  rowBox: {
-    backgroundColor: SOFT,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
+    // Display rows
+    rowBox: {
+      backgroundColor: theme.bgSoft,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
 
-  rowBoxMulti: {
-    alignItems: "flex-start",
-  },
+    rowBoxMulti: {
+      alignItems: "flex-start",
+    },
 
-  rowLabel: {
-    fontSize: 13,
-    color: MUTED,
-    flex: 1,
-    marginRight: 12,
-  },
+    rowLabel: {
+      fontSize: 13,
+      color: theme.textMuted,
+      flex: 1,
+      marginRight: 12,
+    },
 
-  rowValue: {
-    fontSize: 13,
-    color: TEXT,
-    fontWeight: "600",
-    flexShrink: 1,
-    textAlign: "right",
-  },
+    rowValue: {
+      fontSize: 13,
+      color: theme.text,
+      fontWeight: "600",
+      flexShrink: 1,
+      textAlign: "right",
+    },
 
-  rowValueMulti: {
-    maxWidth: "55%",
-  },
+    rowValueMulti: {
+      maxWidth: "55%",
+    },
 
-  // Edit fields
-  fieldBlock: {
-    marginBottom: 14,
-  },
+    // Edit fields
+    fieldBlock: {
+      marginBottom: 14,
+    },
 
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#1E3A52",
-    marginBottom: 8,
-  },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 8,
+    },
 
-  input: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: INPUT_BDR,
-    backgroundColor: SOFT,
-    paddingHorizontal: 14,
-    color: TEXT,
-    ...Typography.button,
-  },
+    input: {
+      height: 48,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgSoft,
+      paddingHorizontal: 14,
+      color: theme.text,
+      ...Typography.button,
+    },
 
-  // Activity chips
-  optionsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+    // Activity chips
+    optionsWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
 
-  optionChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: SOFT,
-  },
+    optionChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#D1D5DB",
+      backgroundColor: theme.bgSoft,
+    },
 
-  optionChipSelected: {
-    backgroundColor: "#EEF4FF",
-    borderColor: PRIMARY,
-  },
+    optionChipSelected: {
+      backgroundColor: "#EEF4FF",
+      borderColor: PRIMARY,
+    },
 
-  optionChipText: {
-    fontSize: 13,
-    color: "#1E3A52",
-    fontWeight: "500",
-  },
+    optionChipText: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      fontWeight: "500",
+    },
 
-  optionChipTextSelected: {
-    color: PRIMARY,
-    fontWeight: "700",
-  },
+    optionChipTextSelected: {
+      color: PRIMARY,
+      fontWeight: "700",
+    },
 
-  // Save / cancel
-  saveCancelRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 6,
-  },
+    // Save / cancel
+    saveCancelRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 6,
+    },
 
-  cancelBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: INPUT_BDR,
-    backgroundColor: BG,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    cancelBtn: {
+      flex: 1,
+      height: 46,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgCard,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  cancelBtnText: {
-    color: TEXT,
-    ...Typography.button,
-  },
+    cancelBtnText: {
+      color: theme.text,
+      ...Typography.button,
+    },
 
-  saveBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
+    saveBtn: {
+      flex: 1,
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: PRIMARY,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
 
-  saveBtnText: {
-    color: "#FFFFFF",
-    ...Typography.button,
-  },
+    saveBtnText: {
+      color: "#FFFFFF",
+      ...Typography.button,
+    },
 
-  changePwBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#EEF4FF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
+    changePwBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: "#EEF4FF",
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      marginBottom: 8,
+    },
 
-  changePwBtnText: {
-    flex: 1,
-    color: PRIMARY,
-    fontSize: 15,
-    fontWeight: "600",
-  },
+    changePwBtnText: {
+      flex: 1,
+      color: PRIMARY,
+      fontSize: 15,
+      fontWeight: "600",
+    },
 
-  deleteAccountBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#FFF0F0",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
-  deleteAccountBtnText: {
-    flex: 1,
-    color: "#D32F2F",
-    fontSize: 15,
-    fontWeight: "600",
-  },
+    deleteAccountBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: "#FFF0F0",
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: "#FECACA",
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      marginBottom: 8,
+    },
+    deleteAccountBtnText: {
+      flex: 1,
+      color: "#D32F2F",
+      fontSize: 15,
+      fontWeight: "600",
+    },
 
-  deleteModalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-  deleteModalBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 28,
-    padding: 28,
-    width: "100%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  deleteModalIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "#FEE2E2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  deleteModalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    marginBottom: 14,
-    textAlign: "center",
-  },
-  deleteModalWarning: {
-    fontSize: 14,
-    color: "#4A6480",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  deleteConfirmBtn: {
-    width: "100%",
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: "#D32F2F",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  deleteConfirmText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  deleteCancelBtn: {
-    paddingVertical: 10,
-  },
-  deleteCancelText: {
-    fontSize: 14,
-    color: "#94A3B8",
-    fontWeight: "500",
-  },
-  deletePasswordInput: {
-    width: "100%",
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FFF5F5",
-    paddingHorizontal: 14,
-    color: "#0B1A2E",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  deletePasswordError: {
-    fontSize: 13,
-    color: "#D32F2F",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-});
+    deleteModalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 28,
+    },
+    deleteModalBox: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 28,
+      padding: 28,
+      width: "100%",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOpacity: 0.2,
+      shadowRadius: 24,
+      elevation: 12,
+    },
+    deleteModalIcon: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: "#FEE2E2",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+    deleteModalTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 14,
+      textAlign: "center",
+    },
+    deleteModalWarning: {
+      fontSize: 14,
+      color: theme.textMuted,
+      textAlign: "center",
+      lineHeight: 22,
+      marginBottom: 24,
+    },
+    deleteConfirmBtn: {
+      width: "100%",
+      height: 52,
+      borderRadius: 16,
+      backgroundColor: "#D32F2F",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 10,
+    },
+    deleteConfirmText: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    deleteCancelBtn: {
+      paddingVertical: 10,
+    },
+    deleteCancelText: {
+      fontSize: 14,
+      color: theme.inactive,
+      fontWeight: "500",
+    },
+    deletePasswordInput: {
+      width: "100%",
+      height: 48,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: "#FECACA",
+      backgroundColor: theme.dangerBg,
+      paddingHorizontal: 14,
+      color: theme.text,
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    deletePasswordError: {
+      fontSize: 13,
+      color: "#D32F2F",
+      marginBottom: 10,
+      textAlign: "center",
+    },
+  });
+}

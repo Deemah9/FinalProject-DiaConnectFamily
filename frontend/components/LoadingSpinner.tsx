@@ -1,28 +1,26 @@
+import { useAppTheme } from "@/hooks/useAppTheme";
 import React from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-
-import { Colors } from "../constants/Colors";
 
 type Props = {
   size?: "small" | "large";
   overlay?: boolean;
 };
 
-export default function LoadingSpinner({
-  size = "large",
-  overlay = false,
-}: Props) {
+export default function LoadingSpinner({ size = "large", overlay = false }: Props) {
+  const theme = useAppTheme();
+
   if (!overlay) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size={size} color={Colors.primary} />
+        <ActivityIndicator size={size} color={theme.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.overlay}>
-      <ActivityIndicator size={size} color={Colors.primary} />
+      <ActivityIndicator size={size} color={theme.primary} />
     </View>
   );
 }

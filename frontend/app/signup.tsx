@@ -14,6 +14,7 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useAuth } from "../context/AuthContext";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -34,6 +35,9 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const touch = (field: string) => setTouched((p) => ({ ...p, [field]: true }));
   const showErr = (field: string) => !!(touched[field] && errors[field]);
@@ -116,7 +120,7 @@ export default function SignUp() {
         )}
 
         <View style={styles.form}>
-          {/* ✅ First + Last name side-by-side */}
+          {/* First + Last name side-by-side */}
           <View style={styles.nameRow}>
             <View style={{ flex: 1 }}>
               <TextInput
@@ -229,99 +233,101 @@ export default function SignUp() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.primary },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: Colors.primary },
 
-  topRow: { paddingTop: Spacing.lg, paddingHorizontal: Spacing.lg },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    topRow: { paddingTop: Spacing.lg, paddingHorizontal: Spacing.lg },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  content: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xl,
-    alignItems: "center",
-  },
+    content: {
+      paddingHorizontal: Spacing.xl,
+      paddingBottom: Spacing.xl,
+      alignItems: "center",
+    },
 
-  brand: { marginTop: Spacing.sm, flexDirection: "row", alignItems: "center" },
-  brandTitle: {
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  brandSub: {
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "300",
-    lineHeight: 24,
-  },
+    brand: { marginTop: Spacing.sm, flexDirection: "row", alignItems: "center" },
+    brandTitle: {
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: "700",
+      lineHeight: 24,
+    },
+    brandSub: {
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: "300",
+      lineHeight: 24,
+    },
 
-  header: {
-    marginTop: Spacing.lg,
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "600",
-  },
+    header: {
+      marginTop: Spacing.lg,
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: "600",
+    },
 
-  errorBanner: {
-    marginTop: Spacing.md,
-    width: "100%",
-    backgroundColor: Colors.errorBg,
-    borderColor: Colors.errorBorder,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-  },
-  errorBannerText: { color: Colors.white, fontSize: 13 },
+    errorBanner: {
+      marginTop: Spacing.md,
+      width: "100%",
+      backgroundColor: Colors.errorBg,
+      borderColor: Colors.errorBorder,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+    },
+    errorBannerText: { color: Colors.white, fontSize: 13 },
 
-  form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
+    form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
 
-  nameRow: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-  },
+    nameRow: {
+      flexDirection: "row",
+      gap: Spacing.sm,
+    },
 
-  input: {
-    height: 54,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    backgroundColor: Colors.inputBg,
-    paddingHorizontal: 16,
-    color: Colors.white,
-    ...Typography.button,
-  },
-  inputErr: { borderColor: Colors.error },
-  errText: { marginTop: Spacing.sm, color: Colors.errorText, fontSize: 12 },
+    input: {
+      height: 54,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: Colors.inputBorder,
+      backgroundColor: Colors.inputBgOnDark,
+      paddingHorizontal: 16,
+      color: Colors.white,
+      ...Typography.button,
+    },
+    inputErr: { borderColor: Colors.error },
+    errText: { marginTop: Spacing.sm, color: Colors.errorText, fontSize: 12 },
 
-  primaryBtn: {
-    marginTop: Spacing.sm,
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: Colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  btnDisabled: { opacity: 0.7 },
-  primaryText: { color: Colors.primary, ...Typography.button },
+    primaryBtn: {
+      marginTop: Spacing.sm,
+      height: 54,
+      borderRadius: 14,
+      backgroundColor: Colors.white,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    btnDisabled: { opacity: 0.7 },
+    primaryText: { color: Colors.primary, ...Typography.button },
 
-  link: { color: Colors.linkText, fontSize: 13, textAlign: "center" },
-  linkBold: { fontWeight: "700", textDecorationLine: "underline" },
+    link: { color: Colors.linkText, fontSize: 13, textAlign: "center" },
+    linkBold: { fontWeight: "700", textDecorationLine: "underline" },
 
-  roleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.white,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 8,
-  },
-  roleBadgeText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
-});
+    roleBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: Colors.white,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginTop: 8,
+    },
+    roleBadgeText: { color: Colors.primary, fontSize: 13, fontWeight: "600" },
+  });
+}

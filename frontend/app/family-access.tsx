@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { viewWithCode } from "@/services/api";
 
 const CODE_LENGTH = 6;
@@ -25,6 +26,9 @@ export default function FamilyAccessScreen() {
   const inputs = useRef<(TextInput | null)[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const handleChange = (text: string, index: number) => {
     const char = text.toUpperCase().slice(-1);
@@ -133,113 +137,115 @@ export default function FamilyAccessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.primary,
-  },
-  header: {
-    alignItems: "center",
-    paddingTop: 70,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: 36,
-    gap: 10,
-  },
-  backBtn: {
-    position: "absolute",
-    top: 52,
-    left: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  subtitle: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 20,
-    paddingHorizontal: 10,
-  },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.primary,
+    },
+    header: {
+      alignItems: "center",
+      paddingTop: 70,
+      paddingHorizontal: Spacing.xl,
+      paddingBottom: 36,
+      gap: 10,
+    },
+    backBtn: {
+      position: "absolute",
+      top: 52,
+      left: 20,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.12)",
+    },
+    title: {
+      color: "#fff",
+      fontSize: 22,
+      fontWeight: "700",
+      textAlign: "center",
+    },
+    subtitle: {
+      color: "rgba(255,255,255,0.75)",
+      fontSize: 13,
+      textAlign: "center",
+      lineHeight: 20,
+      paddingHorizontal: 10,
+    },
 
-  card: {
-    backgroundColor: Colors.bgCard,
-    marginHorizontal: 16,
-    borderRadius: 24,
-    padding: 28,
-    alignItems: "center",
-  },
-  codeLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 16,
-  },
-  codeRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 24,
-  },
-  codeBox: {
-    width: 46,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: Colors.bg,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    textAlign: "center",
-    fontSize: 22,
-    fontWeight: "700",
-    color: Colors.text,
-  },
-  codeBoxFilled: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.bgInput,
-  },
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#B91C1C",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 14,
-    width: "100%",
-  },
-  errorText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
-    flex: 1,
-  },
-  submitBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    width: "100%",
-    alignItems: "center",
-  },
-  btnDisabled: { opacity: 0.6 },
-  submitText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  hint: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 16,
-    lineHeight: 18,
-  },
-});
+    card: {
+      backgroundColor: theme.bgCard,
+      marginHorizontal: 16,
+      borderRadius: 24,
+      padding: 28,
+      alignItems: "center",
+    },
+    codeLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 16,
+    },
+    codeRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 24,
+    },
+    codeBox: {
+      width: 46,
+      height: 56,
+      borderRadius: 12,
+      backgroundColor: theme.bg,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      textAlign: "center",
+      fontSize: 22,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    codeBoxFilled: {
+      borderColor: Colors.primary,
+      backgroundColor: theme.bgInput,
+    },
+    errorBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#B91C1C",
+      borderRadius: 10,
+      padding: 10,
+      marginBottom: 14,
+      width: "100%",
+    },
+    errorText: {
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: "600",
+      flex: 1,
+    },
+    submitBtn: {
+      backgroundColor: Colors.primary,
+      borderRadius: 14,
+      paddingVertical: 14,
+      width: "100%",
+      alignItems: "center",
+    },
+    btnDisabled: { opacity: 0.6 },
+    submitText: {
+      color: "#fff",
+      fontWeight: "700",
+      fontSize: 16,
+    },
+    hint: {
+      color: theme.textMuted,
+      fontSize: 12,
+      textAlign: "center",
+      marginTop: 16,
+      lineHeight: 18,
+    },
+  });
+}

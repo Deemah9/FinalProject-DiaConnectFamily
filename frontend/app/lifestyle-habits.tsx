@@ -14,9 +14,13 @@ import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
 import { getProfile, updateLifestyle } from "@/services/api";
 import { useTranslation } from "react-i18next";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 export default function LifestyleHabitsScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+
   const [isEditing, setIsEditing] = useState(false);
 
   const [activityLevel, setActivityLevel] = useState("");
@@ -104,7 +108,7 @@ export default function LifestyleHabitsScreen() {
               <Ionicons
                 name="create-outline"
                 size={16}
-                color={stylesVars.primary}
+                color="#1A6FA8"
               />
               <Text style={styles.editBtnText}>{isEditing ? t("close") : t("edit")}</Text>
             </Pressable>
@@ -123,7 +127,7 @@ export default function LifestyleHabitsScreen() {
             <Ionicons
               name="moon-outline"
               size={18}
-              color={stylesVars.primary}
+              color="#1A6FA8"
             />
             <Text style={styles.cardTitle}>{t("lifestyleDetails")}</Text>
           </View>
@@ -177,7 +181,7 @@ export default function LifestyleHabitsScreen() {
                     value={sleepHours}
                     onChangeText={setSleepHours}
                     placeholder={t("sleepHoursPlaceholder")}
-                    placeholderTextColor={stylesVars.muted}
+                    placeholderTextColor={theme.placeholder}
                     keyboardType="numeric"
                     style={styles.input}
                   />
@@ -220,19 +224,11 @@ export default function LifestyleHabitsScreen() {
   );
 }
 
-const stylesVars = {
-  primary: "#1A6FA8",
-  bg: "#EBF3FA",
-  text: "#0B1A2E",
-  muted: "#4A6480",
-  border: "#B8D0E8",
-  soft: "#E8F1F8",
-};
-
-const styles = StyleSheet.create({
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: stylesVars.bg,
+    backgroundColor: theme.bg,
   },
 
   content: {
@@ -292,14 +288,14 @@ const styles = StyleSheet.create({
   },
 
   screenTitle: {
-    color: stylesVars.text,
+    color: theme.text,
     fontSize: 28,
     fontWeight: "700",
     marginBottom: 8,
   },
 
   screenSub: {
-    color: stylesVars.muted,
+    color: theme.textMuted,
     fontSize: 14,
   },
 
@@ -310,11 +306,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: "#EEF4FF",
+    backgroundColor: theme.primaryBg,
   },
 
   editBtnText: {
-    color: stylesVars.primary,
+    color: "#1A6FA8",
     fontSize: 14,
     fontWeight: "600",
   },
@@ -335,12 +331,12 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.bgCard,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#D6E8F5",
+    borderColor: theme.bgSoft,
     padding: 24,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -357,12 +353,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: stylesVars.text,
+    color: theme.text,
   },
 
   loadingText: {
     fontSize: 14,
-    color: stylesVars.muted,
+    color: theme.textMuted,
   },
 
   itemBlock: {
@@ -372,30 +368,30 @@ const styles = StyleSheet.create({
   itemLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E3A52",
+    color: theme.textSecondary,
     marginBottom: 10,
   },
 
   rowDisplay: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ECEFF3",
+    borderBottomColor: theme.borderLight,
   },
 
   rowValue: {
     fontSize: 15,
     fontWeight: "600",
-    color: stylesVars.text,
+    color: theme.text,
   },
 
   input: {
     height: 48,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#E8F1F8",
+    borderColor: theme.border,
+    backgroundColor: theme.bgInput,
     paddingHorizontal: 14,
-    color: "#0B1A2E",
+    color: theme.text,
     ...Typography.button,
   },
 
@@ -410,18 +406,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#E8F1F8",
+    borderColor: theme.borderStrong,
+    backgroundColor: theme.bgInput,
   },
 
   optionChipSelected: {
-    backgroundColor: "#EEF4FF",
+    backgroundColor: theme.primaryBg,
     borderColor: "#1A6FA8",
   },
 
   optionChipText: {
     fontSize: 13,
-    color: "#1E3A52",
+    color: theme.textSecondary,
     fontWeight: "500",
   },
 
@@ -441,14 +437,14 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#FFFFFF",
+    borderColor: theme.border,
+    backgroundColor: theme.bgCard,
     alignItems: "center",
     justifyContent: "center",
   },
 
   cancelBtnText: {
-    color: "#0B1A2E",
+    color: theme.text,
     ...Typography.button,
   },
 
@@ -456,10 +452,10 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 16,
-    backgroundColor: stylesVars.primary,
+    backgroundColor: "#1A6FA8",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -474,4 +470,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     ...Typography.button,
   },
-});
+  });
+}

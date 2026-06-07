@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { useDrawer } from "@/context/DrawerContext";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -70,9 +71,10 @@ const TYPE_CONFIG = {
 
 // ─── Notification Card ────────────────────────────────────────────────────────
 function NotifCard({
-  item, lang, t, onPress,
+  item, lang, t, onPress, styles,
 }: {
   item: Notification; lang: string; t: any; onPress: (id: string) => void;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const cfg = TYPE_CONFIG[item.type as NotifType] ?? {
     color: "#718096", icon: "notifications" as const, bg: "#F7FAFC", light: "#F7FAFC",
@@ -152,7 +154,12 @@ function NotifCard({
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
-function EmptyState({ filter, t, isFamily }: { filter: NotifType; t: any; isFamily: boolean }) {
+function EmptyState({
+  filter, t, isFamily, styles,
+}: {
+  filter: NotifType; t: any; isFamily: boolean;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const cfg = TYPE_CONFIG[filter];
 
@@ -169,7 +176,7 @@ function EmptyState({ filter, t, isFamily }: { filter: NotifType; t: any; isFami
   const emptyMsg = filter === "emergency_alert"
     ? (isFamily
         ? t("notif.emptyAlertsFamily", "All patients have normal glucose")
-        : t("notif.emptyAlerts", "No alerts — glucose is in range 🎉"))
+        : t("notif.emptyAlerts", "No alerts — glucose is in range"))
     : t("notif.emptyReminders", "No reminders yet");
   const emptySub = isFamily
     ? t("notif.emptySubFamily", "You'll be notified when a patient has dangerous glucose levels")
@@ -195,6 +202,8 @@ export default function NotificationsScreen() {
   const { user } = useAuth();
   const isFamily = user?.role === "family_member";
   const { openDrawer, openLang } = useDrawer();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotifType>("emergency_alert");
@@ -229,10 +238,10 @@ export default function NotificationsScreen() {
     } catch {}
   };
 
-  const unread        = notifications.filter(n => !n.isRead).length;
-  const alertCount    = notifications.filter(n => n.type === "emergency_alert").length;
-  const unreadAlerts  = notifications.filter(n => n.type === "emergency_alert" && !n.isRead).length;
-  const reminderCount = notifications.filter(n => n.type === "glucose_reminder").length;
+  const unread          = notifications.filter(n => !n.isRead).length;
+  const alertCount      = notifications.filter(n => n.type === "emergency_alert").length;
+  const unreadAlerts    = notifications.filter(n => n.type === "emergency_alert" && !n.isRead).length;
+  const reminderCount   = notifications.filter(n => n.type === "glucose_reminder").length;
   const unreadReminders = notifications.filter(n => n.type === "glucose_reminder" && !n.isRead).length;
 
   const filtered = notifications.filter(n => n.type === filter);
@@ -245,7 +254,6 @@ export default function NotificationsScreen() {
       total: alertCount,
       unread: unreadAlerts,
       color: "#E53E3E",
-      activeBg: "#E53E3E",
     },
     {
       key: "glucose_reminder" as NotifType,
@@ -254,7 +262,6 @@ export default function NotificationsScreen() {
       total: reminderCount,
       unread: unreadReminders,
       color: "#1A6FA8",
-      activeBg: "#1A6FA8",
     },
   ];
 
@@ -313,7 +320,7 @@ export default function NotificationsScreen() {
                       color={active ? tab.color : "rgba(255,255,255,0.7)"}
                     />
                   </View>
-                  <Text style={[styles.segmentLabel, active && { color: "#0B1A2E", fontWeight: "700" }]}>
+                  <Text style={[styles.segmentLabel, active && { color: theme.text, fontWeight: "700" }]}>
                     {tab.label}
                   </Text>
                   {tab.unread > 0 && (
@@ -340,11 +347,10 @@ export default function NotificationsScreen() {
           style={filtered.length === 0 ? { flex: 1 } : undefined}
           contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1A6FA8"]} />}
-
           renderItem={({ item }) => (
-            <NotifCard item={item} lang={lang} t={t} onPress={handleMarkOneRead} />
+            <NotifCard item={item} lang={lang} t={t} onPress={handleMarkOneRead} styles={styles} />
           )}
-          ListEmptyComponent={<EmptyState filter={filter} t={t} isFamily={isFamily} />}
+          ListEmptyComponent={<EmptyState filter={filter} t={t} isFamily={isFamily} styles={styles} />}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -353,141 +359,143 @@ export default function NotificationsScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
 
-  // Header
-  header: { paddingBottom: 0 },
-  headerRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingBottom: 14,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    alignItems: "center", justifyContent: "center",
-  },
-  headerCenter: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 8,
-  },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  unreadBadge: {
-    backgroundColor: "#E53E3E", borderRadius: 10,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
-  unreadBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  markReadBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
+    // Header
+    header: { paddingBottom: 0 },
+    headerRow: {
+      flexDirection: "row", alignItems: "center",
+      paddingHorizontal: 16, paddingBottom: 14,
+    },
+    backBtn: {
+      width: 40, height: 40, borderRadius: 12,
+      alignItems: "center", justifyContent: "center",
+    },
+    headerCenter: {
+      flex: 1, flexDirection: "row", alignItems: "center",
+      justifyContent: "center", gap: 8,
+    },
+    headerTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
+    unreadBadge: {
+      backgroundColor: "#E53E3E", borderRadius: 10,
+      paddingHorizontal: 7, paddingVertical: 2,
+    },
+    unreadBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+    markReadBtn: {
+      width: 40, height: 40, borderRadius: 12,
+      alignItems: "center", justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.15)",
+    },
 
-  // Segmented control
-  segmentWrap: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: "rgba(0,0,0,0.18)",
-    borderRadius: 18,
-    padding: 5,
-    gap: 4,
-  },
-  segment: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 14,
-    gap: 7,
-  },
-  segmentActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  segmentIconWrap: {
-    width: 30, height: 30, borderRadius: 9,
-    alignItems: "center", justifyContent: "center",
-  },
-  segmentLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.75)",
-  },
-  segmentBadge: {
-    borderRadius: 9, minWidth: 18, height: 18,
-    alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 5,
-  },
-  segmentBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+    // Segmented control
+    segmentWrap: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginBottom: 16,
+      backgroundColor: "rgba(0,0,0,0.18)",
+      borderRadius: 18,
+      padding: 5,
+      gap: 4,
+    },
+    segment: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 10,
+      borderRadius: 14,
+      gap: 7,
+    },
+    segmentActive: {
+      backgroundColor: theme.bgCard,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
+    segmentIconWrap: {
+      width: 30, height: 30, borderRadius: 9,
+      alignItems: "center", justifyContent: "center",
+    },
+    segmentLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "rgba(255,255,255,0.75)",
+    },
+    segmentBadge: {
+      borderRadius: 9, minWidth: 18, height: 18,
+      alignItems: "center", justifyContent: "center",
+      paddingHorizontal: 5,
+    },
+    segmentBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
 
-  // List
-  listContent: { padding: 14, gap: 10 },
-  emptyContainer: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingBottom: 120 },
-  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  loadingText: { color: "#718096", fontSize: 14 },
+    // List
+    listContent: { padding: 14, gap: 10 },
+    emptyContainer: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingBottom: 120 },
+    loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+    loadingText: { color: theme.textLight, fontSize: 14 },
 
-  // Card
-  card: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
-  cardBar: { width: 4 },
-  iconWrap: {
-    width: 54, alignItems: "center",
-    justifyContent: "center", position: "relative",
-  },
-  pulseDot: {
-    position: "absolute", top: 10, right: 8,
-    width: 8, height: 8, borderRadius: 4,
-  },
-  cardContent: { flex: 1, padding: 12, gap: 5 },
-  cardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  cardTitle: { fontSize: 13, fontWeight: "700", flex: 1, marginEnd: 6 },
-  cardTime: { fontSize: 11, color: "#A0AEC0" },
-  cardBody: { fontSize: 12, color: "#4A5568", lineHeight: 17 },
+    // Card
+    card: {
+      flexDirection: "row",
+      backgroundColor: theme.bgCard,
+      borderRadius: 18,
+      overflow: "hidden",
+      elevation: 2,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+    },
+    cardBar: { width: 4 },
+    iconWrap: {
+      width: 54, alignItems: "center",
+      justifyContent: "center", position: "relative",
+    },
+    pulseDot: {
+      position: "absolute", top: 10, right: 8,
+      width: 8, height: 8, borderRadius: 4,
+    },
+    cardContent: { flex: 1, padding: 12, gap: 5 },
+    cardTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    cardTitle: { fontSize: 13, fontWeight: "700", flex: 1, marginEnd: 6 },
+    cardTime: { fontSize: 11, color: theme.placeholder },
+    cardBody: { fontSize: 12, color: theme.textMuted, lineHeight: 17 },
 
-  patientBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    alignSelf: "flex-start", borderRadius: 8,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
-  patientText: { fontSize: 11, fontWeight: "700" },
+    patientBadge: {
+      flexDirection: "row", alignItems: "center", gap: 4,
+      alignSelf: "flex-start", borderRadius: 8,
+      paddingHorizontal: 7, paddingVertical: 2,
+    },
+    patientText: { fontSize: 11, fontWeight: "700" },
 
-  glucosePill: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    alignSelf: "flex-start", borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
-  glucoseText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+    glucosePill: {
+      flexDirection: "row", alignItems: "center", gap: 4,
+      alignSelf: "flex-start", borderRadius: 8,
+      paddingHorizontal: 8, paddingVertical: 3,
+    },
+    glucoseText: { color: "#fff", fontSize: 11, fontWeight: "700" },
 
-  unreadDot: {
-    width: 8, height: 8, borderRadius: 4,
-    alignSelf: "center", marginRight: 12,
-  },
+    unreadDot: {
+      width: 8, height: 8, borderRadius: 4,
+      alignSelf: "center", marginRight: 12,
+    },
 
-  // Empty
-  emptyWrap: { alignItems: "center", gap: 12, paddingTop: 70 },
-  emptyIcon: {
-    width: 88, height: 88, borderRadius: 44,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 4,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#4A5568", textAlign: "center", paddingHorizontal: 32 },
-  emptySub: { fontSize: 13, color: "#A0AEC0", textAlign: "center", paddingHorizontal: 40 },
-});
+    // Empty
+    emptyWrap: { alignItems: "center", gap: 12, paddingTop: 70 },
+    emptyIcon: {
+      width: 88, height: 88, borderRadius: 44,
+      alignItems: "center", justifyContent: "center",
+      marginBottom: 4,
+    },
+    emptyTitle: { fontSize: 16, fontWeight: "700", color: theme.textMuted, textAlign: "center", paddingHorizontal: 32 },
+    emptySub: { fontSize: 13, color: theme.placeholder, textAlign: "center", paddingHorizontal: 40 },
+  });
+}

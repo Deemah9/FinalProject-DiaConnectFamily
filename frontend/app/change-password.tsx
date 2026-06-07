@@ -17,10 +17,6 @@ import { Typography } from "@/constants/Typography";
 import { changePassword } from "@/services/api";
 
 const PRIMARY = "#1A6FA8";
-const TEXT    = "#0B1A2E";
-const MUTED   = "#4A6480";
-const BORDER  = "#B8D0E8";
-const SOFT    = "#E8F1F8";
 
 export default function ChangePasswordScreen() {
   const { t } = useTranslation();

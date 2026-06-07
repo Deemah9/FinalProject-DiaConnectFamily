@@ -13,12 +13,15 @@ import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
 import { getGlucoseStats } from "@/services/api";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const DAY_OPTIONS = [7, 14, 30] as const;
 type DayOption = (typeof DAY_OPTIONS)[number];
 
 export default function GlucoseStatsScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
   const [days, setDays] = useState<DayOption>(7);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -103,7 +106,7 @@ export default function GlucoseStatsScreen() {
               <Ionicons
                 name="bar-chart-outline"
                 size={32}
-                color="#94A3B8"
+                color={theme.inactive}
               />
               <Text style={styles.emptyTitle}>{t("noDataForPeriod")}</Text>
               <Text style={styles.emptySub}>
@@ -226,140 +229,142 @@ export default function GlucoseStatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
-  heroRow: {
-    marginTop: 28,
-    marginBottom: 20,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  screenTitle: {
-    color: "#0B1A2E",
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  screenSub: { color: "#4A6480", fontSize: 14 },
+    heroRow: {
+      marginTop: 28,
+      marginBottom: 20,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 28,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
+    screenSub: { color: theme.textMuted, fontSize: 14 },
 
-  // Day filter
-  filterRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 20,
-  },
-  filterBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-  },
-  filterBtnActive: {
-    backgroundColor: "#1A6FA8",
-    borderColor: "#1A6FA8",
-  },
-  filterBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#4A6480",
-  },
-  filterBtnTextActive: { color: "#FFFFFF" },
+    // Day filter
+    filterRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 20,
+    },
+    filterBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 14,
+      alignItems: "center",
+      backgroundColor: theme.bgCard,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+    },
+    filterBtnActive: {
+      backgroundColor: "#1A6FA8",
+      borderColor: "#1A6FA8",
+    },
+    filterBtnText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: theme.textMuted,
+    },
+    filterBtnTextActive: { color: "#FFFFFF" },
 
-  errorBox: {
-    marginBottom: 16,
-    backgroundColor: "#FDEDED",
-    borderWidth: 1,
-    borderColor: "#F5C2C2",
-    borderRadius: 14,
-    padding: 12,
-  },
-  errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
+    errorBox: {
+      marginBottom: 16,
+      backgroundColor: "#FDEDED",
+      borderWidth: 1,
+      borderColor: "#F5C2C2",
+      borderRadius: 14,
+      padding: 12,
+    },
+    errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
 
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 20,
-    marginBottom: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: "#0B1A2E" },
-  loadingText: { fontSize: 14, color: "#4A6480" },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 24,
-  },
-  emptyTitle: {
-    marginTop: 10,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0B1A2E",
-  },
-  emptySub: { marginTop: 6, fontSize: 12, color: "#4A6480" },
+    card: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 20,
+      marginBottom: 18,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 16,
+    },
+    cardTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
+    loadingText: { fontSize: 14, color: theme.textMuted },
+    emptyState: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 24,
+    },
+    emptyTitle: {
+      marginTop: 10,
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    emptySub: { marginTop: 6, fontSize: 12, color: theme.textMuted },
 
-  // Time in range
-  tirRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 12,
-    marginBottom: 14,
-  },
-  tirValue: { fontSize: 42, fontWeight: "800" },
-  tirLabel: { fontSize: 13, color: "#4A6480", flex: 1 },
-  progressBg: {
-    height: 10,
-    backgroundColor: "#EBF3FA",
-    borderRadius: 99,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  progressFill: { height: 10, borderRadius: 99 },
-  tirNote: { fontSize: 11, color: "#7A96B0" },
+    // Time in range
+    tirRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 12,
+      marginBottom: 14,
+    },
+    tirValue: { fontSize: 42, fontWeight: "800" },
+    tirLabel: { fontSize: 13, color: theme.textMuted, flex: 1 },
+    progressBg: {
+      height: 10,
+      backgroundColor: theme.bg,
+      borderRadius: 99,
+      overflow: "hidden",
+      marginBottom: 8,
+    },
+    progressFill: { height: 10, borderRadius: 99 },
+    tirNote: { fontSize: 11, color: theme.textLight },
 
-  // Stats grid
-  statGrid: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statCell: { flex: 1, alignItems: "center", paddingVertical: 8 },
-  statLabel: { fontSize: 12, color: "#4A6480", marginBottom: 4 },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0B1A2E",
-  },
-  statUnit: { fontSize: 11, fontWeight: "400", color: "#4A6480" },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#D6E8F5",
-  },
+    // Stats grid
+    statGrid: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    statCell: { flex: 1, alignItems: "center", paddingVertical: 8 },
+    statLabel: { fontSize: 12, color: theme.textMuted, marginBottom: 4 },
+    statValue: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: theme.text,
+    },
+    statUnit: { fontSize: 11, fontWeight: "400", color: theme.textMuted },
+    statDivider: {
+      width: 1,
+      height: 40,
+      backgroundColor: theme.bgSoft,
+    },
 
-  // Count
-  countValue: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#1A6FA8",
-    marginBottom: 4,
-  },
-  countSub: { fontSize: 13, color: "#4A6480" },
-});
+    // Count
+    countValue: {
+      fontSize: 36,
+      fontWeight: "800",
+      color: "#1A6FA8",
+      marginBottom: 4,
+    },
+    countSub: { fontSize: 13, color: theme.textMuted },
+  });
+}

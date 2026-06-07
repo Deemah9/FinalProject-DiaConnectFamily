@@ -16,9 +16,13 @@ import { Typography } from "@/constants/Typography";
 import { addSleep } from "@/services/api";
 import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { buildTimestamp, initTime } from "@/components/TimePicker";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 export default function AddSleepScreen() {
 const { t } = useTranslation();
+const theme = useAppTheme();
+const styles = createStyles(theme);
+
 const [sleepHours, setSleepHours] = useState("");
 const [notes, setNotes] = useState("");
 const [timeState, setTime] = useState(initTime);
@@ -81,7 +85,7 @@ keyboardShouldPersistTaps="handled"
 value={sleepHours}
 onChangeText={setSleepHours}
 placeholder={t("sleepHoursPlaceholder")}
-placeholderTextColor={stylesVars.muted}
+placeholderTextColor={theme.placeholder}
 keyboardType="numeric"
 style={styles.input}
 />
@@ -93,7 +97,7 @@ style={styles.input}
 value={notes}
 onChangeText={setNotes}
 placeholder={t("optionalNotes")}
-placeholderTextColor={stylesVars.muted}
+placeholderTextColor={theme.placeholder}
 style={[styles.input, styles.textArea]}
 multiline
 />
@@ -126,16 +130,9 @@ disabled={saving}
 );
 }
 
-const stylesVars = {
-primary: "#1A6FA8",
-bg: "#EBF3FA",
-text: "#0B1A2E",
-muted: "#4A6480",
-border: "#B8D0E8",
-};
-
-const styles = StyleSheet.create({
-container: { flex: 1, backgroundColor: stylesVars.bg },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+container: { flex: 1, backgroundColor: theme.bg },
 
 content: {
 paddingHorizontal: 24,
@@ -188,14 +185,14 @@ marginBottom: 20,
 },
 
 screenTitle: {
-color: stylesVars.text,
+color: theme.text,
 fontSize: 28,
 fontWeight: "700",
 marginBottom: 8,
 },
 
 screenSub: {
-color: stylesVars.muted,
+color: theme.textMuted,
 fontSize: 14,
 },
 
@@ -215,12 +212,12 @@ fontWeight: "500",
 },
 
 formCard: {
-backgroundColor: "#FFFFFF",
+backgroundColor: theme.bgCard,
 borderRadius: 24,
 borderWidth: 1,
-borderColor: "#D6E8F5",
+borderColor: theme.bgSoft,
 padding: 24,
-shadowColor: "#000",
+shadowColor: theme.shadow,
 shadowOpacity: 0.05,
 shadowRadius: 8,
 shadowOffset: { width: 0, height: 3 },
@@ -234,7 +231,7 @@ marginBottom: 18,
 label: {
 fontSize: 14,
 fontWeight: "600",
-color: "#1E3A52",
+color: theme.textSecondary,
 marginBottom: 10,
 },
 
@@ -242,11 +239,11 @@ input: {
 minHeight: 52,
 borderRadius: 16,
 borderWidth: 1,
-borderColor: "#B8D0E8",
-backgroundColor: "#E8F1F8",
+borderColor: theme.border,
+backgroundColor: theme.bgInput,
 paddingHorizontal: 14,
 paddingVertical: 14,
-color: "#0B1A2E",
+color: theme.text,
 ...Typography.button,
 },
 
@@ -258,14 +255,14 @@ textAlignVertical: "top",
 helperText: {
 marginTop: 8,
 fontSize: 12,
-color: stylesVars.muted,
+color: theme.textMuted,
 },
 
 saveBtn: {
 marginTop: 10,
 height: 48,
 borderRadius: 16,
-backgroundColor: stylesVars.primary,
+backgroundColor: "#1A6FA8",
 alignItems: "center",
 justifyContent: "center",
 },
@@ -279,3 +276,4 @@ color: "#FFFFFF",
 ...Typography.button,
 },
 });
+}

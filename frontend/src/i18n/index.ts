@@ -441,6 +441,25 @@ const resources = {
       highGlucose: "High Glucose",
       lowGlucose: "Low Glucose",
 
+      // Emergency Contact
+      "emergency.title": "Emergency Contact",
+      "emergency.sub": "Call for help instantly",
+      "emergency.subFamily": "Your personal emergency contact",
+      "emergency.noContact": "No emergency contact set",
+      "emergency.noContactSub": "Add a contact to call in case of emergency",
+      "emergency.addContact": "Add Emergency Contact",
+      "emergency.editContact": "Edit Contact",
+      "emergency.contactName": "Contact Name",
+      "emergency.contactPhone": "Phone Number",
+      "emergency.namePlaceholder": "e.g. Mom, Dad, Doctor",
+      "emergency.save": "Save",
+      "emergency.callNow": "Call Now",
+      "emergency.callHint": "Press the button to call your emergency contact immediately",
+      "emergency.callFailed": "Could not open phone app",
+      "emergency.missingFields": "Please fill in all fields",
+      "emergency.deleteTitle": "Remove Contact",
+      "emergency.deleteConfirm": "Are you sure you want to remove this emergency contact?",
+
       // Notifications screen
       "notif.title": "Notifications",
       "notif.all": "All",
@@ -973,6 +992,25 @@ const resources = {
       highGlucose: "ارتفاع السكر",
       lowGlucose: "انخفاض السكر",
 
+      // Emergency Contact
+      "emergency.title": "جهة اتصال الطوارئ",
+      "emergency.sub": "اتصل للمساعدة فوراً",
+      "emergency.subFamily": "جهة الاتصال الشخصية للطوارئ",
+      "emergency.noContact": "لم يتم تعيين جهة اتصال للطوارئ",
+      "emergency.noContactSub": "أضف جهة اتصال للاتصال بها في حالات الطوارئ",
+      "emergency.addContact": "إضافة جهة اتصال طوارئ",
+      "emergency.editContact": "تعديل جهة الاتصال",
+      "emergency.contactName": "اسم جهة الاتصال",
+      "emergency.contactPhone": "رقم الهاتف",
+      "emergency.namePlaceholder": "مثال: الأم، الأب، الطبيب",
+      "emergency.save": "حفظ",
+      "emergency.callNow": "اتصل الآن",
+      "emergency.callHint": "اضغط الزر للاتصال بجهة الطوارئ فوراً",
+      "emergency.callFailed": "تعذر فتح تطبيق الهاتف",
+      "emergency.missingFields": "يرجى ملء جميع الحقول",
+      "emergency.deleteTitle": "إزالة جهة الاتصال",
+      "emergency.deleteConfirm": "هل أنت متأكد من إزالة جهة اتصال الطوارئ؟",
+
       // Notifications screen
       "notif.title": "الإشعارات",
       "notif.all": "الكل",
@@ -1504,6 +1542,25 @@ const resources = {
       markAsRead: "סמן כנקרא",
       highGlucose: "גלוקוז גבוה",
       lowGlucose: "גלוקוז נמוך",
+
+      // Emergency Contact
+      "emergency.title": "איש קשר לחירום",
+      "emergency.sub": "התקשר לעזרה מיידית",
+      "emergency.subFamily": "איש הקשר האישי שלך לחירום",
+      "emergency.noContact": "לא הוגדר איש קשר לחירום",
+      "emergency.noContactSub": "הוסף איש קשר להתקשרות במקרי חירום",
+      "emergency.addContact": "הוסף איש קשר לחירום",
+      "emergency.editContact": "ערוך איש קשר",
+      "emergency.contactName": "שם איש הקשר",
+      "emergency.contactPhone": "מספר טלפון",
+      "emergency.namePlaceholder": "לדוגמה: אמא, אבא, רופא",
+      "emergency.save": "שמור",
+      "emergency.callNow": "התקשר עכשיו",
+      "emergency.callHint": "לחץ על הכפתור להתקשרות מיידית עם איש הקשר לחירום",
+      "emergency.callFailed": "לא ניתן לפתוח את אפליקציית הטלפון",
+      "emergency.missingFields": "אנא מלא את כל השדות",
+      "emergency.deleteTitle": "הסר איש קשר",
+      "emergency.deleteConfirm": "האם אתה בטוח שברצונך להסיר איש קשר לחירום זה?",
 
       // Notifications screen
       "notif.title": "התראות",

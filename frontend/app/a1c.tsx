@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import AppHeader from "@/src/components/AppHeader";
 import { getEstimatedA1C } from "@/services/api";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const PRIMARY = "#1A6FA8";
 
@@ -39,6 +40,8 @@ function a1cBg(a1c: number): string {
 
 export default function A1CScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -91,7 +94,7 @@ export default function A1CScreen() {
 
         {!loading && !error && data?.estimated_a1c == null && (
           <View style={styles.emptyBox}>
-            <Ionicons name="analytics-outline" size={48} color="#B8D0E8" />
+            <Ionicons name="analytics-outline" size={48} color={theme.border} />
             <Text style={styles.emptyText}>{t("a1cNoData")}</Text>
           </View>
         )}
@@ -125,16 +128,19 @@ export default function A1CScreen() {
                 icon="pulse-outline"
                 label={t("a1cAvgGlucose")}
                 value={`${data.average_glucose} mg/dL`}
+                styles={styles}
               />
               <StatBox
                 icon="calendar-outline"
                 label={t("a1cDaysCovered")}
                 value={`${data.days_covered}`}
+                styles={styles}
               />
               <StatBox
                 icon="document-text-outline"
                 label={t("a1cReadingsCount")}
                 value={`${data.readings_count}`}
+                styles={styles}
               />
             </View>
 
@@ -147,26 +153,31 @@ export default function A1CScreen() {
                   color={TIR_COLORS.very_low}
                   label={t("tirVeryLow")}
                   pct={tir.very_low}
+                  styles={styles}
                 />
                 <TirRow
                   color={TIR_COLORS.low}
                   label={t("tirLow")}
                   pct={tir.low}
+                  styles={styles}
                 />
                 <TirRow
                   color={TIR_COLORS.in_range}
                   label={t("tirInRange")}
                   pct={tir.in_range}
+                  styles={styles}
                 />
                 <TirRow
                   color={TIR_COLORS.high}
                   label={t("tirHigh")}
                   pct={tir.high}
+                  styles={styles}
                 />
                 <TirRow
                   color={TIR_COLORS.very_high}
                   label={t("tirVeryHigh")}
                   pct={tir.very_high}
+                  styles={styles}
                 />
 
                 {/* Stacked bar */}
@@ -199,7 +210,7 @@ export default function A1CScreen() {
   );
 }
 
-function StatBox({ icon, label, value }: { icon: any; label: string; value: string }) {
+function StatBox({ icon, label, value, styles }: { icon: any; label: string; value: string; styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.statBox}>
       <Ionicons name={icon} size={20} color={PRIMARY} />
@@ -209,7 +220,7 @@ function StatBox({ icon, label, value }: { icon: any; label: string; value: stri
   );
 }
 
-function TirRow({ color, label, pct }: { color: string; label: string; pct: number }) {
+function TirRow({ color, label, pct, styles }: { color: string; label: string; pct: number; styles: ReturnType<typeof createStyles> }) {
   return (
     <View style={styles.tirRow}>
       <View style={[styles.tirDot, { backgroundColor: color }]} />
@@ -219,193 +230,195 @@ function TirRow({ color, label, pct }: { color: string; label: string; pct: numb
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
 
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
 
-  hero: { marginTop: 24, marginBottom: 20 },
+    hero: { marginTop: 24, marginBottom: 20 },
 
-  screenTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    marginBottom: 6,
-  },
+    screenTitle: {
+      fontSize: 26,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 6,
+    },
 
-  screenSub: { fontSize: 13, color: "#4A6480" },
+    screenSub: { fontSize: 13, color: theme.textMuted },
 
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FDEDED",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-  },
+    errorBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#FDEDED",
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 16,
+    },
 
-  errorText: { color: "#B91C1C", fontSize: 13, flex: 1 },
+    errorText: { color: "#B91C1C", fontSize: 13, flex: 1 },
 
-  emptyBox: {
-    alignItems: "center",
-    marginTop: 60,
-    gap: 14,
-  },
+    emptyBox: {
+      alignItems: "center",
+      marginTop: 60,
+      gap: 14,
+    },
 
-  emptyText: { color: "#4A6480", fontSize: 14, textAlign: "center" },
+    emptyText: { color: theme.textMuted, fontSize: 14, textAlign: "center" },
 
-  warningBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 14,
-  },
+    warningBox: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      backgroundColor: "#FFFBEB",
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 14,
+    },
 
-  warningText: { color: "#92400E", fontSize: 12, flex: 1 },
+    warningText: { color: "#92400E", fontSize: 12, flex: 1 },
 
-  // A1C Big Card
-  a1cCard: {
-    borderRadius: 24,
-    padding: 28,
-    alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-  },
+    // A1C Big Card
+    a1cCard: {
+      borderRadius: 24,
+      padding: 28,
+      alignItems: "center",
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+    },
 
-  a1cLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E3A52",
-    marginBottom: 18,
-  },
+    a1cLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 18,
+    },
 
-  a1cCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    marginBottom: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
+    a1cCircle: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      borderWidth: 6,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.bgCard,
+      marginBottom: 18,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.07,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
 
-  a1cValue: {
-    fontSize: 38,
-    fontWeight: "800",
-  },
+    a1cValue: {
+      fontSize: 38,
+      fontWeight: "800",
+    },
 
-  statusBadge: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
+    statusBadge: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
 
-  statusBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
+    statusBadgeText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
+    },
 
-  // Stats row
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 16,
-  },
+    // Stats row
+    statsRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 16,
+    },
 
-  statBox: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 14,
-    alignItems: "center",
-    gap: 6,
-  },
+    statBox: {
+      flex: 1,
+      backgroundColor: theme.bgCard,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 14,
+      alignItems: "center",
+      gap: 6,
+    },
 
-  statValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    textAlign: "center",
-  },
+    statValue: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.text,
+      textAlign: "center",
+    },
 
-  statLabel: {
-    fontSize: 10,
-    color: "#4A6480",
-    textAlign: "center",
-  },
+    statLabel: {
+      fontSize: 10,
+      color: theme.textMuted,
+      textAlign: "center",
+    },
 
-  // TIR card
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 20,
-    marginBottom: 16,
-  },
+    // TIR card
+    card: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 20,
+      marginBottom: 16,
+    },
 
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E3A52",
-    marginBottom: 14,
-  },
+    cardTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.textSecondary,
+      marginBottom: 14,
+    },
 
-  tirRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    gap: 10,
-  },
+    tirRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+      gap: 10,
+    },
 
-  tirDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
+    tirDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
 
-  tirLabel: { flex: 1, fontSize: 12, color: "#1E3A52" },
+    tirLabel: { flex: 1, fontSize: 12, color: theme.textSecondary },
 
-  tirPct: { fontSize: 13, fontWeight: "700", color: "#0B1A2E" },
+    tirPct: { fontSize: 13, fontWeight: "700", color: theme.text },
 
-  stackedBar: {
-    flexDirection: "row",
-    height: 14,
-    borderRadius: 7,
-    overflow: "hidden",
-    marginTop: 10,
-    backgroundColor: "#EBF3FA",
-  },
+    stackedBar: {
+      flexDirection: "row",
+      height: 14,
+      borderRadius: 7,
+      overflow: "hidden",
+      marginTop: 10,
+      backgroundColor: theme.bg,
+    },
 
-  // Disclaimer
-  disclaimerBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 14,
-    padding: 12,
-  },
+    // Disclaimer
+    disclaimerBox: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      backgroundColor: theme.bgAlt,
+      borderRadius: 14,
+      padding: 12,
+    },
 
-  disclaimerText: { color: "#64748B", fontSize: 11, flex: 1, lineHeight: 17 },
-});
+    disclaimerText: { color: "#64748B", fontSize: 11, flex: 1, lineHeight: 17 },
+  });
+}

@@ -16,12 +16,16 @@ import { Typography } from "@/constants/Typography";
 import { addMeal } from "@/services/api";
 import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { buildTimestamp, initTime } from "@/components/TimePicker";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 type MealType = typeof MEAL_TYPES[number];
 
 export default function AddMealScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+
   const [carbs, setCarbs] = useState("");
   const [foods, setFoods] = useState("");
   const [mealType, setMealType] = useState<MealType | null>(null);
@@ -90,7 +94,7 @@ export default function AddMealScreen() {
               value={foods}
               onChangeText={setFoods}
               placeholder={t("foodsPlaceholder")}
-              placeholderTextColor="#4A6480"
+              placeholderTextColor={theme.placeholder}
               style={styles.input}
             />
           </View>
@@ -118,7 +122,7 @@ export default function AddMealScreen() {
               value={carbs}
               onChangeText={setCarbs}
               placeholder={t("carbsPlaceholder")}
-              placeholderTextColor="#4A6480"
+              placeholderTextColor={theme.placeholder}
               keyboardType="number-pad"
               style={styles.input}
             />
@@ -130,7 +134,7 @@ export default function AddMealScreen() {
               value={notes}
               onChangeText={setNotes}
               placeholder={t("optionalNotes")}
-              placeholderTextColor="#4A6480"
+              placeholderTextColor={theme.placeholder}
               style={[styles.input, styles.textArea]}
               multiline
             />
@@ -164,133 +168,135 @@ export default function AddMealScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
 
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
+    content: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 40,
+    },
 
-  hero: {
-    marginTop: 28,
-    marginBottom: 20,
-  },
+    hero: {
+      marginTop: 28,
+      marginBottom: 20,
+    },
 
-  screenTitle: {
-    color: "#0B1A2E",
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 28,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
 
-  screenSub: {
-    color: "#4A6480",
-    fontSize: 14,
-  },
+    screenSub: {
+      color: theme.textMuted,
+      fontSize: 14,
+    },
 
-  errorBox: {
-    marginBottom: 16,
-    backgroundColor: "#FDEDED",
-    borderWidth: 1,
-    borderColor: "#F5C2C2",
-    borderRadius: 16,
-    padding: 12,
-  },
+    errorBox: {
+      marginBottom: 16,
+      backgroundColor: "#FDEDED",
+      borderWidth: 1,
+      borderColor: "#F5C2C2",
+      borderRadius: 16,
+      padding: 12,
+    },
 
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 13,
-    fontWeight: "500",
-  },
+    errorText: {
+      color: "#B91C1C",
+      fontSize: 13,
+      fontWeight: "500",
+    },
 
-  formCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
+    formCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 24,
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
 
-  formGroup: {
-    marginBottom: 18,
-  },
+    formGroup: {
+      marginBottom: 18,
+    },
 
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E3A52",
-    marginBottom: 10,
-  },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 10,
+    },
 
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#E8F1F8",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    color: "#0B1A2E",
-    ...Typography.button,
-  },
+    input: {
+      minHeight: 52,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgInput,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      color: theme.text,
+      ...Typography.button,
+    },
 
-  textArea: {
-    minHeight: 96,
-    textAlignVertical: "top",
-  },
+    textArea: {
+      minHeight: 96,
+      textAlignVertical: "top",
+    },
 
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+    chipRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
 
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#E8F1F8",
-  },
+    chip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgInput,
+    },
 
-  chipActive: {
-    backgroundColor: "#1A6FA8",
-    borderColor: "#1A6FA8",
-  },
+    chipActive: {
+      backgroundColor: "#1A6FA8",
+      borderColor: "#1A6FA8",
+    },
 
-  chipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4A6480",
-  },
+    chipText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.textMuted,
+    },
 
-  chipTextActive: {
-    color: "#FFFFFF",
-  },
+    chipTextActive: {
+      color: "#FFFFFF",
+    },
 
-  saveBtn: {
-    marginTop: 10,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#1A6FA8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    saveBtn: {
+      marginTop: 10,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  disabledBtn: {
-    opacity: 0.7,
-  },
+    disabledBtn: {
+      opacity: 0.7,
+    },
 
-  saveBtnText: {
-    color: "#FFFFFF",
-    ...Typography.button,
-  },
-});
+    saveBtnText: {
+      color: "#FFFFFF",
+      ...Typography.button,
+    },
+  });
+}

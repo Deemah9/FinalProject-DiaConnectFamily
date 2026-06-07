@@ -7,6 +7,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { setAppLanguage } from "@/src/i18n";
 
 const LANG_OPTIONS = [
@@ -18,6 +19,9 @@ const LANG_OPTIONS = [
 export default function WelcomeScreen() {
   const { t, i18n } = useTranslation();
   const [langOpen, setLangOpen] = useState(false);
+
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   return (
     <View style={styles.container}>
@@ -88,90 +92,92 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    paddingTop: 80,
-    paddingHorizontal: Spacing.xl,
-  },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Colors.primary,
+      alignItems: "center",
+      paddingTop: 80,
+      paddingHorizontal: Spacing.xl,
+    },
 
-  langBtn: {
-    position: "absolute",
-    top: 52,
-    right: 20,
-    zIndex: 10,
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  langDropdown: {
-    position: "absolute", top: 96, right: 20,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14, borderWidth: 1, borderColor: "#D6E8F5",
-    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, elevation: 8,
-    minWidth: 150, overflow: "hidden",
-  },
-  langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  langOptionBorder: { borderBottomWidth: 1, borderBottomColor: "#EBF3FA" },
-  langOptionActive: { backgroundColor: "#EBF3FA" },
-  langOptionText: { fontSize: 14, color: "#0B1A2E" },
-  langOptionTextActive: { fontWeight: "700", color: "#1A6FA8" },
+    langBtn: {
+      position: "absolute",
+      top: 52,
+      right: 20,
+      zIndex: 10,
+      padding: 8,
+      borderRadius: 12,
+      backgroundColor: "rgba(255,255,255,0.15)",
+    },
+    langDropdown: {
+      position: "absolute", top: 96, right: 20,
+      backgroundColor: theme.bgCard,
+      borderRadius: 14, borderWidth: 1, borderColor: theme.bgSoft,
+      shadowColor: theme.shadow, shadowOpacity: 0.12, shadowRadius: 12, elevation: 8,
+      minWidth: 150, overflow: "hidden",
+    },
+    langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    langOptionBorder: { borderBottomWidth: 1, borderBottomColor: theme.bg },
+    langOptionActive: { backgroundColor: theme.bg },
+    langOptionText: { fontSize: 14, color: theme.text },
+    langOptionTextActive: { fontWeight: "700", color: "#1A6FA8" },
 
-  brand: {
-    marginTop: 30,
-    flexDirection: "row",
-    alignItems: "center",
-    direction: "ltr",
-  } as any,
-  title: { color: Colors.white, ...Typography.title, lineHeight: 26 },
-  subtitle: { color: Colors.white, ...Typography.subtitle, lineHeight: 26 },
+    brand: {
+      marginTop: 30,
+      flexDirection: "row",
+      alignItems: "center",
+      direction: "ltr",
+    } as any,
+    title: { color: Colors.white, ...Typography.title, lineHeight: 26 },
+    subtitle: { color: Colors.white, ...Typography.subtitle, lineHeight: 26 },
 
-  actions: {
-    width: "100%",
-    marginTop: 90,
-    gap: Spacing.md,
-    alignItems: "center",
-  },
+    actions: {
+      width: "100%",
+      marginTop: 90,
+      gap: Spacing.md,
+      alignItems: "center",
+    },
 
-  primaryBtn: {
-    width: "100%",
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: Colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryText: { color: Colors.primary, ...Typography.button },
+    primaryBtn: {
+      width: "100%",
+      height: 54,
+      borderRadius: 14,
+      backgroundColor: Colors.white,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    primaryText: { color: Colors.primary, ...Typography.button },
 
-  outlineBtn: {
-    width: "100%",
-    height: 54,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  outlineText: { color: Colors.white, ...Typography.button },
+    outlineBtn: {
+      width: "100%",
+      height: 54,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: Colors.borderLight,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "transparent",
+    },
+    outlineText: { color: Colors.white, ...Typography.button },
 
-  familyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  familyBtnText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  footer: { marginTop: Spacing.sm, color: Colors.textMutedOnDark, ...Typography.footer },
-});
+    familyBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.3)",
+      backgroundColor: "rgba(255,255,255,0.08)",
+    },
+    familyBtnText: {
+      color: "rgba(255,255,255,0.85)",
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    footer: { marginTop: Spacing.sm, color: Colors.textMutedOnDark, ...Typography.footer },
+  });
+}

@@ -16,6 +16,7 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,6 +29,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const touch = (field: string) => setTouched((p) => ({ ...p, [field]: true }));
   const showErr = (field: string) => !!(touched[field] && errors[field]);
@@ -159,96 +163,98 @@ export default function Login() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.primary },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: Colors.primary },
 
-  topRow: { paddingTop: Spacing.lg, paddingHorizontal: Spacing.lg },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    topRow: { paddingTop: Spacing.lg, paddingHorizontal: Spacing.lg },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  content: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xl,
-    alignItems: "center",
-  },
+    content: {
+      paddingHorizontal: Spacing.xl,
+      paddingBottom: Spacing.xl,
+      alignItems: "center",
+    },
 
-  brand: { marginTop: Spacing.sm, flexDirection: "row", alignItems: "center" },
-  brandTitle: {
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  brandSub: {
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "300",
-    lineHeight: 24,
-  },
+    brand: { marginTop: Spacing.sm, flexDirection: "row", alignItems: "center" },
+    brandTitle: {
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: "700",
+      lineHeight: 24,
+    },
+    brandSub: {
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: "300",
+      lineHeight: 24,
+    },
 
-  header: {
-    marginTop: Spacing.lg,
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "600",
-  },
+    header: {
+      marginTop: Spacing.lg,
+      color: Colors.white,
+      fontSize: 22,
+      fontWeight: "600",
+    },
 
-  errorBanner: {
-    marginTop: Spacing.md,
-    width: "100%",
-    backgroundColor: "#B91C1C",
-    borderColor: "#991B1B",
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  errorBannerText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600", flex: 1 },
+    errorBanner: {
+      marginTop: Spacing.md,
+      width: "100%",
+      backgroundColor: "#B91C1C",
+      borderColor: "#991B1B",
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    errorBannerText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600", flex: 1 },
 
-  form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
+    form: { width: "100%", marginTop: Spacing.md, gap: Spacing.md },
 
-  inputLabel: {
-    color: Colors.textLabel,
-    marginBottom: Spacing.sm,
-    fontSize: 12,
-  },
+    inputLabel: {
+      color: Colors.textLabel,
+      marginBottom: Spacing.sm,
+      fontSize: 12,
+    },
 
-  input: {
-    height: 54,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    backgroundColor: Colors.inputBgOnDark,
-    paddingHorizontal: 16,
-    color: Colors.white,
-    ...Typography.button,
-  },
-  inputErr: { borderColor: Colors.error },
-  errText: { marginTop: Spacing.sm, color: Colors.errorText, fontSize: 12 },
+    input: {
+      height: 54,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: Colors.inputBorder,
+      backgroundColor: Colors.inputBgOnDark,
+      paddingHorizontal: 16,
+      color: Colors.white,
+      ...Typography.button,
+    },
+    inputErr: { borderColor: Colors.error },
+    errText: { marginTop: Spacing.sm, color: Colors.errorText, fontSize: 12 },
 
-  primaryBtn: {
-    marginTop: Spacing.sm,
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: Colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  btnDisabled: { opacity: 0.7 },
-  primaryText: { color: Colors.primary, ...Typography.button },
+    primaryBtn: {
+      marginTop: Spacing.sm,
+      height: 54,
+      borderRadius: 14,
+      backgroundColor: Colors.white,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    btnDisabled: { opacity: 0.7 },
+    primaryText: { color: Colors.primary, ...Typography.button },
 
-  link: { color: Colors.linkText, fontSize: 13, textAlign: "center" },
-  linkBold: { fontWeight: "700", textDecorationLine: "underline" },
-  forgotLink: {
-    color: Colors.textMutedOnDark,
-    fontSize: 13,
-    textDecorationLine: "underline",
-  },
-});
+    link: { color: Colors.linkText, fontSize: 13, textAlign: "center" },
+    linkBold: { fontWeight: "700", textDecorationLine: "underline" },
+    forgotLink: {
+      color: Colors.textMutedOnDark,
+      fontSize: 13,
+      textDecorationLine: "underline",
+    },
+  });
+}

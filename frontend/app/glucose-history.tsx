@@ -20,6 +20,7 @@ import { Calendar } from "react-native-calendars";
 
 import AppHeader from "@/src/components/AppHeader";
 import { getGlucoseReadings, deleteGlucose, importGlucoseCSV } from "@/services/api";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -38,6 +39,8 @@ const shiftDay = (dateStr: string, delta: number) => {
 
 export default function GlucoseHistoryScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -266,7 +269,7 @@ export default function GlucoseHistoryScreen() {
             <ActivityIndicator size="small" color="#1A6FA8" style={{ marginVertical: 16 }} />
           ) : grouped.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="document-text-outline" size={30} color="#94A3B8" />
+              <Ionicons name="document-text-outline" size={30} color={theme.inactive} />
               <Text style={styles.emptyTitle}>{t("noReadingsYet")}</Text>
               <Text style={styles.emptySub}>{t("addFirstReading")}</Text>
             </View>
@@ -373,7 +376,7 @@ export default function GlucoseHistoryScreen() {
                           <Ionicons
                             name="trash-outline"
                             size={16}
-                            color={deletingId === item?.id ? "#B8D0E8" : "#94A3B8"}
+                            color={deletingId === item?.id ? theme.border : theme.inactive}
                           />
                         </Pressable>
                       </View>
@@ -457,198 +460,200 @@ export default function GlucoseHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
-  heroRow: {
-    marginTop: 28, marginBottom: 20,
-    flexDirection: "row", alignItems: "flex-start",
-    justifyContent: "space-between", gap: 12,
-  },
-  screenTitle: { color: "#0B1A2E", fontSize: 28, fontWeight: "700", marginBottom: 8 },
-  screenSub: { color: "#4A6480", fontSize: 14 },
-  statsBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 14, backgroundColor: "#FFFFFF",
-    borderWidth: 1, borderColor: "#D6E8F5",
-  },
-  statsBtnText: { color: "#1A6FA8", fontSize: 14, fontWeight: "600" },
-  fab: {
-    position: "absolute", bottom: 32, right: 24,
-    width: 58, height: 58, borderRadius: 29,
-    backgroundColor: "#1A6FA8",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#1A6FA8", shadowOpacity: 0.4,
-    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
-  },
+    heroRow: {
+      marginTop: 28, marginBottom: 20,
+      flexDirection: "row", alignItems: "flex-start",
+      justifyContent: "space-between", gap: 12,
+    },
+    screenTitle: { color: theme.text, fontSize: 28, fontWeight: "700", marginBottom: 8 },
+    screenSub: { color: theme.textMuted, fontSize: 14 },
+    statsBtn: {
+      flexDirection: "row", alignItems: "center", gap: 6,
+      paddingHorizontal: 14, paddingVertical: 10,
+      borderRadius: 14, backgroundColor: theme.bgCard,
+      borderWidth: 1, borderColor: theme.bgSoft,
+    },
+    statsBtnText: { color: "#1A6FA8", fontSize: 14, fontWeight: "600" },
+    fab: {
+      position: "absolute", bottom: 32, right: 24,
+      width: 58, height: 58, borderRadius: 29,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center", justifyContent: "center",
+      shadowColor: "#1A6FA8", shadowOpacity: 0.4,
+      shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    },
 
-  errorBox: {
-    marginBottom: 16, backgroundColor: "#FDEDED",
-    borderWidth: 1, borderColor: "#F5C2C2",
-    borderRadius: 14, padding: 12,
-  },
-  errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
+    errorBox: {
+      marginBottom: 16, backgroundColor: "#FDEDED",
+      borderWidth: 1, borderColor: "#F5C2C2",
+      borderRadius: 14, padding: 12,
+    },
+    errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
 
-  card: {
-    backgroundColor: "#FFFFFF", borderRadius: 24,
-    borderWidth: 1, borderColor: "#D6E8F5",
-    padding: 20, marginBottom: 18,
-    shadowColor: "#000", shadowOpacity: 0.05,
-    shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
-  },
-  cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: "#0B1A2E" },
+    card: {
+      backgroundColor: theme.bgCard, borderRadius: 24,
+      borderWidth: 1, borderColor: theme.bgSoft,
+      padding: 20, marginBottom: 18,
+      shadowColor: theme.shadow, shadowOpacity: 0.05,
+      shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+    },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
+    cardTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
 
-  dayNav: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#EBF3FA", borderRadius: 14,
-    paddingVertical: 10, paddingHorizontal: 8,
-    marginBottom: 14,
-  },
-  navArrow: { padding: 6 },
-  dayNavCenter: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 6,
-  },
-  dayNavLabel: { fontSize: 14, fontWeight: "700", color: "#0B1A2E" },
-  calBackdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center", alignItems: "center",
-  },
-  calBox: {
-    backgroundColor: "#FFFFFF", borderRadius: 20,
-    padding: 16, width: SCREEN_WIDTH - 48,
-    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
-  },
-  calCloseBtn: {
-    marginTop: 12, alignItems: "center",
-    paddingVertical: 10, backgroundColor: "#EBF3FA", borderRadius: 10,
-  },
-  calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
+    dayNav: {
+      flexDirection: "row", alignItems: "center",
+      backgroundColor: theme.bg, borderRadius: 14,
+      paddingVertical: 10, paddingHorizontal: 8,
+      marginBottom: 14,
+    },
+    navArrow: { padding: 6 },
+    dayNavCenter: {
+      flex: 1, flexDirection: "row", alignItems: "center",
+      justifyContent: "center", gap: 6,
+    },
+    dayNavLabel: { fontSize: 14, fontWeight: "700", color: theme.text },
+    calBackdrop: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.4)",
+      justifyContent: "center", alignItems: "center",
+    },
+    calBox: {
+      backgroundColor: theme.bgCard, borderRadius: 20,
+      padding: 16, width: SCREEN_WIDTH - 48,
+      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+    },
+    calCloseBtn: {
+      marginTop: 12, alignItems: "center",
+      paddingVertical: 10, backgroundColor: theme.bg, borderRadius: 10,
+    },
+    calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
 
-  dayStatsRow: {
-    flexDirection: "row", backgroundColor: "#F4F9FD",
-    borderRadius: 12, paddingVertical: 10, marginBottom: 14,
-  },
-  dayStatItem: { flex: 1, alignItems: "center" },
-  dayStatLabel: { fontSize: 11, color: "#4A6480", marginBottom: 2 },
-  dayStatValue: { fontSize: 15, fontWeight: "700", color: "#0B1A2E" },
-  dayStatDivider: { width: 1, backgroundColor: "#B8D0E8", marginVertical: 4 },
+    dayStatsRow: {
+      flexDirection: "row", backgroundColor: theme.bgAlt,
+      borderRadius: 12, paddingVertical: 10, marginBottom: 14,
+    },
+    dayStatItem: { flex: 1, alignItems: "center" },
+    dayStatLabel: { fontSize: 11, color: theme.textMuted, marginBottom: 2 },
+    dayStatValue: { fontSize: 15, fontWeight: "700", color: theme.text },
+    dayStatDivider: { width: 1, backgroundColor: theme.border, marginVertical: 4 },
 
-  emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
-  emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: "700", color: "#0B1A2E" },
-  emptySub: { marginTop: 6, fontSize: 12, color: "#4A6480" },
+    emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
+    emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: "700", color: theme.text },
+    emptySub: { marginTop: 6, fontSize: 12, color: theme.textMuted },
 
-  readingRow: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#F4F9FD", borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 12,
-    marginBottom: 8, gap: 12,
-  },
-  readingIndicator: { width: 4, height: 36, borderRadius: 4 },
-  readingValue: { fontSize: 18, fontWeight: "700", color: "#0B1A2E", marginBottom: 2 },
-  readingUnit: { fontSize: 12, fontWeight: "400", color: "#4A6480" },
-  readingTime: { fontSize: 12, color: "#7A96B0" },
+    readingRow: {
+      flexDirection: "row", alignItems: "center",
+      backgroundColor: theme.bgAlt, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      marginBottom: 8, gap: 12,
+    },
+    readingIndicator: { width: 4, height: 36, borderRadius: 4 },
+    readingValue: { fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 2 },
+    readingUnit: { fontSize: 12, fontWeight: "400", color: theme.textMuted },
+    readingTime: { fontSize: 12, color: theme.textLight },
 
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
-  statusText: { fontSize: 12, fontWeight: "700" },
-  deleteBtn: { marginLeft: 4, padding: 4, alignItems: "center", justifyContent: "center" },
+    statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
+    statusText: { fontSize: 12, fontWeight: "700" },
+    deleteBtn: { marginLeft: 4, padding: 4, alignItems: "center", justifyContent: "center" },
 
-  showMoreBtn: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 4,
-    paddingVertical: 10, marginTop: 4,
-  },
-  showMoreText: { fontSize: 13, color: "#1A6FA8", fontWeight: "600" },
+    showMoreBtn: {
+      flexDirection: "row", alignItems: "center",
+      justifyContent: "center", gap: 4,
+      paddingVertical: 10, marginTop: 4,
+    },
+    showMoreText: { fontSize: 13, color: "#1A6FA8", fontWeight: "600" },
 
-  modalBackdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
-  },
-  modalBox: {
-    backgroundColor: "#FFFFFF", borderRadius: 24,
-    padding: 24, width: "100%", alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
-  },
-  modalIconWrap: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: "#FDEDED", alignItems: "center",
-    justifyContent: "center", marginBottom: 16,
-  },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 8 },
-  modalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", marginBottom: 24, lineHeight: 20 },
-  modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
-  modalCancelBtn: {
-    flex: 1, height: 48, borderRadius: 14,
-    borderWidth: 1, borderColor: "#D6E8F5",
-    alignItems: "center", justifyContent: "center",
-  },
-  modalCancelText: { fontSize: 15, fontWeight: "600", color: "#4A6480" },
-  modalDeleteBtn: {
-    flex: 1, height: 48, borderRadius: 14,
-    backgroundColor: "#D32F2F",
-    alignItems: "center", justifyContent: "center",
-  },
-  modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    modalBackdrop: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+    },
+    modalBox: {
+      backgroundColor: theme.bgCard, borderRadius: 24,
+      padding: 24, width: "100%", alignItems: "center",
+      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    },
+    modalIconWrap: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: "#FDEDED", alignItems: "center",
+      justifyContent: "center", marginBottom: 16,
+    },
+    modalTitle: { fontSize: 17, fontWeight: "700", color: theme.text, marginBottom: 8 },
+    modalMsg: { fontSize: 14, color: theme.textMuted, textAlign: "center", marginBottom: 24, lineHeight: 20 },
+    modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+    modalCancelBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      borderWidth: 1, borderColor: theme.border,
+      alignItems: "center", justifyContent: "center",
+    },
+    modalCancelText: { fontSize: 15, fontWeight: "600", color: theme.textMuted },
+    modalDeleteBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      backgroundColor: "#D32F2F",
+      alignItems: "center", justifyContent: "center",
+    },
+    modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 
-  addModalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  addModalSheet: {
-    backgroundColor: "#FFFFFF", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 20, paddingBottom: 28, paddingTop: 10,
-    shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 24, elevation: 12,
-  },
-  addModalHandle: {
-    width: 44, height: 5, borderRadius: 3,
-    backgroundColor: "#E2EAF2", alignSelf: "center", marginBottom: 12,
-  },
-  addModalTitleRow: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 8, marginBottom: 14,
-  },
-  addModalTitleBadge: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: "#EBF3FA", alignItems: "center", justifyContent: "center",
-  },
-  addModalTitle: { fontSize: 18, fontWeight: "700", color: "#0B1A2E" },
-  addCardBlue: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 16,
-    backgroundColor: "#EFF6FF", marginBottom: 10,
-    borderWidth: 1, borderColor: "#BFDBFE",
-    borderLeftWidth: 5, borderLeftColor: "#1A6FA8",
-  },
-  addCardIconBlue: {
-    width: 44, height: 44, borderRadius: 13, backgroundColor: "#1A6FA8",
-    alignItems: "center", justifyContent: "center",
-  },
-  addCardLabelBlue: { fontSize: 16, fontWeight: "700", color: "#1E3A5F", marginBottom: 2 },
-  addCardSubBlue: { fontSize: 12, color: "#3B82F6" },
-  addCardArrowBlue: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: "#DBEAFE", alignItems: "center", justifyContent: "center",
-  },
-  addCardGreen: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 16,
-    backgroundColor: "#F0FDF4", marginBottom: 8,
-    borderWidth: 1, borderColor: "#BBF7D0",
-    borderLeftWidth: 5, borderLeftColor: "#16A34A",
-  },
-  addCardIconGreen: {
-    width: 44, height: 44, borderRadius: 13, backgroundColor: "#16A34A",
-    alignItems: "center", justifyContent: "center",
-  },
-  addCardLabelGreen: { fontSize: 16, fontWeight: "700", color: "#14532D", marginBottom: 2 },
-  addCardSubGreen: { fontSize: 12, color: "#16A34A" },
-  addCardArrowGreen: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: "#DCFCE7", alignItems: "center", justifyContent: "center",
-  },
-  addModalCancel: {
-    alignItems: "center", paddingVertical: 14, marginTop: 6,
-    borderTopWidth: 1, borderTopColor: "#F1F5F9",
-  },
-  addModalCancelText: { fontSize: 15, fontWeight: "600", color: "#94A3B8" },
-});
+    addModalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+    addModalSheet: {
+      backgroundColor: theme.bgCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      paddingHorizontal: 20, paddingBottom: 28, paddingTop: 10,
+      shadowColor: theme.shadow, shadowOpacity: 0.18, shadowRadius: 24, elevation: 12,
+    },
+    addModalHandle: {
+      width: 44, height: 5, borderRadius: 3,
+      backgroundColor: theme.borderLight, alignSelf: "center", marginBottom: 12,
+    },
+    addModalTitleRow: {
+      flexDirection: "row", alignItems: "center",
+      justifyContent: "center", gap: 8, marginBottom: 14,
+    },
+    addModalTitleBadge: {
+      width: 32, height: 32, borderRadius: 10,
+      backgroundColor: theme.bg, alignItems: "center", justifyContent: "center",
+    },
+    addModalTitle: { fontSize: 18, fontWeight: "700", color: theme.text },
+    addCardBlue: {
+      flexDirection: "row", alignItems: "center", gap: 12,
+      paddingVertical: 14, paddingHorizontal: 14, borderRadius: 16,
+      backgroundColor: "#EFF6FF", marginBottom: 10,
+      borderWidth: 1, borderColor: "#BFDBFE",
+      borderLeftWidth: 5, borderLeftColor: "#1A6FA8",
+    },
+    addCardIconBlue: {
+      width: 44, height: 44, borderRadius: 13, backgroundColor: "#1A6FA8",
+      alignItems: "center", justifyContent: "center",
+    },
+    addCardLabelBlue: { fontSize: 16, fontWeight: "700", color: "#1E3A5F", marginBottom: 2 },
+    addCardSubBlue: { fontSize: 12, color: "#3B82F6" },
+    addCardArrowBlue: {
+      width: 28, height: 28, borderRadius: 8,
+      backgroundColor: "#DBEAFE", alignItems: "center", justifyContent: "center",
+    },
+    addCardGreen: {
+      flexDirection: "row", alignItems: "center", gap: 12,
+      paddingVertical: 14, paddingHorizontal: 14, borderRadius: 16,
+      backgroundColor: "#F0FDF4", marginBottom: 8,
+      borderWidth: 1, borderColor: "#BBF7D0",
+      borderLeftWidth: 5, borderLeftColor: "#16A34A",
+    },
+    addCardIconGreen: {
+      width: 44, height: 44, borderRadius: 13, backgroundColor: "#16A34A",
+      alignItems: "center", justifyContent: "center",
+    },
+    addCardLabelGreen: { fontSize: 16, fontWeight: "700", color: "#14532D", marginBottom: 2 },
+    addCardSubGreen: { fontSize: 12, color: "#16A34A" },
+    addCardArrowGreen: {
+      width: 28, height: 28, borderRadius: 8,
+      backgroundColor: "#DCFCE7", alignItems: "center", justifyContent: "center",
+    },
+    addModalCancel: {
+      alignItems: "center", paddingVertical: 14, marginTop: 6,
+      borderTopWidth: 1, borderTopColor: theme.borderLight,
+    },
+    addModalCancelText: { fontSize: 15, fontWeight: "600", color: theme.inactive },
+  });
+}
