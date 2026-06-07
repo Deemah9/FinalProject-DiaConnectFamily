@@ -17,6 +17,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "../context/AuthContext";
 import { DrawerProvider } from "../context/DrawerContext";
 import { ThemeProvider as AppThemeProvider, useTheme } from "../context/ThemeContext";
+import { FontSizeProvider } from "../context/FontSizeContext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -64,9 +65,11 @@ function AppShell() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppThemeProvider>
-        <AppShell />
-      </AppThemeProvider>
+      <FontSizeProvider>
+        <AppThemeProvider>
+          <AppShell />
+        </AppThemeProvider>
+      </FontSizeProvider>
     </GestureHandlerRootView>
   );
 }
