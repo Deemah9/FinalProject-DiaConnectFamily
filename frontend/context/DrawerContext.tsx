@@ -374,12 +374,14 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                     {t("darkMode", "Dark Mode")}
                   </Text>
                 </View>
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: theme.borderStrong, true: theme.primary }}
-                  thumbColor="#FFFFFF"
-                />
+                <View style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}>
+                  <Switch
+                    value={isDark}
+                    onValueChange={toggleTheme}
+                    trackColor={{ false: theme.borderStrong, true: theme.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
               </View>
 
               <View style={styles.drawerDivider} />

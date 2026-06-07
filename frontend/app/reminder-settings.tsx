@@ -125,12 +125,14 @@ export default function ReminderSettingsScreen() {
               />
               <Text style={styles.toggleLabel}>{t("enableCustomReminders")}</Text>
             </View>
+            <View style={I18nManager.isRTL ? { transform: [{ scaleX: -1 }] } : undefined}>
             <Switch
               value={enabled}
               onValueChange={handleToggleEnabled}
               trackColor={{ false: theme.borderStrong, true: PRIMARY }}
               thumbColor="#fff"
             />
+            </View>
           </View>
         </View>
 

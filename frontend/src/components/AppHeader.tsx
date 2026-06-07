@@ -131,12 +131,14 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                   {t("darkMode", "Dark Mode")}
                 </Text>
               </View>
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: "#CBD5E1", true: HEADER_BG }}
-                thumbColor="#FFFFFF"
-              />
+              <View style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}>
+                <Switch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: "#CBD5E1", true: HEADER_BG }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
             </View>
 
             <View style={styles.panelDivider} />
@@ -179,7 +181,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
 
               {/* Slider row */}
               <View style={styles.sliderRow}>
-                <Text style={styles.sliderLabelSmall}>أ</Text>
+                <Text style={styles.sliderLabelSmall}>{t("fontLetter", "A")}</Text>
                 <Slider
                   style={styles.slider}
                   minimumValue={MIN_SCALE}
@@ -192,7 +194,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                   onValueChange={(v) => setSliderVal(v)}
                   onSlidingComplete={(v) => setFontScale(v)}
                 />
-                <Text style={styles.sliderLabelLarge}>أ</Text>
+                <Text style={styles.sliderLabelLarge}>{t("fontLetter", "A")}</Text>
               </View>
 
               {/* Reset button — only shows if not at default */}
