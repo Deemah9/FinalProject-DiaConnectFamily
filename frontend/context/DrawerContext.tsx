@@ -1,4 +1,5 @@
 import { useAppTheme } from "@/hooks/useAppTheme";
+import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { updateProfile } from "@/services/api";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
@@ -20,6 +21,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -50,6 +52,7 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
   const theme = useAppTheme();
   const styles = createStyles(theme);
+  const { isDark, toggleTheme } = useTheme();
   const isRTL = I18nManager.isRTL;
   const slideAnim = useRef(
     new Animated.Value(isRTL ? DRAWER_W : -DRAWER_W),
@@ -359,6 +362,28 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
 
               <View style={styles.drawerDivider} />
 
+              {/* Dark Mode Toggle */}
+              <View style={styles.darkModeRow}>
+                <View style={styles.darkModeLeft}>
+                  <Ionicons
+                    name={isDark ? "moon" : "sunny-outline"}
+                    size={17}
+                    color={isDark ? "#8DA4BC" : "#E8A317"}
+                  />
+                  <Text style={styles.darkModeText}>
+                    {t("darkMode", "Dark Mode")}
+                  </Text>
+                </View>
+                <Switch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: theme.borderStrong, true: theme.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              <View style={styles.drawerDivider} />
+
               <Pressable
                 style={styles.drawerLogout}
                 onPress={() => closeDrawer(() => logout())}
@@ -460,6 +485,26 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       marginVertical: 12,
       marginHorizontal: 4,
     },
+    darkModeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      marginBottom: 2,
+    },
+    darkModeLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    darkModeText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+    },
+
     drawerLogout: {
       flexDirection: "row",
       alignItems: "center",
