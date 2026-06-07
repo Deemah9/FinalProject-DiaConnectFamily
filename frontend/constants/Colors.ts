@@ -144,6 +144,134 @@ export const darkColors: typeof lightColors = {
   gradientHeader: ["#0D4F7C", "#1A6FA8"] as [string, string],
 };
 
+// ─── Light High-Contrast Theme ───────────────────────────────────────────────
+export const lightContrastColors: typeof lightColors = {
+  bg:          "#FFFFFF",
+  bgCard:      "#FFFFFF",
+  bgInput:     "#F0F0F0",
+  bgSoft:      "#DEDEDE",
+  bgAlt:       "#F5F5F5",
+
+  text:          "#000000",
+  textSecondary: "#111111",
+  textMuted:     "#2C2C2C",
+  textLight:     "#444444",
+  placeholder:   "#555555",
+  inactive:      "#555555",
+
+  border:        "#000000",
+  borderLight:   "#444444",
+  borderStrong:  "#000000",
+
+  primary:       "#003D6B",
+  primaryLight:  "#004F8A",
+  primaryDark:   "#002D52",
+  primaryBg:     "#D6EEFF",
+  gold:          "#7A5000",
+
+  statusNormal:   "#005C3A",
+  statusNormalBg: "#B8F0DA",
+  statusLow:      "#7A3800",
+  statusLowBg:    "#FFE0C0",
+  statusHigh:     "#8B0000",
+  statusHighBg:   "#FFD0D0",
+
+  error:        "#8B0000",
+  errorBg:      "#FFD0D0",
+  errorBorder:  "#CC0000",
+  errorText:    "#6A0000",
+  success:      "#005C3A",
+  successBg:    "#B8F0DA",
+  warning:      "#7A3800",
+  warningBg:    "#FFE0C0",
+  danger:       "#CC0000",
+  dangerBg:     "#FFE0E0",
+
+  white:        "#FFFFFF",
+  shadow:       "#000000",
+  overlay:      "rgba(0,0,0,0.6)",
+  tabBar:       "#FFFFFF",
+  tabBorder:    "#000000",
+
+  textMutedOnDark:   "rgba(255,255,255,0.85)",
+  borderLightOnDark: "rgba(255,255,255,0.5)",
+  inputBgOnDark:     "rgba(255,255,255,0.1)",
+  errorOnDark:       "rgba(255,70,70,0.95)",
+  textMutedLight:    "rgba(255,255,255,0.7)",
+  textLabel:         "rgba(255,255,255,0.9)",
+  linkText:          "#FFFFFF",
+  inputBorder:       "rgba(255,255,255,0.3)",
+  errorBgOnDark:     "rgba(255,70,70,0.2)",
+  errorBorderOnDark: "rgba(255,70,70,0.7)",
+  errorTextOnDark:   "rgba(255,200,200,1)",
+
+  gradientHeader: ["#003D6B", "#003D6B"] as [string, string],
+};
+
+// ─── Dark High-Contrast Theme ─────────────────────────────────────────────────
+export const darkContrastColors: typeof lightColors = {
+  bg:          "#000000",
+  bgCard:      "#0A0A0A",
+  bgInput:     "#1A1A1A",
+  bgSoft:      "#252525",
+  bgAlt:       "#050505",
+
+  text:          "#FFFFFF",
+  textSecondary: "#E8E8E8",
+  textMuted:     "#C8C8C8",
+  textLight:     "#A8A8A8",
+  placeholder:   "#888888",
+  inactive:      "#666666",
+
+  border:        "#FFFFFF",
+  borderLight:   "#888888",
+  borderStrong:  "#FFFFFF",
+
+  primary:       "#5CC8FF",
+  primaryLight:  "#80D8FF",
+  primaryDark:   "#3ABAFF",
+  primaryBg:     "#001A2E",
+  gold:          "#FFD060",
+
+  statusNormal:   "#00E896",
+  statusNormalBg: "#003820",
+  statusLow:      "#FFB040",
+  statusLowBg:    "#2A1800",
+  statusHigh:     "#FF6060",
+  statusHighBg:   "#2A0000",
+
+  error:        "#FF6060",
+  errorBg:      "#2A0000",
+  errorBorder:  "#CC3333",
+  errorText:    "#FFC0C0",
+  success:      "#00E896",
+  successBg:    "#003820",
+  warning:      "#FFB040",
+  warningBg:    "#2A1800",
+  danger:       "#FF6060",
+  dangerBg:     "#2A0000",
+
+  white:        "#0A0A0A",
+  shadow:       "#000000",
+  overlay:      "rgba(0,0,0,0.8)",
+  tabBar:       "#0A0A0A",
+  tabBorder:    "#FFFFFF",
+
+  textMutedOnDark:   "rgba(255,255,255,0.9)",
+  borderLightOnDark: "rgba(255,255,255,0.6)",
+  inputBgOnDark:     "rgba(255,255,255,0.12)",
+  errorOnDark:       "rgba(255,96,96,0.95)",
+  textMutedLight:    "rgba(255,255,255,0.75)",
+  textLabel:         "rgba(255,255,255,0.95)",
+  linkText:          "#FFFFFF",
+  inputBorder:       "rgba(255,255,255,0.4)",
+  errorBgOnDark:     "rgba(255,96,96,0.2)",
+  errorBorderOnDark: "rgba(255,96,96,0.7)",
+  errorTextOnDark:   "rgba(255,200,200,1)",
+
+  gradientHeader: ["#000000", "#001A2E"] as [string, string],
+};
+
 export type AppColors = typeof lightColors;
 
 // Named export (used by most files)

@@ -1,15 +1,22 @@
-import { darkColors, lightColors } from "@/constants/Colors";
+import { darkColors, darkContrastColors, lightColors, lightContrastColors } from "@/constants/Colors";
 import { useFontSize } from "@/context/FontSizeContext";
+import { useHighContrast } from "@/context/HighContrastContext";
 import { useTheme } from "@/context/ThemeContext";
 
 export function useAppTheme() {
   const { isDark } = useTheme();
+  const { isHighContrast } = useHighContrast();
   const { fontScale } = useFontSize();
-  const colors = isDark ? darkColors : lightColors;
+
+  const colors =
+    isDark
+      ? isHighContrast ? darkContrastColors  : darkColors
+      : isHighContrast ? lightContrastColors : lightColors;
+
   return {
     ...colors,
+    isHighContrast,
     fontScale,
-    /** Scale a font size by the user's preferred scale */
     fs: (n: number) => Math.round(n * fontScale),
   };
 }

@@ -1,5 +1,7 @@
 import { useDrawer } from "@/context/DrawerContext";
 import { useFontSize, MIN_SCALE, MAX_SCALE, DEFAULT_SCALE } from "@/context/FontSizeContext";
+import { useHighContrast } from "@/context/HighContrastContext";
+import { useHaptic } from "@/context/HapticContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
@@ -31,6 +33,8 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
   const { top } = useSafeAreaInsets();
   const { openDrawer, openLang } = useDrawer();
   const { isDark, toggleTheme } = useTheme();
+  const { isHighContrast, toggleHighContrast } = useHighContrast();
+  const { hapticEnabled, setHapticEnabled } = useHaptic();
   const { fontScale, setFontScale } = useFontSize();
   const { t } = useTranslation();
   const isRTL = I18nManager.isRTL;
@@ -134,6 +138,48 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
               <CustomSwitch
                 value={isDark}
                 onValueChange={toggleTheme}
+                colorOn={HEADER_BG}
+              />
+            </View>
+
+            <View style={styles.panelDivider} />
+
+            {/* High Contrast row */}
+            <View style={styles.panelRow}>
+              <View style={styles.panelRowLeft}>
+                <Ionicons
+                  name="contrast-outline"
+                  size={18}
+                  color={isHighContrast ? "#000000" : HEADER_BG}
+                />
+                <Text style={styles.panelRowLabel}>
+                  {t("highContrast", "High Contrast")}
+                </Text>
+              </View>
+              <CustomSwitch
+                value={isHighContrast}
+                onValueChange={toggleHighContrast}
+                colorOn="#000000"
+              />
+            </View>
+
+            <View style={styles.panelDivider} />
+
+            {/* Haptic Alerts row */}
+            <View style={styles.panelRow}>
+              <View style={styles.panelRowLeft}>
+                <Ionicons
+                  name={hapticEnabled ? "phone-portrait" : "phone-portrait-outline"}
+                  size={18}
+                  color={HEADER_BG}
+                />
+                <Text style={styles.panelRowLabel}>
+                  {t("hapticAlerts", "Vibration on Alerts")}
+                </Text>
+              </View>
+              <CustomSwitch
+                value={hapticEnabled}
+                onValueChange={setHapticEnabled}
                 colorOn={HEADER_BG}
               />
             </View>

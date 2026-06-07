@@ -18,6 +18,8 @@ import { AuthProvider } from "../context/AuthContext";
 import { DrawerProvider } from "../context/DrawerContext";
 import { ThemeProvider as AppThemeProvider, useTheme } from "../context/ThemeContext";
 import { FontSizeProvider } from "../context/FontSizeContext";
+import { HighContrastProvider } from "../context/HighContrastContext";
+import { HapticProvider, useHaptic } from "../context/HapticContext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -30,6 +32,7 @@ Notifications.setNotificationHandler({
 // Inner component so it can read isDark from ThemeContext
 function AppShell() {
   const { isDark } = useTheme();
+  const { triggerCriticalAlert } = useHaptic();
   const navTheme = isDark ? DarkTheme : DefaultTheme;
   const [ready, setReady] = useState(false);
 
@@ -38,6 +41,18 @@ function AppShell() {
       .then(() => setReady(true))
       .catch(() => setReady(true));
   }, []);
+
+  // Trigger haptic when a critical glucose notification arrives in foreground
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((notification) => {
+      const title = notification.request.content.title ?? "";
+      // All critical alerts start with ⚠️
+      if (title.includes("⚠️")) {
+        triggerCriticalAlert();
+      }
+    });
+    return () => sub.remove();
+  }, [triggerCriticalAlert]);
 
   if (!ready) {
     return (
@@ -66,9 +81,13 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <FontSizeProvider>
-        <AppThemeProvider>
-          <AppShell />
-        </AppThemeProvider>
+        <HighContrastProvider>
+          <HapticProvider>
+            <AppThemeProvider>
+              <AppShell />
+            </AppThemeProvider>
+          </HapticProvider>
+        </HighContrastProvider>
       </FontSizeProvider>
     </GestureHandlerRootView>
   );

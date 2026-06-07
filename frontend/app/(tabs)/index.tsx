@@ -38,6 +38,7 @@ import {
 } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Speech from "expo-speech";
+import { useHaptic } from "@/context/HapticContext";
 import { Calendar } from "react-native-calendars";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
@@ -50,7 +51,9 @@ export default function HomeScreen() {
   const { user: authUser } = useAuth();
   const theme = useAppTheme();
   const styles = createStyles(theme);
+  const { triggerCriticalAlert } = useHaptic();
   const isFirstFocus = useRef(true);
+  const lastHapticValue = useRef<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Redirect family members to their own home screen
@@ -166,6 +169,20 @@ export default function HomeScreen() {
       if (readings.length === 0) {
         const seen = await AsyncStorage.getItem("welcome_shown");
         if (!seen) setShowWelcome(true);
+      }
+
+      // Haptic alert for critical glucose values (only once per unique value)
+      if (readings.length > 0) {
+        const latestVal = Number(readings
+          .slice()
+          .sort((a: any, b: any) =>
+            new Date(b?.measuredAt || b?.timestamp || b?.createdAt || 0).getTime() -
+            new Date(a?.measuredAt || a?.timestamp || a?.createdAt || 0).getTime()
+          )[0]?.value || 0);
+        if ((latestVal < 70 || latestVal > 170) && latestVal !== lastHapticValue.current) {
+          lastHapticValue.current = latestVal;
+          triggerCriticalAlert();
+        }
       }
 
       // Check if last reading was 6+ hours ago
