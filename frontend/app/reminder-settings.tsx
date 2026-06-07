@@ -68,27 +68,17 @@ export default function ReminderSettingsScreen() {
 
   const requestPermission = async () => {
     try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      return status === "granted";
-    } catch {
-      return true; // web — proceed anyway
-    }
+      await Notifications.requestPermissionsAsync();
+    } catch { /* web — silently skip */ }
   };
 
   const handleToggleEnabled = async (val: boolean) => {
-    if (val) {
-      const granted = await requestPermission();
-      if (!granted) return;
-    }
+    if (val) await requestPermission();
     await persist(times, val);
   };
 
-  const openPicker = async () => {
-    const granted = await requestPermission();
-    if (!granted) return;
-    // Default picker to a sensible time
-    const defaultHour = "08";
-    setPickerHour(defaultHour);
+  const openPicker = () => {
+    setPickerHour("08");
     setPickerMin("00");
     setPickerPM(false);
     setPickerOpen(true);
