@@ -131,14 +131,12 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                   {t("darkMode", "Dark Mode")}
                 </Text>
               </View>
-              <View style={isRTL ? { transform: [{ scaleX: -1 }] } : undefined}>
-                <Switch
-                  value={isDark}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: "#CBD5E1", true: HEADER_BG }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
+              <Switch
+                value={isDark}
+                onValueChange={toggleTheme}
+                trackColor={{ false: "#CBD5E1", true: HEADER_BG }}
+                thumbColor="#FFFFFF"
+              />
             </View>
 
             <View style={styles.panelDivider} />
