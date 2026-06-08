@@ -46,13 +46,29 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
       <Pressable
         style={styles.iconBtn}
         onPress={() => { setSliderVal(fontScale); setAccessOpen(true); }}
+        accessibilityLabel={t("aria.accessBtn")}
+        accessibilityRole="button"
       >
         <Ionicons name="accessibility" size={20} color="#FFFFFF" />
       </Pressable>
-      <Pressable style={styles.iconBtn} onPress={openLang}>
+      <Pressable
+        style={styles.iconBtn}
+        onPress={openLang}
+        accessibilityLabel={t("aria.langBtn")}
+        accessibilityRole="button"
+      >
         <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
       </Pressable>
-      <Pressable style={styles.iconBtn} onPress={() => router.push("/notifications" as any)}>
+      <Pressable
+        style={styles.iconBtn}
+        onPress={() => router.push("/notifications" as any)}
+        accessibilityLabel={
+          unreadCount > 0
+            ? t("aria.notifBtn", { count: unreadCount })
+            : t("aria.notifBtnNone")
+        }
+        accessibilityRole="button"
+      >
         <View>
           <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
           {unreadCount > 0 && (
@@ -62,7 +78,12 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
           )}
         </View>
       </Pressable>
-      <Pressable style={styles.iconBtn} onPress={openDrawer}>
+      <Pressable
+        style={styles.iconBtn}
+        onPress={openDrawer}
+        accessibilityLabel={t("aria.menuBtn")}
+        accessibilityRole="button"
+      >
         <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
       </Pressable>
     </View>
@@ -72,7 +93,12 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
     left === null
       ? <View style={styles.slot} />
       : left ?? (
-          <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.back()}
+            accessibilityLabel={t("aria.backBtn")}
+            accessibilityRole="button"
+          >
             <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#FFFFFF" />
           </Pressable>
         );
@@ -105,7 +131,12 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
         statusBarTranslucent
         onRequestClose={() => setAccessOpen(false)}
       >
-        <Pressable style={styles.panelBackdrop} onPress={() => setAccessOpen(false)}>
+        <Pressable
+          style={styles.panelBackdrop}
+          onPress={() => setAccessOpen(false)}
+          accessibilityLabel={t("aria.closePanel")}
+          accessibilityRole="button"
+        >
           <View
             style={[
               styles.panel,
@@ -139,6 +170,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                 value={isDark}
                 onValueChange={toggleTheme}
                 colorOn={HEADER_BG}
+                accessibilityLabel={isDark ? t("aria.darkModeOn") : t("aria.darkModeOff")}
               />
             </View>
 
@@ -160,6 +192,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                 value={isHighContrast}
                 onValueChange={toggleHighContrast}
                 colorOn="#000000"
+                accessibilityLabel={isHighContrast ? t("aria.highContrastOn") : t("aria.highContrastOff")}
               />
             </View>
 
@@ -181,6 +214,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                 value={hapticEnabled}
                 onValueChange={setHapticEnabled}
                 colorOn={HEADER_BG}
+                accessibilityLabel={hapticEnabled ? t("aria.hapticOn") : t("aria.hapticOff")}
               />
             </View>
 
@@ -190,6 +224,8 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
             <Pressable
               style={styles.panelRow}
               onPress={() => { setAccessOpen(false); router.push("/reminder-settings" as any); }}
+              accessibilityLabel={t("aria.reminderLink")}
+              accessibilityRole="button"
             >
               <View style={styles.panelRowLeft}>
                 <Ionicons name="alarm-outline" size={18} color={HEADER_BG} />
@@ -236,6 +272,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                   thumbTintColor={HEADER_BG}
                   onValueChange={(v) => setSliderVal(v)}
                   onSlidingComplete={(v) => setFontScale(v)}
+                  accessibilityLabel={t("aria.fontSlider")}
                 />
                 <Text style={styles.sliderLabelLarge}>{t("fontLetter", "A")}</Text>
               </View>

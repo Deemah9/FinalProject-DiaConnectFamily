@@ -12,6 +12,7 @@ interface Props {
   onValueChange: (v: boolean) => void;
   colorOn?:  string;
   colorOff?: string;
+  accessibilityLabel?: string;
 }
 
 export default function CustomSwitch({
@@ -19,6 +20,7 @@ export default function CustomSwitch({
   onValueChange,
   colorOn  = "#1A6FA8",
   colorOff = "#CBD5E1",
+  accessibilityLabel,
 }: Props) {
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
 
@@ -46,6 +48,9 @@ export default function CustomSwitch({
       onPress={() => onValueChange(!value)}
       hitSlop={8}
       style={{ outlineWidth: 0 } as any}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={accessibilityLabel}
     >
       <Animated.View style={[styles.track, { backgroundColor: bg }]}>
         <Animated.View

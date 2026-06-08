@@ -130,6 +130,7 @@ export default function ReminderSettingsScreen() {
               onValueChange={handleToggleEnabled}
               colorOn={PRIMARY}
               colorOff={theme.borderStrong}
+              accessibilityLabel={t("aria.enableReminders")}
             />
           </View>
         </View>
@@ -157,6 +158,8 @@ export default function ReminderSettingsScreen() {
                     style={styles.deleteBtn}
                     onPress={() => handleDeleteTime(time)}
                     hitSlop={10}
+                    accessibilityLabel={t("aria.deleteTime", { time: formatTime(time, t("am", "AM"), t("pm", "PM")) })}
+                    accessibilityRole="button"
                   >
                     <Ionicons name="trash-outline" size={16} color="#D32F2F" />
                   </Pressable>
@@ -166,7 +169,12 @@ export default function ReminderSettingsScreen() {
           )}
 
           {times.length < MAX_REMINDERS ? (
-            <Pressable style={styles.addBtn} onPress={openPicker}>
+            <Pressable
+              style={styles.addBtn}
+              onPress={openPicker}
+              accessibilityLabel={t("aria.addTime")}
+              accessibilityRole="button"
+            >
               <Ionicons name="add-circle-outline" size={18} color={PRIMARY} />
               <Text style={styles.addBtnText}>{t("addReminderTime")}</Text>
             </Pressable>

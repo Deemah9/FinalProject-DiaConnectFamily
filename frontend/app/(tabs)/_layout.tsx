@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 const tabStyles = StyleSheet.create({
@@ -31,6 +32,7 @@ const tabStyles = StyleSheet.create({
 export default function TabLayout() {
   const theme = useAppTheme();
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
@@ -67,7 +69,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: t("aria.tabHome"),
+          tabBarAccessibilityLabel: t("aria.tabHome"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
@@ -77,6 +80,7 @@ export default function TabLayout() {
         name="emergency"
         options={{
           title: "SOS",
+          tabBarAccessibilityLabel: t("aria.tabSOS"),
           tabBarLabel: () => <Text style={tabStyles.sosLabel}>SOS</Text>,
           tabBarIcon: () => (
             <View style={tabStyles.sosButton}>
@@ -88,7 +92,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("aria.tabProfile"),
+          tabBarAccessibilityLabel: t("aria.tabProfile"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle" size={size} color={color} />
           ),

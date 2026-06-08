@@ -392,7 +392,7 @@ export default function HomeScreen() {
 
   return (
     <LinearGradient colors={[theme.bgCard, theme.bg]} style={styles.container}>
-      <AppHeader left={null} />
+      <AppHeader left={null} unreadCount={unreadCount} />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Welcome */}
         <View style={styles.hero}>
@@ -836,7 +836,15 @@ export default function HomeScreen() {
                   {errorGlucose ? errorGlucose : t("trackReadings")}
                 </Text>
               </View>
-              <View style={styles.latestPill}>
+              <View
+                style={styles.latestPill}
+                accessible={typeof latest === "number"}
+                accessibilityLabel={
+                  typeof latest === "number"
+                    ? t("aria.glucoseValue", { value: latest, status: latestStatus })
+                    : undefined
+                }
+              >
                 <Text style={styles.latestValue}>
                   {loadingGlucose ? "--" : latest}
                 </Text>
@@ -876,6 +884,8 @@ export default function HomeScreen() {
               <Pressable
                 style={[styles.speakBtn, speaking && styles.speakBtnActive]}
                 onPress={speakGlucose}
+                accessibilityLabel={speaking ? t("aria.stopListening") : t("aria.listenGlucose")}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name={speaking ? "stop-circle-outline" : "volume-high-outline"}
@@ -893,12 +903,16 @@ export default function HomeScreen() {
               <Pressable
                 style={styles.navArrow}
                 onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}
+                accessibilityLabel={t("aria.prevDay")}
+                accessibilityRole="button"
               >
                 <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color="#1A6FA8" />
               </Pressable>
               <Pressable
                 style={styles.dayNavCenter}
                 onPress={() => setShowCalendar(true)}
+                accessibilityLabel={t("aria.selectDate")}
+                accessibilityRole="button"
               >
                 <Ionicons name="calendar-outline" size={14} color="#1A6FA8" />
                 <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
@@ -909,6 +923,8 @@ export default function HomeScreen() {
                   canNext && setSelectedDateStr((d) => shiftDay(d, 1))
                 }
                 disabled={!canNext}
+                accessibilityLabel={t("aria.nextDay")}
+                accessibilityRole="button"
               >
                 <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#1A6FA8" />
               </Pressable>
@@ -1036,6 +1052,8 @@ export default function HomeScreen() {
       <Pressable
         style={styles.fab}
         onPress={() => !importing && setShowAddModal(true)}
+        accessibilityLabel={t("aria.addReading")}
+        accessibilityRole="button"
       >
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </Pressable>

@@ -152,13 +152,28 @@ export default function EmergencyScreen() {
                 <Text style={styles.contactPhone}>{contact.phone}</Text>
               </View>
               <View style={styles.contactActions}>
-                <Pressable style={styles.callSmallBtn} onPress={handleCall}>
+                <Pressable
+                  style={styles.callSmallBtn}
+                  onPress={handleCall}
+                  accessibilityLabel={t("aria.callContact", { name: contact.name })}
+                  accessibilityRole="button"
+                >
                   <Ionicons name="call" size={18} color="#fff" />
                 </Pressable>
-                <Pressable style={styles.editSmallBtn} onPress={() => setIsEditing(true)}>
+                <Pressable
+                  style={styles.editSmallBtn}
+                  onPress={() => setIsEditing(true)}
+                  accessibilityLabel={t("aria.editContact")}
+                  accessibilityRole="button"
+                >
                   <Ionicons name="pencil-outline" size={18} color={theme.primary} />
                 </Pressable>
-                <Pressable style={styles.deleteSmallBtn} onPress={handleDelete}>
+                <Pressable
+                  style={styles.deleteSmallBtn}
+                  onPress={handleDelete}
+                  accessibilityLabel={t("aria.deleteContact")}
+                  accessibilityRole="button"
+                >
                   <Ionicons name="trash-outline" size={18} color="#E53E3E" />
                 </Pressable>
               </View>
@@ -168,6 +183,8 @@ export default function EmergencyScreen() {
             <Pressable
               style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.88 }]}
               onPress={handleCall}
+              accessibilityLabel={t("aria.callContact", { name: contact.name })}
+              accessibilityRole="button"
             >
               <LinearGradient
                 colors={["#C0392B", "#E53E3E"]}
