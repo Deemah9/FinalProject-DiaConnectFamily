@@ -13,8 +13,8 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
-import { Colors } from "@/constants/Colors";
 import { getLinkedPatients, removePatientLink } from "@/services/api";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 type Patient = {
   link_id: string;
@@ -25,6 +25,9 @@ type Patient = {
 
 export default function FamilyPatientsScreen() {
   const { t, i18n } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -106,9 +109,9 @@ export default function FamilyPatientsScreen() {
         hitSlop={8}
       >
         {removingId === item.link_id ? (
-          <ActivityIndicator size="small" color={Colors.error} />
+          <ActivityIndicator size="small" color="#D32F2F" />
         ) : (
-          <Ionicons name="person-remove-outline" size={20} color={Colors.error} />
+          <Ionicons name="person-remove-outline" size={20} color="#D32F2F" />
         )}
       </Pressable>
     </Pressable>
@@ -142,7 +145,7 @@ export default function FamilyPatientsScreen() {
         <ActivityIndicator
           style={styles.loader}
           size="large"
-          color={Colors.primary}
+          color="#1A6FA8"
         />
       ) : error ? (
         <Text style={styles.errorText}>{error}</Text>
@@ -164,10 +167,11 @@ export default function FamilyPatientsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: theme.bg,
   },
   loader: {
     marginTop: 60,
@@ -177,13 +181,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: Colors.bgCard,
+    backgroundColor: theme.bgCard,
     borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
@@ -192,7 +196,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.primary,
+    backgroundColor: "#1A6FA8",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -207,11 +211,11 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: "600",
-    color: Colors.text,
+    color: theme.text,
   },
   date: {
     fontSize: 12,
-    color: Colors.textMuted,
+    color: theme.textMuted,
     marginTop: 3,
   },
   removeBtn: {
@@ -223,24 +227,24 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
   },
   modalBox: {
-    backgroundColor: "#FFFFFF", borderRadius: 24,
+    backgroundColor: theme.bgCard, borderRadius: 24,
     padding: 24, width: "100%", alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
   },
   modalIconWrap: {
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: "#FDEDED", alignItems: "center",
     justifyContent: "center", marginBottom: 16,
   },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 8, textAlign: "center" },
-  modalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: theme.text, marginBottom: 8, textAlign: "center" },
+  modalMsg: { fontSize: 14, color: theme.textMuted, textAlign: "center", marginBottom: 24, lineHeight: 20 },
   modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
   modalCancelBtn: {
     flex: 1, height: 48, borderRadius: 14,
-    borderWidth: 1, borderColor: "#D6E8F5",
+    borderWidth: 1, borderColor: theme.bgSoft,
     alignItems: "center", justifyContent: "center",
   },
-  modalCancelText: { fontSize: 15, fontWeight: "600", color: "#4A6480" },
+  modalCancelText: { fontSize: 15, fontWeight: "600", color: theme.textMuted },
   modalDeleteBtn: {
     flex: 1, height: 48, borderRadius: 14,
     backgroundColor: "#D32F2F",
@@ -259,17 +263,18 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: "600",
-    color: Colors.textSecondary,
+    color: theme.textSecondary,
   },
   emptySubText: {
     fontSize: 13,
-    color: Colors.textMuted,
+    color: theme.textMuted,
     textAlign: "center",
   },
   errorText: {
-    color: Colors.error,
+    color: "#D32F2F",
     textAlign: "center",
     marginTop: 40,
     fontSize: 14,
   },
-});
+  });
+}

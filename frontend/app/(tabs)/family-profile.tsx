@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -17,18 +18,15 @@ import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
 import { getProfile, updateProfile, deleteAccount } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
-const PRIMARY   = "#1A6FA8";
-const BG        = "#FFFFFF";
-const TEXT      = "#0B1A2E";
-const MUTED     = "#4A6480";
-const BORDER    = "#D6E8F5";
-const SOFT      = "#E8F1F8";
-const INPUT_BDR = "#B8D0E8";
+const PRIMARY = "#1A6FA8";
 
 export default function FamilyProfileScreen() {
   const { t } = useTranslation();
   const { logout } = useAuth();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const [user, setUser]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +141,7 @@ export default function FamilyProfileScreen() {
                   value={firstName}
                   onChangeText={setFirstName}
                   placeholder={t("firstName")}
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={theme.textMuted}
                   style={styles.input}
                 />
               </View>
@@ -153,7 +151,7 @@ export default function FamilyProfileScreen() {
                   value={lastName}
                   onChangeText={setLastName}
                   placeholder={t("lastName")}
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={theme.textMuted}
                   style={styles.input}
                 />
               </View>
@@ -202,7 +200,7 @@ export default function FamilyProfileScreen() {
         >
           <Ionicons name="lock-closed-outline" size={18} color={PRIMARY} />
           <Text style={styles.changePwBtnText}>{t("changePassword")}</Text>
-          <Ionicons name="chevron-forward" size={16} color={PRIMARY} />
+          <Ionicons name={I18nManager.isRTL ? "chevron-back" : "chevron-forward"} size={16} color={PRIMARY} />
         </Pressable>
 
         {/* Delete Account */}
@@ -233,7 +231,7 @@ export default function FamilyProfileScreen() {
               value={deletePassword}
               onChangeText={setDeletePassword}
               placeholder={t("deleteAccountPasswordPlaceholder")}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={theme.inactive}
               secureTextEntry
               editable={!deleting}
             />
@@ -261,8 +259,9 @@ export default function FamilyProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.bg },
 
   content: {
     paddingHorizontal: 24,
@@ -276,27 +275,27 @@ const styles = StyleSheet.create({
   },
 
   screenTitle: {
-    color: TEXT,
+    color: theme.text,
     fontSize: 28,
     fontWeight: "700",
     marginBottom: 6,
   },
 
   screenSub: {
-    color: MUTED,
+    color: theme.textMuted,
     fontSize: 14,
   },
 
   avatarCard: {
-    backgroundColor: "#F8FBFF",
+    backgroundColor: theme.bgAlt,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: theme.bgSoft,
     alignItems: "center",
     paddingVertical: 16,
     paddingHorizontal: 20,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -316,25 +315,25 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 17,
     fontWeight: "700",
-    color: TEXT,
+    color: theme.text,
     marginBottom: 2,
     textAlign: "center",
   },
 
   emailText: {
     fontSize: 12,
-    color: MUTED,
+    color: theme.textMuted,
     textAlign: "center",
   },
 
   card: {
-    backgroundColor: BG,
+    backgroundColor: theme.bgCard,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: theme.bgSoft,
     padding: 20,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -357,7 +356,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: TEXT,
+    color: theme.text,
   },
 
   editBtn: {
@@ -367,11 +366,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 14,
-    backgroundColor: "#EEF4FF",
+    backgroundColor: theme.primaryBg,
   },
 
   editBtnText: {
-    color: PRIMARY,
+    color: "#1A6FA8",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -383,7 +382,7 @@ const styles = StyleSheet.create({
   },
 
   rowBox: {
-    backgroundColor: SOFT,
+    backgroundColor: theme.bgInput,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 13,
@@ -395,14 +394,14 @@ const styles = StyleSheet.create({
 
   rowLabel: {
     fontSize: 13,
-    color: MUTED,
+    color: theme.textMuted,
     flex: 1,
     marginRight: 12,
   },
 
   rowValue: {
     fontSize: 13,
-    color: TEXT,
+    color: theme.text,
     fontWeight: "600",
     flexShrink: 1,
     textAlign: "right",
@@ -415,7 +414,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1E3A52",
+    color: theme.textSecondary,
     marginBottom: 8,
   },
 
@@ -423,10 +422,10 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: INPUT_BDR,
-    backgroundColor: SOFT,
+    borderColor: theme.border,
+    backgroundColor: theme.bgInput,
     paddingHorizontal: 14,
-    color: TEXT,
+    color: theme.text,
     ...Typography.button,
   },
 
@@ -441,14 +440,14 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: INPUT_BDR,
-    backgroundColor: BG,
+    borderColor: theme.border,
+    backgroundColor: theme.bgCard,
     alignItems: "center",
     justifyContent: "center",
   },
 
   cancelBtnText: {
-    color: TEXT,
+    color: theme.text,
     ...Typography.button,
   },
 
@@ -456,7 +455,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 46,
     borderRadius: 14,
-    backgroundColor: PRIMARY,
+    backgroundColor: "#1A6FA8",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -470,10 +469,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#EEF4FF",
+    backgroundColor: theme.primaryBg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: theme.bgSoft,
     paddingVertical: 16,
     paddingHorizontal: 20,
     marginBottom: 8,
@@ -493,7 +492,7 @@ const styles = StyleSheet.create({
   },
   changePwBtnText: {
     flex: 1,
-    color: PRIMARY,
+    color: "#1A6FA8",
     fontSize: 15,
     fontWeight: "600",
   },
@@ -512,12 +511,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   deleteModalBox: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.bgCard,
     borderRadius: 28,
     padding: 28,
     width: "100%",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.2,
     shadowRadius: 24,
     elevation: 12,
@@ -534,13 +533,13 @@ const styles = StyleSheet.create({
   deleteModalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#0B1A2E",
+    color: theme.text,
     marginBottom: 14,
     textAlign: "center",
   },
   deleteModalWarning: {
     fontSize: 14,
-    color: "#4A6480",
+    color: theme.textMuted,
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
@@ -560,7 +559,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   deleteCancelBtn: { paddingVertical: 10 },
-  deleteCancelText: { fontSize: 14, color: "#94A3B8", fontWeight: "500" },
+  deleteCancelText: { fontSize: 14, color: theme.inactive, fontWeight: "500" },
   deletePasswordInput: {
     width: "100%",
     height: 48,
@@ -569,7 +568,7 @@ const styles = StyleSheet.create({
     borderColor: "#FECACA",
     backgroundColor: "#FFF5F5",
     paddingHorizontal: 14,
-    color: "#0B1A2E",
+    color: theme.text,
     fontSize: 14,
     marginBottom: 8,
   },
@@ -579,4 +578,5 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: "center",
   },
-});
+  });
+}

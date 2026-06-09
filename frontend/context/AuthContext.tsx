@@ -16,6 +16,7 @@ import { setAppLanguage } from "../src/i18n";
 interface User {
   token: string;
   role: string;
+  email: string;
 }
 
 export interface RegisterPayload {
@@ -52,8 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkToken = async () => {
       const token = await AsyncStorage.getItem("token");
       const role = await AsyncStorage.getItem("role");
+      const email = await AsyncStorage.getItem("email") ?? "";
       if (token && role) {
-        setUser({ token, role });
+        setUser({ token, role, email });
         if (role === "family_member") {
           router.replace("/family-home" as any);
         }
@@ -69,7 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const role: string = data.role;
     await AsyncStorage.setItem("token", token);
     await AsyncStorage.setItem("role", role);
-    setUser({ token, role });
+    await AsyncStorage.setItem("email", email);
+    setUser({ token, role, email });
 
     let profileComplete = false;
     try {

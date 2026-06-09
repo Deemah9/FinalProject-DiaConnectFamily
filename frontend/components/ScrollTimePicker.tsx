@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -14,16 +15,16 @@ const MINUTES = Array.from({ length: 60 }, (_, i) =>
   String(i).padStart(2, "0"),
 );
 
-const BG = "#FFFFFF";
-
 interface ColumnProps {
   items: string[];
   selected: string;
   onSelect: (val: string) => void;
   width: number;
+  styles: ReturnType<typeof createStyles>;
+  bg: string;
 }
 
-function ScrollColumn({ items, selected, onSelect, width }: ColumnProps) {
+function ScrollColumn({ items, selected, onSelect, width, styles, bg }: ColumnProps) {
   const scrollRef = useRef<ScrollView>(null);
   const idx = Math.max(0, items.indexOf(selected));
   const offsetRef = useRef(idx * ITEM_H);
@@ -96,12 +97,12 @@ function ScrollColumn({ items, selected, onSelect, width }: ColumnProps) {
       </ScrollView>
 
       <LinearGradient
-        colors={[BG, "transparent"]}
+        colors={[bg, "transparent"]}
         style={styles.fadeTop}
         pointerEvents="none"
       />
       <LinearGradient
-        colors={["transparent", BG]}
+        colors={["transparent", bg]}
         style={styles.fadeBottom}
         pointerEvents="none"
       />
@@ -129,6 +130,8 @@ export default function ScrollTimePicker({
   onTogglePeriod,
 }: ScrollTimePickerProps) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
   const periods = [t("am"), t("pm")];
   const selectedPeriod = isPM ? t("pm") : t("am");
 
@@ -141,6 +144,8 @@ export default function ScrollTimePicker({
           selected={hours.padStart(2, "0")}
           onSelect={onHoursChange}
           width={60}
+          styles={styles}
+          bg={theme.bgCard}
         />
         <Text style={styles.colon}>:</Text>
         <ScrollColumn
@@ -148,6 +153,8 @@ export default function ScrollTimePicker({
           selected={minutes.padStart(2, "0")}
           onSelect={onMinutesChange}
           width={60}
+          styles={styles}
+          bg={theme.bgCard}
         />
         <View style={styles.columnDivider} />
         <ScrollColumn
@@ -155,87 +162,91 @@ export default function ScrollTimePicker({
           selected={selectedPeriod}
           onSelect={(v) => onTogglePeriod(v === t("pm"))}
           width={46}
+          styles={styles}
+          bg={theme.bgCard}
         />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E3A52",
-    marginBottom: 10,
-  },
-  pickerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    direction: "ltr",
-    backgroundColor: BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  } as any,
-  selectionBand: {
-    position: "absolute",
-    top: ITEM_H,
-    left: 3,
-    right: 3,
-    height: ITEM_H,
-    backgroundColor: "#EBF3FA",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-  },
-  fadeTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_H,
-  },
-  fadeBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_H,
-  },
-  item: {
-    height: ITEM_H,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  itemText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#B0BEC5",
-  },
-  itemTextActive: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1A6FA8",
-  },
-  colon: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1A6FA8",
-    marginHorizontal: 2,
-    marginBottom: 1,
-  },
-  columnDivider: {
-    width: 1,
-    height: PICKER_H * 0.5,
-    backgroundColor: "#D6E8F5",
-    marginHorizontal: 6,
-  },
-});
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.textSecondary,
+      marginBottom: 10,
+    },
+    pickerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      direction: "ltr",
+      backgroundColor: theme.bgCard,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      shadowColor: "#1A6FA8",
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    } as any,
+    selectionBand: {
+      position: "absolute",
+      top: ITEM_H,
+      left: 3,
+      right: 3,
+      height: ITEM_H,
+      backgroundColor: theme.bg,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    fadeTop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: ITEM_H,
+    },
+    fadeBottom: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: ITEM_H,
+    },
+    item: {
+      height: ITEM_H,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    itemText: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: theme.inactive,
+    },
+    itemTextActive: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: "#1A6FA8",
+    },
+    colon: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: "#1A6FA8",
+      marginHorizontal: 2,
+      marginBottom: 1,
+    },
+    columnDivider: {
+      width: 1,
+      height: PICKER_H * 0.5,
+      backgroundColor: theme.bgSoft,
+      marginHorizontal: 6,
+    },
+  });
+}

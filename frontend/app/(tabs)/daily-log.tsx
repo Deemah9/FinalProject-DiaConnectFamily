@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -16,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import { getLogsByDate, deleteMeal, deleteActivity, deleteSleep } from "@/services/api";
 import { markPredictionStale } from "@/services/predictionFlag";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const toLocalDateStr = (d: Date) => {
   const y = d.getFullYear();
@@ -49,8 +51,12 @@ function getTimestamp(item: any) {
   return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
+const isRTL = I18nManager.isRTL;
+
 export default function DailyLogScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
   const todayStr = toLocalDateStr(new Date());
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [logs, setLogs] = useState<any>(null);
@@ -175,7 +181,7 @@ export default function DailyLogScreen() {
         {/* Day Navigator */}
         <View style={styles.dayNav}>
           <Pressable style={styles.navArrow} onPress={() => setSelectedDate(shiftDay(selectedDate, -1))}>
-            <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+            <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color="#1A6FA8" />
           </Pressable>
           <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
           <Pressable
@@ -183,7 +189,7 @@ export default function DailyLogScreen() {
             onPress={() => canNext && setSelectedDate(shiftDay(selectedDate, 1))}
             disabled={!canNext}
           >
-            <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#1A6FA8" />
           </Pressable>
         </View>
 
@@ -220,7 +226,7 @@ export default function DailyLogScreen() {
             <ActivityIndicator size="small" color="#1A6FA8" style={{ marginTop: 32 }} />
           ) : timeline.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={44} color="#B8D0E8" />
+              <Ionicons name="calendar-outline" size={44} color={theme.border} />
               <Text style={styles.emptyTitle}>{t("noLogsToday")}</Text>
               <Text style={styles.emptySub}>{t("tapPlusToAdd")}</Text>
             </View>
@@ -271,7 +277,7 @@ export default function DailyLogScreen() {
                           <Ionicons
                             name="trash-outline"
                             size={16}
-                            color={deletingId === item.id ? "#B8D0E8" : "#94A3B8"}
+                            color={deletingId === item.id ? theme.border : theme.inactive}
                           />
                         </Pressable>
                       </View>
@@ -307,7 +313,7 @@ export default function DailyLogScreen() {
                   <Ionicons name={icon as any} size={22} color={color} />
                 </View>
                 <Text style={styles.fabActionLabel}>{label}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={theme.inactive} />
               </Pressable>
             ))}
           </View>
@@ -317,132 +323,134 @@ export default function DailyLogScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.bg },
+    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
-  hero: { marginTop: 20, marginBottom: 12 },
-  screenTitle: { color: "#0B1A2E", fontSize: 28, fontWeight: "700" },
+    hero: { marginTop: 20, marginBottom: 12 },
+    screenTitle: { color: theme.text, fontSize: 28, fontWeight: "700" },
 
-  dayNav: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#FFFFFF", borderRadius: 14,
-    borderWidth: 1, borderColor: "#D6E8F5",
-    paddingVertical: 10, paddingHorizontal: 8,
-    marginBottom: 20,
-  },
-  navArrow: { padding: 6 },
-  dayNavLabel: { flex: 1, textAlign: "center", fontSize: 14, fontWeight: "700", color: "#0B1A2E" },
+    dayNav: {
+      flexDirection: "row", alignItems: "center",
+      backgroundColor: theme.bgCard, borderRadius: 14,
+      borderWidth: 1, borderColor: theme.bgSoft,
+      paddingVertical: 10, paddingHorizontal: 8,
+      marginBottom: 20,
+    },
+    navArrow: { padding: 6 },
+    dayNavLabel: { flex: 1, textAlign: "center", fontSize: 14, fontWeight: "700", color: theme.text },
 
-  errorBox: {
-    marginBottom: 16, backgroundColor: "#FDEDED",
-    borderWidth: 1, borderColor: "#F5C2C2", borderRadius: 14, padding: 12,
-  },
-  errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
+    errorBox: {
+      marginBottom: 16, backgroundColor: "#FDEDED",
+      borderWidth: 1, borderColor: "#F5C2C2", borderRadius: 14, padding: 12,
+    },
+    errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
 
-  summaryRow: { flexDirection: "row", gap: 10, marginBottom: 28 },
-  summaryPill: {
-    flex: 1, borderRadius: 14, paddingVertical: 12,
-    alignItems: "center", gap: 4,
-  },
-  summaryVal: { fontSize: 18, fontWeight: "800" },
-  summaryUnit: { fontSize: 10, fontWeight: "600" },
+    summaryRow: { flexDirection: "row", gap: 10, marginBottom: 28 },
+    summaryPill: {
+      flex: 1, borderRadius: 14, paddingVertical: 12,
+      alignItems: "center", gap: 4,
+    },
+    summaryVal: { fontSize: 18, fontWeight: "800" },
+    summaryUnit: { fontSize: 10, fontWeight: "600" },
 
-  sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#4A6480",
-    letterSpacing: 1, marginBottom: 20, textTransform: "uppercase",
-  },
+    sectionLabel: {
+      fontSize: 11, fontWeight: "700", color: theme.textMuted,
+      letterSpacing: 1, marginBottom: 20, textTransform: "uppercase",
+    },
 
-  timelineWrap: { flex: 1 },
+    timelineWrap: { flex: 1 },
 
-  emptyState: { alignItems: "center", paddingVertical: 48, gap: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#0B1A2E" },
-  emptySub: { fontSize: 13, color: "#4A6480" },
+    emptyState: { alignItems: "center", paddingVertical: 48, gap: 10 },
+    emptyTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
+    emptySub: { fontSize: 13, color: theme.textMuted },
 
-  timelineItem: { flexDirection: "row", marginBottom: 0 },
+    timelineItem: { flexDirection: "row", marginBottom: 0 },
 
-  timelineLeft: { width: 40, alignItems: "center" },
-  timelineDot: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: "center", justifyContent: "center",
-    zIndex: 1,
-  },
-  timelineLine: { width: 2, flex: 1, backgroundColor: "#D6E8F5", marginVertical: 4 },
+    timelineLeft: { width: 40, alignItems: "center" },
+    timelineDot: {
+      width: 32, height: 32, borderRadius: 16,
+      alignItems: "center", justifyContent: "center",
+      zIndex: 1,
+    },
+    timelineLine: { width: 2, flex: 1, backgroundColor: theme.bgSoft, marginVertical: 4 },
 
-  timelineCard: {
-    flex: 1, marginLeft: 12, marginBottom: 16,
-    backgroundColor: "#FFFFFF", borderRadius: 16,
-    borderLeftWidth: 3, padding: 14,
-    shadowColor: "#000", shadowOpacity: 0.04,
-    shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
-  },
-  timelineCardTop: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginBottom: 4,
-  },
-  timelineTitle: { fontSize: 15, fontWeight: "700", color: "#0B1A2E", flex: 1, marginRight: 8 },
-  timeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  timeBadgeText: { fontSize: 11, fontWeight: "700" },
-  timelineSub: { fontSize: 12, color: "#4A6480" },
+    timelineCard: {
+      flex: 1, marginLeft: 12, marginBottom: 16,
+      backgroundColor: theme.bgCard, borderRadius: 16,
+      borderLeftWidth: 3, padding: 14,
+      shadowColor: theme.shadow, shadowOpacity: 0.04,
+      shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+    },
+    timelineCardTop: {
+      flexDirection: "row", alignItems: "center",
+      justifyContent: "space-between", marginBottom: 4,
+    },
+    timelineTitle: { fontSize: 15, fontWeight: "700", color: theme.text, flex: 1, marginRight: 8 },
+    timeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+    timeBadgeText: { fontSize: 11, fontWeight: "700" },
+    timelineSub: { fontSize: 12, color: theme.textMuted },
 
-  fab: {
-    position: "absolute", bottom: 32, right: 24,
-    width: 58, height: 58, borderRadius: 29,
-    backgroundColor: "#1A6FA8",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#1A6FA8", shadowOpacity: 0.4,
-    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
-  },
+    fab: {
+      position: "absolute", bottom: 32, right: 24,
+      width: 58, height: 58, borderRadius: 29,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center", justifyContent: "center",
+      shadowColor: "#1A6FA8", shadowOpacity: 0.4,
+      shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    },
 
-  fabBackdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  fabSheet: {
-    backgroundColor: "#FFFFFF", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, gap: 4,
-  },
-  fabSheetTitle: {
-    fontSize: 18, fontWeight: "700", color: "#0B1A2E", marginBottom: 16,
-  },
-  fabAction: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#EBF3FA",
-  },
-  fabActionIcon: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: "center", justifyContent: "center",
-  },
-  fabActionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: "#0B1A2E" },
+    fabBackdrop: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.35)",
+      justifyContent: "flex-end",
+    },
+    fabSheet: {
+      backgroundColor: theme.bgCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, gap: 4,
+    },
+    fabSheetTitle: {
+      fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 16,
+    },
+    fabAction: {
+      flexDirection: "row", alignItems: "center", gap: 14,
+      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.bg,
+    },
+    fabActionIcon: {
+      width: 44, height: 44, borderRadius: 14,
+      alignItems: "center", justifyContent: "center",
+    },
+    fabActionLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.text },
 
-  modalBackdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
-  },
-  modalBox: {
-    backgroundColor: "#FFFFFF", borderRadius: 24,
-    padding: 24, width: "100%", alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
-  },
-  modalIconWrap: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: "#FDEDED", alignItems: "center",
-    justifyContent: "center", marginBottom: 16,
-  },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginBottom: 8 },
-  modalMsg: { fontSize: 14, color: "#4A6480", textAlign: "center", marginBottom: 24, lineHeight: 20 },
-  modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
-  modalCancelBtn: {
-    flex: 1, height: 48, borderRadius: 14,
-    borderWidth: 1, borderColor: "#D6E8F5",
-    alignItems: "center", justifyContent: "center",
-  },
-  modalCancelText: { fontSize: 15, fontWeight: "600", color: "#4A6480" },
-  modalDeleteBtn: {
-    flex: 1, height: 48, borderRadius: 14,
-    backgroundColor: "#D32F2F",
-    alignItems: "center", justifyContent: "center",
-  },
-  modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-  deleteBtn: { padding: 4, alignItems: "center", justifyContent: "center" },
-});
+    modalBackdrop: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center", justifyContent: "center", paddingHorizontal: 32,
+    },
+    modalBox: {
+      backgroundColor: theme.bgCard, borderRadius: 24,
+      padding: 24, width: "100%", alignItems: "center",
+      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    },
+    modalIconWrap: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: "#FDEDED", alignItems: "center",
+      justifyContent: "center", marginBottom: 16,
+    },
+    modalTitle: { fontSize: 17, fontWeight: "700", color: theme.text, marginBottom: 8 },
+    modalMsg: { fontSize: 14, color: theme.textMuted, textAlign: "center", marginBottom: 24, lineHeight: 20 },
+    modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+    modalCancelBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      borderWidth: 1, borderColor: theme.border,
+      alignItems: "center", justifyContent: "center",
+    },
+    modalCancelText: { fontSize: 15, fontWeight: "600", color: theme.textMuted },
+    modalDeleteBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      backgroundColor: "#D32F2F",
+      alignItems: "center", justifyContent: "center",
+    },
+    modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    deleteBtn: { padding: 4, alignItems: "center", justifyContent: "center" },
+  });
+}

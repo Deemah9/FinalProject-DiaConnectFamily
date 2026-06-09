@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -17,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
 import { getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -42,8 +44,13 @@ const dayStats = (items: any[]) => {
   };
 };
 
+const isRTL = I18nManager.isRTL;
+
 export default function FamilyPatientGlucoseScreen() {
   const { t, i18n } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+
   const { patientId, patientName, familyCode } = useLocalSearchParams<{
     patientId: string;
     patientName: string;
@@ -286,7 +293,7 @@ export default function FamilyPatientGlucoseScreen() {
     ? { bg: "#FDEDED", border: "#FECACA", color: "#991B1B", icon: "alert-circle",       iconClr: "#D32F2F" }
     : patternAvg < 70
     ? { bg: "#FFF7ED", border: "#FED7AA", color: "#92400E", icon: "alert-circle",       iconClr: "#E07B00" }
-    : { bg: "#EBF3FA", border: "#B8D0E8", color: "#1A4A6B", icon: "information-circle", iconClr: "#1A6FA8" };
+    : { bg: theme.primaryBg, border: theme.border, color: "#1A4A6B", icon: "information-circle", iconClr: "#1A6FA8" };
 
   const tabBar = !familyCode ? (
     <View style={styles.headerTabs}>
@@ -301,7 +308,7 @@ export default function FamilyPatientGlucoseScreen() {
           style={[styles.headerTab, activeTab === key && styles.headerTabActive]}
           onPress={() => setActiveTab(key)}
         >
-          <Ionicons name={icon} size={16} color={activeTab === key ? "#1A6FA8" : "#7A96B0"} />
+          <Ionicons name={icon} size={16} color={activeTab === key ? "#1A6FA8" : theme.textLight} />
           <Text style={[styles.headerTabText, activeTab === key && styles.headerTabTextActive]}>
             {t(label)}
           </Text>
@@ -364,7 +371,7 @@ export default function FamilyPatientGlucoseScreen() {
                     <>
                       <View style={styles.predictionRow}>
                         <Text style={[styles.predictionValue, {
-                          color: patternAvg > 170 ? "#D32F2F" : patternAvg < 70 ? "#D97706" : "#0B1A2E",
+                          color: patternAvg > 170 ? "#D32F2F" : patternAvg < 70 ? "#D97706" : theme.text,
                         }]}>
                           {patternPP.typical_avg}
                           <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
@@ -376,10 +383,10 @@ export default function FamilyPatientGlucoseScreen() {
                       </View>
                       {patternPP.typical_min != null && patternPP.typical_max != null && (
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                          <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
-                          <Text style={{ fontSize: 13, color: "#4A6480" }}>
+                          <Ionicons name="stats-chart-outline" size={14} color={theme.textMuted} />
+                          <Text style={{ fontSize: 13, color: theme.textMuted }}>
                             {t("patternTypical")}{" "}
-                            <Text style={{ fontWeight: "700", color: "#0B1A2E" }}>{patternPP.typical_min} – {patternPP.typical_max}</Text>
+                            <Text style={{ fontWeight: "700", color: theme.text }}>{patternPP.typical_min} – {patternPP.typical_max}</Text>
                             {" "}{t("mgdL")}
                           </Text>
                         </View>
@@ -393,8 +400,8 @@ export default function FamilyPatientGlucoseScreen() {
                         </View>
                       )}
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
-                        <Ionicons name="people-outline" size={13} color="#4A6480" />
-                        <Text style={{ fontSize: 12, color: "#4A6480" }}>
+                        <Ionicons name="people-outline" size={13} color={theme.textMuted} />
+                        <Text style={{ fontSize: 12, color: theme.textMuted }}>
                           {t("patternSamples", { count: patternPP.sample_count })}
                           {"  ·  "}
                           <Text style={{
@@ -447,8 +454,8 @@ export default function FamilyPatientGlucoseScreen() {
 
                   {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, marginBottom: 2 }}>
-                      <Ionicons name="stats-chart-outline" size={14} color="#4A6480" />
-                      <Text style={{ fontSize: 13, color: "#4A6480" }}>
+                      <Ionicons name="stats-chart-outline" size={14} color={theme.textMuted} />
+                      <Text style={{ fontSize: 13, color: theme.textMuted }}>
                         <Text style={{ fontWeight: "700", color: "#1A6FA8" }}>{prediction.probability}%</Text>
                         {"  "}{t(`prob_${prediction.trend}`)}
                       </Text>
@@ -461,7 +468,7 @@ export default function FamilyPatientGlucoseScreen() {
                       prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
                       prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
                       prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
-                      !prediction.alert_type                  && { backgroundColor: "#EBF3FA", borderColor: "#B8D0E8" },
+                      !prediction.alert_type                  && { backgroundColor: theme.primaryBg, borderColor: theme.border },
                     ]}>
                       <Ionicons
                         name={prediction.alert_type === "patch_error" ? "warning" : prediction.alert_type ? "people" : "information-circle"}
@@ -510,7 +517,7 @@ export default function FamilyPatientGlucoseScreen() {
                           style={[styles.dayNavArrow, !canPrev && { opacity: 0.3 }]}
                           disabled={!canPrev}
                         >
-                          <Ionicons name="chevron-back" size={20} color="#4A6480" />
+                          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color={theme.textMuted} />
                         </Pressable>
                         <View style={styles.dayNavCenter}>
                           <Pressable onPress={() => setShowCalendar(true)}>
@@ -523,7 +530,7 @@ export default function FamilyPatientGlucoseScreen() {
                           style={[styles.dayNavArrow, !canNext && { opacity: 0.3 }]}
                           disabled={!canNext}
                         >
-                          <Ionicons name="chevron-forward" size={20} color="#4A6480" />
+                          <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={theme.textMuted} />
                         </Pressable>
                       </View>
                     );
@@ -560,7 +567,7 @@ export default function FamilyPatientGlucoseScreen() {
                     <GlucoseTrendChart readings={chartReadings} width={SCREEN_WIDTH - 88} />
                   ) : (
                     <View style={styles.emptyChart}>
-                      <Ionicons name="analytics-outline" size={36} color="#B8D0E8" />
+                      <Ionicons name="analytics-outline" size={36} color={theme.border} />
                       <Text style={styles.emptyChartText}>{t("noReadingsThisDay")}</Text>
                     </View>
                   )}
@@ -579,7 +586,7 @@ export default function FamilyPatientGlucoseScreen() {
                   onPress={() => selectedDateStr && setSelectedDateStr(shiftDay(selectedDateStr, -1))}
                   style={styles.dayNavArrow}
                 >
-                  <Ionicons name="chevron-back" size={20} color="#4A6480" />
+                  <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color={theme.textMuted} />
                 </Pressable>
                 <View style={styles.dayNavCenter}>
                   <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
@@ -590,13 +597,13 @@ export default function FamilyPatientGlucoseScreen() {
                   style={[styles.dayNavArrow, selectedDateStr === toLocalDateStr(new Date()) && { opacity: 0.3 }]}
                   disabled={selectedDateStr === toLocalDateStr(new Date())}
                 >
-                  <Ionicons name="chevron-forward" size={20} color="#4A6480" />
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={theme.textMuted} />
                 </Pressable>
               </View>
 
               {chartReadings.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="document-text-outline" size={30} color="#94A3B8" />
+                  <Ionicons name="document-text-outline" size={30} color={theme.inactive} />
                   <Text style={styles.emptyTitle}>{t("noReadingsThisDay")}</Text>
                 </View>
               ) : (
@@ -662,7 +669,7 @@ export default function FamilyPatientGlucoseScreen() {
               {!hasLogs ? (
                 <View style={styles.card}>
                   <View style={styles.emptyState}>
-                    <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
+                    <Ionicons name="calendar-outline" size={32} color={theme.inactive} />
                     <Text style={styles.emptyTitle}>{t("noLogsThisWeek")}</Text>
                   </View>
                 </View>
@@ -675,7 +682,7 @@ export default function FamilyPatientGlucoseScreen() {
                         onPress={() => selectedLogDate && setSelectedLogDate(shiftDay(selectedLogDate, -1))}
                         style={styles.dayNavArrow}
                       >
-                        <Ionicons name="chevron-back" size={20} color="#4A6480" />
+                        <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color={theme.textMuted} />
                       </Pressable>
                       <View style={styles.dayNavCenter}>
                         <Ionicons name="calendar-outline" size={16} color="#1A6FA8" />
@@ -690,13 +697,13 @@ export default function FamilyPatientGlucoseScreen() {
                         style={[styles.dayNavArrow, selectedLogDate === toLocalDateStr(new Date()) && { opacity: 0.3 }]}
                         disabled={selectedLogDate === toLocalDateStr(new Date())}
                       >
-                        <Ionicons name="chevron-forward" size={20} color="#4A6480" />
+                        <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={theme.textMuted} />
                       </Pressable>
                     </View>
 
                     {logsForDay.meals.length === 0 && logsForDay.activities.length === 0 && logsForDay.sleep.length === 0 ? (
                       <View style={styles.emptyState}>
-                        <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
+                        <Ionicons name="calendar-outline" size={32} color={theme.inactive} />
                         <Text style={styles.emptyTitle}>{t("noLogsThisWeek")}</Text>
                       </View>
                     ) : (
@@ -785,7 +792,7 @@ export default function FamilyPatientGlucoseScreen() {
             if (vals.length === 0) return (
               <View style={styles.card}>
                 <View style={styles.emptyState}>
-                  <Ionicons name="analytics-outline" size={30} color="#94A3B8" />
+                  <Ionicons name="analytics-outline" size={30} color={theme.inactive} />
                   <Text style={styles.emptyTitle}>{t("noReadings")}</Text>
                 </View>
               </View>
@@ -833,8 +840,9 @@ export default function FamilyPatientGlucoseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EBF3FA" },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.bg },
   loader: { marginTop: 60 },
   content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
@@ -844,8 +852,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
   },
-  screenTitle: { color: "#0B1A2E", fontSize: 20, fontWeight: "700", marginBottom: 4 },
-  screenSub: { color: "#4A6480", fontSize: 14 },
+  screenTitle: { color: theme.text, fontSize: 20, fontWeight: "700", marginBottom: 4 },
+  screenSub: { color: theme.textMuted, fontSize: 14 },
 
   errorBox: {
     margin: 24,
@@ -858,23 +866,23 @@ const styles = StyleSheet.create({
   errorText: { color: "#B91C1C", fontSize: 13, fontWeight: "500" },
 
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.bgCard,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#D6E8F5",
+    borderColor: theme.bgSoft,
     padding: 20,
     marginBottom: 18,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: "#0B1A2E" },
+  cardTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
 
   emptyState: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
-  emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: "700", color: "#0B1A2E" },
+  emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: "700", color: theme.text },
 
   dateGroup: { marginBottom: 20 },
   dateLabelRow: {
@@ -883,7 +891,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
-  dateLabelLine: { flex: 1, height: 1, backgroundColor: "#D6E8F5" },
+  dateLabelLine: { flex: 1, height: 1, backgroundColor: theme.bgSoft },
   dateLabelText: {
     fontSize: 12,
     fontWeight: "700",
@@ -892,7 +900,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   dateCountBadge: {
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderRadius: 99,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -901,20 +909,20 @@ const styles = StyleSheet.create({
 
   dayStatsRow: {
     flexDirection: "row",
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderRadius: 12,
     paddingVertical: 10,
     marginBottom: 10,
   },
   dayStatItem: { flex: 1, alignItems: "center" },
-  dayStatLabel: { fontSize: 11, color: "#4A6480", marginBottom: 2 },
-  dayStatValue: { fontSize: 15, fontWeight: "700", color: "#0B1A2E" },
-  dayStatDivider: { width: 1, backgroundColor: "#B8D0E8", marginVertical: 4 },
+  dayStatLabel: { fontSize: 11, color: theme.textMuted, marginBottom: 2 },
+  dayStatValue: { fontSize: 15, fontWeight: "700", color: theme.text },
+  dayStatDivider: { width: 1, backgroundColor: theme.border, marginVertical: 4 },
 
   readingRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F4F9FD",
+    backgroundColor: theme.bgAlt,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -922,16 +930,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   readingIndicator: { width: 4, height: 36, borderRadius: 4 },
-  readingValue: { fontSize: 18, fontWeight: "700", color: "#0B1A2E", marginBottom: 2 },
-  readingUnit: { fontSize: 12, fontWeight: "400", color: "#4A6480" },
-  readingTime: { fontSize: 12, color: "#7A96B0" },
+  readingValue: { fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 2 },
+  readingUnit: { fontSize: 12, fontWeight: "400", color: theme.textMuted },
+  readingTime: { fontSize: 12, color: theme.textLight },
   statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
   statusText: { fontSize: 12, fontWeight: "700" },
 
   // Tab switcher
   tabRow: {
     flexDirection: "row",
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderRadius: 14,
     padding: 4,
     marginBottom: 16,
@@ -947,13 +955,13 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   tabBtnActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
+    backgroundColor: theme.bgCard,
+    shadowColor: theme.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
-  tabText: { fontSize: 13, fontWeight: "600", color: "#7A96B0" },
+  tabText: { fontSize: 13, fontWeight: "600", color: theme.textLight },
   tabTextActive: { color: "#1A6FA8" },
 
   // Daily logs
@@ -972,28 +980,28 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#EBF3FA",
+    borderBottomColor: theme.bg,
   },
   logDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  logPrimary: { fontSize: 14, fontWeight: "600", color: "#0B1A2E" },
-  logMeta: { fontSize: 13, fontWeight: "400", color: "#7A96B0" },
-  logTime: { fontSize: 12, color: "#7A96B0", marginTop: 2 },
+  logPrimary: { fontSize: 14, fontWeight: "600", color: theme.text },
+  logMeta: { fontSize: 13, fontWeight: "400", color: theme.textLight },
+  logTime: { fontSize: 12, color: theme.textLight, marginTop: 2 },
   predictionCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.bgCard,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
   },
   predictionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   predictionTitle: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
-  predictionMuted: { fontSize: 13, color: "#7A96B0", textAlign: "center", paddingVertical: 6 },
+  predictionMuted: { fontSize: 13, color: theme.textLight, textAlign: "center", paddingVertical: 6 },
   predictionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  predictionValue: { fontSize: 36, fontWeight: "700", color: "#0B1A2E" },
-  predictionUnit: { fontSize: 13, color: "#7A96B0", fontWeight: "400" },
+  predictionValue: { fontSize: 36, fontWeight: "700", color: theme.text },
+  predictionUnit: { fontSize: 13, color: theme.textLight, fontWeight: "400" },
   trendBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   trendBadgeText: { fontSize: 12, fontWeight: "600" },
   adviceBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 10, padding: 10, borderWidth: 1 },
@@ -1011,13 +1019,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   alertLabel: { fontSize: 13, fontWeight: "700" },
-  alertValue: { fontSize: 17, fontWeight: "700", color: "#0B1A2E", marginTop: 2 },
-  alertUnit: { fontSize: 12, fontWeight: "400", color: "#7A96B0" },
-  alertTime: { fontSize: 11, color: "#7A96B0", textAlign: "right" },
+  alertValue: { fontSize: 17, fontWeight: "700", color: theme.text, marginTop: 2 },
+  alertUnit: { fontSize: 12, fontWeight: "400", color: theme.textLight },
+  alertTime: { fontSize: 11, color: theme.textLight, textAlign: "right" },
   alertUnreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#1A6FA8" },
-  alertReadBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "#EBF3FA" },
+  alertReadBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: theme.bg },
   alertReadBtnText: { fontSize: 11, color: "#1A6FA8", fontWeight: "600" },
-  alertReadAllBtn: { marginLeft: "auto" as any, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: "#EBF3FA" },
+  alertReadAllBtn: { marginLeft: "auto" as any, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: theme.bg },
   alertReadAllText: { fontSize: 12, color: "#1A6FA8", fontWeight: "600" },
   showMoreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 4 },
   showMoreText: { fontSize: 13, color: "#1A6FA8", fontWeight: "600" },
@@ -1026,21 +1034,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderWidth: 1,
-    borderColor: "#D6E8F5",
+    borderColor: theme.bgSoft,
   },
   dayBtnActive: {
     backgroundColor: "#1A6FA8",
     borderColor: "#1A6FA8",
   },
-  dayBtnText: { fontSize: 12, fontWeight: "600", color: "#4A6480" },
+  dayBtnText: { fontSize: 12, fontWeight: "600", color: theme.textMuted },
   dayBtnTextActive: { color: "#FFFFFF" },
 
   dayNav: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 6,
@@ -1056,7 +1064,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  dayNavLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
+  dayNavLabel: { fontSize: 12, fontWeight: "600", color: theme.text },
   calModalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -1064,11 +1072,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   calModalBox: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.bgCard,
     borderRadius: 20,
     padding: 16,
     width: SCREEN_WIDTH - 48,
-    shadowColor: "#000",
+    shadowColor: theme.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
@@ -1077,17 +1085,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     alignItems: "center",
     paddingVertical: 10,
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderRadius: 10,
   },
   calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
   emptyChart: { alignItems: "center", justifyContent: "center", paddingVertical: 32, gap: 8 },
-  emptyChartText: { fontSize: 13, color: "#7A96B0", fontWeight: "500" },
+  emptyChartText: { fontSize: 13, color: theme.textLight, fontWeight: "500" },
 
   accordionItem: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#D6E8F5",
+    borderColor: theme.bgSoft,
     marginBottom: 10,
     overflow: "hidden",
   },
@@ -1096,19 +1104,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: "#F4F9FD",
+    backgroundColor: theme.bgAlt,
     gap: 8,
   },
-  accordionLabel: { fontSize: 13, fontWeight: "700", color: "#0B1A2E" },
-  accordionSub: { fontSize: 11, color: "#7A96B0", marginTop: 2 },
+  accordionLabel: { fontSize: 13, fontWeight: "700", color: theme.text },
+  accordionSub: { fontSize: 11, color: theme.textLight, marginTop: 2 },
 
   headerTabs: {
     flexDirection: "row",
-    backgroundColor: "#C8DFF0",
+    backgroundColor: theme.bgSoft,
     paddingHorizontal: 12,
     paddingBottom: 0,
     borderBottomWidth: 1,
-    borderBottomColor: "#B8D0E8",
+    borderBottomColor: theme.border,
   },
   headerTab: {
     flex: 1,
@@ -1124,14 +1132,14 @@ const styles = StyleSheet.create({
     borderBottomColor: "#1A6FA8",
     backgroundColor: "transparent",
   },
-  headerTabText: { fontSize: 12, fontWeight: "600", color: "#7A96B0" },
+  headerTabText: { fontSize: 12, fontWeight: "600", color: theme.textLight },
   headerTabTextActive: { color: "#1A6FA8", fontWeight: "700" },
 
   logDayNav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#EBF3FA",
+    backgroundColor: theme.bg,
     borderRadius: 12,
     paddingVertical: 6,
     paddingHorizontal: 4,
@@ -1140,7 +1148,7 @@ const styles = StyleSheet.create({
   logSection: {
     marginBottom: 12,
     borderTopWidth: 1,
-    borderTopColor: "#EBF3FA",
+    borderTopColor: theme.bg,
     paddingTop: 12,
   },
   logSectionHeader: {
@@ -1149,7 +1157,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 8,
   },
-  logSectionTitle: { fontSize: 13, fontWeight: "700", color: "#0B1A2E", flex: 1 },
+  logSectionTitle: { fontSize: 13, fontWeight: "700", color: theme.text, flex: 1 },
   readMoreBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1158,7 +1166,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginTop: 4,
     borderTopWidth: 1,
-    borderTopColor: "#EBF3FA",
+    borderTopColor: theme.bg,
   },
   readMoreText: { fontSize: 13, fontWeight: "600", color: "#1A6FA8" },
 
@@ -1175,14 +1183,14 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: "center",
   },
-  statLabel: { fontSize: 11, fontWeight: "600", color: "#4A6480", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+  statLabel: { fontSize: 11, fontWeight: "600", color: theme.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   statValue: { fontSize: 26, fontWeight: "800", lineHeight: 30 },
-  statUnit:  { fontSize: 11, color: "#7A96B0", marginTop: 2 },
-  statFooter: { fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 12 },
+  statUnit:  { fontSize: 11, color: theme.textLight, marginTop: 2 },
+  statFooter: { fontSize: 12, color: theme.inactive, textAlign: "center", marginTop: 12 },
 
   a1cCircle: {
     width: 140, height: 140, borderRadius: 70,
-    borderWidth: 5, backgroundColor: "#FFFFFF",
+    borderWidth: 5, backgroundColor: theme.bgCard,
     alignItems: "center", justifyContent: "center",
     marginVertical: 16,
   },
@@ -1192,4 +1200,5 @@ const styles = StyleSheet.create({
     borderRadius: 20, marginTop: 4,
   },
   a1cBadgeText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
-});
+  });
+}

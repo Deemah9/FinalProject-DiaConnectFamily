@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,13 +18,10 @@ import { Typography } from "@/constants/Typography";
 import { changePassword } from "@/services/api";
 
 const PRIMARY = "#1A6FA8";
-const TEXT    = "#0B1A2E";
-const MUTED   = "#4A6480";
-const BORDER  = "#B8D0E8";
-const SOFT    = "#E8F1F8";
 
 export default function ChangePasswordScreen() {
   const { t } = useTranslation();
+  const isRTL = I18nManager.isRTL;
 
   const [currentPw, setCurrentPw]   = useState("");
   const [newPw, setNewPw]           = useState("");
@@ -64,7 +62,7 @@ export default function ChangePasswordScreen() {
       {/* Back button */}
       <View style={styles.topRow}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#fff" />
         </Pressable>
       </View>
 

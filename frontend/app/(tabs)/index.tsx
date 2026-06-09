@@ -1,4 +1,3 @@
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
   getGlucosePrediction,
@@ -16,7 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { checkAndClearPredictionStale } from "@/services/predictionFlag";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import React, {
   useCallback,
   useEffect,
@@ -28,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   Dimensions,
+  I18nManager,
   Modal,
   Pressable,
   ScrollView,
@@ -37,22 +37,25 @@ import {
   Platform,
 } from "react-native";
 import * as Notifications from "expo-notifications";
+import * as Speech from "expo-speech";
+import { useHaptic } from "@/context/HapticContext";
 import { Calendar } from "react-native-calendars";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
+const isRTL = I18nManager.isRTL;
+
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const { user: authUser } = useAuth();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+  const { triggerCriticalAlert } = useHaptic();
   const isFirstFocus = useRef(true);
+  const lastHapticValue = useRef<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Redirect family members to their own home screen
-  useEffect(() => {
-    if (authUser?.role === "family_member") {
-      router.replace("/family-home" as any);
-    }
-  }, [authUser?.role]);
 
   // Register push token for patient notifications
   useEffect(() => {
@@ -93,6 +96,7 @@ export default function HomeScreen() {
   const pickingRef = useRef(false);
   const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -161,6 +165,20 @@ export default function HomeScreen() {
         if (!seen) setShowWelcome(true);
       }
 
+      // Haptic alert for critical glucose values (only once per unique value)
+      if (readings.length > 0) {
+        const latestVal = Number(readings
+          .slice()
+          .sort((a: any, b: any) =>
+            new Date(b?.measuredAt || b?.timestamp || b?.createdAt || 0).getTime() -
+            new Date(a?.measuredAt || a?.timestamp || a?.createdAt || 0).getTime()
+          )[0]?.value || 0);
+        if ((latestVal < 70 || latestVal > 170) && latestVal !== lastHapticValue.current) {
+          lastHapticValue.current = latestVal;
+          triggerCriticalAlert();
+        }
+      }
+
       // Check if last reading was 6+ hours ago
       if (readings.length > 0) {
         const latest = readings
@@ -194,6 +212,26 @@ export default function HomeScreen() {
   const getGreeting = () => {
     const hour = new Date().getHours();
     return hour < 12 ? t("goodMorning") : t("goodEvening");
+  };
+
+  const speakGlucose = () => {
+    if (typeof latest !== "number") return;
+    if (speaking) {
+      Speech.stop();
+      setSpeaking(false);
+      return;
+    }
+    const text = t("speakGlucoseText", {
+      value: latest,
+      status: latestStatus,
+    });
+    setSpeaking(true);
+    Speech.speak(text, {
+      language: i18n.language === "ar" ? "ar" : i18n.language === "he" ? "he-IL" : "en-US",
+      rate: 0.9,
+      onDone:  () => setSpeaking(false),
+      onError: () => setSpeaking(false),
+    });
   };
 
   const toLocalDateStr = (d: Date) =>
@@ -346,9 +384,13 @@ export default function HomeScreen() {
     }
   };
 
+  if (authUser?.role === "family_member") {
+    return <Redirect href={"/family-home" as any} />;
+  }
+
   return (
-    <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
-      <AppHeader left={null} />
+    <LinearGradient colors={[theme.bgCard, theme.bg]} style={styles.container}>
+      <AppHeader left={null} unreadCount={unreadCount} />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Welcome */}
         <View style={styles.hero}>
@@ -372,7 +414,7 @@ export default function HomeScreen() {
               <Ionicons
                 name="analytics-outline"
                 size={20}
-                color={Colors.primary}
+                color={theme.primary}
               />
               <Text style={styles.predictionLabel}>
                 {t("predictionSubtitle")}
@@ -640,7 +682,7 @@ export default function HomeScreen() {
                     <Ionicons
                       name="bar-chart-outline"
                       size={20}
-                      color={Colors.primary}
+                      color={theme.primary}
                     />
                     <Text style={styles.predictionLabel}>
                       {t("patternCardSubtitle")}
@@ -661,7 +703,7 @@ export default function HomeScreen() {
                                     ? "#D32F2F"
                                     : avgVal < 70
                                       ? "#D97706"
-                                      : Colors.text,
+                                      : theme.text,
                               },
                             ]}
                           >
@@ -792,7 +834,15 @@ export default function HomeScreen() {
                   {errorGlucose ? errorGlucose : t("trackReadings")}
                 </Text>
               </View>
-              <View style={styles.latestPill}>
+              <View
+                style={styles.latestPill}
+                accessible={typeof latest === "number"}
+                accessibilityLabel={
+                  typeof latest === "number"
+                    ? t("aria.glucoseValue", { value: latest, status: latestStatus })
+                    : undefined
+                }
+              >
                 <Text style={styles.latestValue}>
                   {loadingGlucose ? "--" : latest}
                 </Text>
@@ -827,17 +877,40 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {/* TTS Listen button */}
+            {typeof latest === "number" && (
+              <Pressable
+                style={[styles.speakBtn, speaking && styles.speakBtnActive]}
+                onPress={speakGlucose}
+                accessibilityLabel={speaking ? t("aria.stopListening") : t("aria.listenGlucose")}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name={speaking ? "stop-circle-outline" : "volume-high-outline"}
+                  size={16}
+                  color={speaking ? "#D32F2F" : "#1A6FA8"}
+                />
+                <Text style={[styles.speakBtnText, speaking && { color: "#D32F2F" }]}>
+                  {speaking ? t("close", "Stop") : t("speakBtn", "Listen")}
+                </Text>
+              </Pressable>
+            )}
+
             {/* Day Navigator */}
             <View style={styles.dayNav}>
               <Pressable
                 style={styles.navArrow}
                 onPress={() => setSelectedDateStr((d) => shiftDay(d, -1))}
+                accessibilityLabel={t("aria.prevDay")}
+                accessibilityRole="button"
               >
-                <Ionicons name="chevron-back" size={20} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={20} color="#1A6FA8" />
               </Pressable>
               <Pressable
                 style={styles.dayNavCenter}
                 onPress={() => setShowCalendar(true)}
+                accessibilityLabel={t("aria.selectDate")}
+                accessibilityRole="button"
               >
                 <Ionicons name="calendar-outline" size={14} color="#1A6FA8" />
                 <Text style={styles.dayNavLabel}>{selectedLabel}</Text>
@@ -848,8 +921,10 @@ export default function HomeScreen() {
                   canNext && setSelectedDateStr((d) => shiftDay(d, 1))
                 }
                 disabled={!canNext}
+                accessibilityLabel={t("aria.nextDay")}
+                accessibilityRole="button"
               >
-                <Ionicons name="chevron-forward" size={20} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#1A6FA8" />
               </Pressable>
             </View>
 
@@ -920,7 +995,7 @@ export default function HomeScreen() {
                 <Ionicons
                   name="stats-chart-outline"
                   size={32}
-                  color="#B8D0E8"
+                  color={theme.border}
                 />
                 <Text style={styles.trendEmptyText}>{t("noReadingsYet")}</Text>
               </View>
@@ -971,13 +1046,17 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* FAB — Add / Import Glucose */}
-      <Pressable
-        style={styles.fab}
-        onPress={() => !importing && setShowAddModal(true)}
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </Pressable>
+      {/* FAB — Add / Import Glucose (patients only) */}
+      {authUser?.role !== "family_member" && (
+        <Pressable
+          style={styles.fab}
+          onPress={() => !importing && setShowAddModal(true)}
+          accessibilityLabel={t("aria.addReading")}
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </Pressable>
+      )}
 
       {/* Add Options Modal */}
       <Modal
@@ -1017,7 +1096,7 @@ export default function HomeScreen() {
                 <Text style={styles.addCardSubBlue}>{t("manualEntrySub")}</Text>
               </View>
               <View style={styles.addCardArrowBlue}>
-                <Ionicons name="chevron-forward" size={16} color="#1A6FA8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#1A6FA8" />
               </View>
             </Pressable>
 
@@ -1043,7 +1122,7 @@ export default function HomeScreen() {
               </View>
               {!importing && (
                 <View style={styles.addCardArrowGreen}>
-                  <Ionicons name="chevron-forward" size={16} color="#16A34A" />
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#16A34A" />
                 </View>
               )}
             </Pressable>
@@ -1097,1024 +1176,1048 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EBF3FA",
-  },
-
-  importToast: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: "#1A6FA8",
-    zIndex: 100,
-  },
-  importToastSuccess: { backgroundColor: "#16A34A" },
-  importToastError: { backgroundColor: "#B91C1C" },
-  importToastText: {
-    flex: 1,
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "500",
-  },
-
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 80,
-  },
-
-  hero: {
-    marginTop: 12,
-    marginBottom: 16,
-  },
-
-  welcomeTitle: {
-    color: "#0B1A2E",
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-
-  welcomeSub: {
-    color: "#4A6480",
-    fontSize: 14,
-  },
-
-  roleBadge: {
-    alignSelf: "flex-start",
-    marginBottom: 24,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  roleBadgeText: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: "600",
-  },
-
-  section: {
-    marginBottom: 24,
-  },
-
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#4A6480",
-    marginBottom: 12,
-    letterSpacing: 1,
-  },
-
-  fab: {
-    position: "absolute",
-    bottom: 32,
-    right: 24,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "#1A6FA8",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-
-  alertCard: {
-    backgroundColor: "#FFFBEB",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderColor: "#FDE68A",
-    borderLeftColor: "#F59E0B",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-
-  alertIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    backgroundColor: "#FEF3C7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  alertMainTitle: {
-    color: "#92400E",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-
-  alertMainSub: {
-    color: "#B45309",
-    fontSize: 12,
-  },
-
-  overviewCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-
-  overviewTitle: {
-    color: "#0B1A2E",
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-
-  overviewSub: {
-    color: "#4A6480",
-    fontSize: 13,
-    marginBottom: 16,
-  },
-
-  latestRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-
-  latestPill: {
-    alignItems: "flex-end",
-    gap: 4,
-  },
-
-  latestWrap: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    marginBottom: 4,
-  },
-
-  latestValue: {
-    fontSize: 42,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    lineHeight: 46,
-  },
-
-  latestUnit: {
-    fontSize: 14,
-    color: "#4A6480",
-    marginLeft: 6,
-    marginBottom: 8,
-  },
-
-  latestStatusWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  latestStatusLabel: {
-    fontSize: 12,
-    color: "#4A6480",
-    marginRight: 6,
-  },
-
-  latestStatusValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0B1A2E",
-  },
-
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 20,
-    backgroundColor: "#E6F7F2",
-  },
-
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0D9E6E",
-  },
-
-  trendWrap: {
-    marginTop: 8,
-    minHeight: 200,
-    justifyContent: "center",
-  },
-
-  trendLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#4A6480",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-
-  trendChart: {
-    borderRadius: 12,
-    marginLeft: -8,
-  },
-
-  trendLegend: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginTop: 10,
-  },
-
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-
-  legendText: {
-    fontSize: 11,
-    color: "#4A6480",
-  },
-
-  trendEmpty: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 200,
-    gap: 8,
-  },
-
-  trendEmptyText: {
-    fontSize: 13,
-    color: "#B8D0E8",
-  },
-
-  glucoseButtonsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 16,
-  },
-
-  glucosePrimaryBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#1A6FA8",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-
-  glucosePrimaryText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-
-  glucoseSecondaryBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#B8D0E8",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  glucoseSecondaryText: {
-    color: "#1E3A52",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  recentList: {
-    gap: 12,
-  },
-
-  reminderCard: {
-    backgroundColor: "#F0FDF4",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderColor: "#BBF7D0",
-    borderLeftColor: "#22C55E",
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 12,
-  },
-
-  reminderIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    backgroundColor: "#DCFCE7",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-
-  reminderTitle: {
-    color: "#14532D",
-    fontSize: 14,
-    fontWeight: "600" as const,
-    marginBottom: 2,
-  },
-
-  reminderSub: {
-    color: "#15803D",
-    fontSize: 12,
-  },
-
-  tipCard: {
-    backgroundColor: "#EFF6FF",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderColor: "#BFDBFE",
-    borderLeftColor: "#3B82F6",
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 12,
-  },
-
-  tipIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    backgroundColor: "#DBEAFE",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-
-  tipTitle: {
-    color: "#1E3A8A",
-    fontSize: 14,
-    fontWeight: "600" as const,
-    marginBottom: 2,
-  },
-
-  tipSub: {
-    color: "#1D4ED8",
-    fontSize: 12,
-  },
-
-  recentItem: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    marginTop: 6,
-  },
-
-  recentTitle: {
-    color: "#0B1A2E",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-
-  recentSub: {
-    color: "#4A6480",
-    fontSize: 12,
-    marginBottom: 4,
-  },
-
-  recentTime: {
-    color: "#7A96B0",
-    fontSize: 11,
-  },
-
-  // Prediction Card
-  predictionCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  predictionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  predictionLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: "500",
-  },
-  predictionLoading: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    textAlign: "center",
-    paddingVertical: 8,
-  },
-  predictionInsufficient: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    textAlign: "center",
-    paddingVertical: 8,
-    lineHeight: 20,
-  },
-  predictionValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  predictionValue: {
-    fontSize: 40,
-    fontWeight: "700",
-    color: Colors.text,
-  },
-  predictionUnit: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    fontWeight: "400",
-  },
-  trendBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  probRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
-    marginBottom: 2,
-    paddingHorizontal: 2,
-  },
-  probText: {
-    fontSize: 13,
-    color: "#4A6480",
-  },
-  probValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#1A6FA8",
-  },
-  trendBadgeText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  predictionAlert: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-  },
-  dayNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EBF3FA",
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    marginBottom: 10,
-    alignSelf: "center",
-    width: "70%",
-  },
-  navArrow: { padding: 4 },
-  dayNavCenter: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  dayNavLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E" },
-  calBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  calBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 16,
-    width: Dimensions.get("window").width - 48,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  calCloseBtn: {
-    marginTop: 12,
-    alignItems: "center",
-    paddingVertical: 10,
-    backgroundColor: "#EBF3FA",
-    borderRadius: 10,
-  },
-  calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
-  predictionAlertText: {
-    fontSize: 13,
-    flex: 1,
-    lineHeight: 20,
-  },
-
-  // Pattern card — new design
-  patternStatusStrip: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: "#F8FAFC",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  patternStatusText: {
-    fontSize: 12,
-    color: "#6B7280",
-    flex: 1,
-    lineHeight: 17,
-  },
-  patternMainRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  patternMainLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  patternBigValue: {
-    fontSize: 46,
-    fontWeight: "800",
-    lineHeight: 52,
-  },
-  patternBigUnit: {
-    fontSize: 15,
-    fontWeight: "400",
-    color: "#94A3B8",
-  },
-  patternRangeText: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 4,
-    fontWeight: "500",
-  },
-  patternRiskPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginTop: 6,
-    alignSelf: "flex-start",
-  },
-  patternRiskPillText: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  patternAlertBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 14,
-  },
-  patternAlertText: {
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 20,
-  },
-  patternFooterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  patternSamplesText: {
-    fontSize: 11,
-    color: "#94A3B8",
-  },
-  patternConfRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  patternDots: {
-    fontSize: 10,
-    letterSpacing: 2,
-  },
-  patternConfLabel: {
-    fontSize: 11,
-    color: "#94A3B8",
-  },
-
-  staleBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#FEF9EC",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  staleBannerText: {
-    fontSize: 12,
-    color: "#92400E",
-    flex: 1,
-    lineHeight: 18,
-  },
-
-  staleWarningCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "#FEF9EC",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 4,
-  },
-  staleWarningText: {
-    fontSize: 13,
-    color: "#92400E",
-    flex: 1,
-    lineHeight: 20,
-  },
-
-  addModalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  addModalSheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-    paddingTop: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  addModalHandle: {
-    width: 44,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#E2EAF2",
-    alignSelf: "center",
-    marginBottom: 12,
-  },
-  addModalTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  addModalTitleBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "#EBF3FA",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addModalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0B1A2E",
-  },
-
-  // Blue card — Manual Entry
-  addCardBlue: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: "#EFF6FF",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderLeftWidth: 5,
-    borderLeftColor: "#1A6FA8",
-  },
-  addCardIconBlue: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: "#1A6FA8",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#1A6FA8",
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  addCardLabelBlue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E3A5F",
-    marginBottom: 2,
-  },
-  addCardSubBlue: {
-    fontSize: 12,
-    color: "#3B82F6",
-  },
-  addCardArrowBlue: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: "#DBEAFE",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // Green card — CSV Import
-  addCardGreen: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: "#F0FDF4",
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
-    borderLeftWidth: 5,
-    borderLeftColor: "#16A34A",
-  },
-  addCardIconGreen: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: "#16A34A",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#16A34A",
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  addCardLabelGreen: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#14532D",
-    marginBottom: 2,
-  },
-  addCardSubGreen: {
-    fontSize: 12,
-    color: "#16A34A",
-    marginBottom: 4,
-  },
-  addCardInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  addCardInfoText: {
-    fontSize: 10,
-    color: "#15803D",
-    flex: 1,
-    lineHeight: 14,
-    opacity: 0.85,
-  },
-  addCardArrowGreen: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: "#DCFCE7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  addOptionText: { flex: 1 },
-  addModalCancel: {
-    alignItems: "center",
-    paddingVertical: 14,
-    marginTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  addModalCancelText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#94A3B8",
-  },
-
-  // kept for any legacy references
-  addOptionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: "#EBF3FA",
-    marginBottom: 12,
-  },
-  addOptionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addOptionLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0B1A2E",
-    marginBottom: 2,
-  },
-  addOptionSub: { fontSize: 12, color: "#4A6480" },
-  importInfoBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#EBF3FA",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  importInfoText: { fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17 },
-
-  reminderBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-  },
-  reminderBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 24,
-    width: "100%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  reminderIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#EBF3FA",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  reminderModalTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  reminderModalMsg: {
-    fontSize: 14,
-    color: "#4A6480",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  reminderAddBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#1A6FA8",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    width: "100%",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  reminderAddText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-  reminderDismiss: { paddingVertical: 8 },
-  reminderDismissText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
-
-  welcomeBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-  welcomeBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 28,
-    padding: 28,
-    width: "100%",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  welcomeIconWrap: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "#EBF3FA",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 18,
-  },
-  welcomeModalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#0B1A2E",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  welcomeBody: {
-    fontSize: 14,
-    color: "#4A6480",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  welcomePrimaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#1A6FA8",
-    paddingVertical: 14,
-    borderRadius: 16,
-    width: "100%",
-    marginBottom: 10,
-  },
-  welcomePrimaryText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-  welcomeSkipBtn: { paddingVertical: 8 },
-  welcomeSkipText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
-});
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+
+    importToast: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: 16,
+      marginTop: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 14,
+      backgroundColor: "#1A6FA8",
+      zIndex: 100,
+    },
+    importToastSuccess: { backgroundColor: "#16A34A" },
+    importToastError: { backgroundColor: "#B91C1C" },
+    importToastText: {
+      flex: 1,
+      color: "#FFFFFF",
+      fontSize: 13,
+      fontWeight: "500",
+    },
+
+    content: {
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 80,
+    },
+
+    hero: {
+      marginTop: 12,
+      marginBottom: 16,
+    },
+
+    welcomeTitle: {
+      color: theme.text,
+      fontSize: 20,
+      fontWeight: "700",
+      marginBottom: 8,
+    },
+
+    welcomeSub: {
+      color: theme.textMuted,
+      fontSize: 14,
+    },
+
+    roleBadge: {
+      alignSelf: "flex-start",
+      marginBottom: 24,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: "#EFF6FF",
+      borderWidth: 1,
+      borderColor: "#DBEAFE",
+    },
+
+    roleBadgeText: {
+      fontSize: 12,
+      color: theme.primary,
+      fontWeight: "600",
+    },
+
+    section: {
+      marginBottom: 24,
+    },
+
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: theme.textMuted,
+      marginBottom: 12,
+      letterSpacing: 1,
+    },
+
+    fab: {
+      position: "absolute",
+      bottom: 32,
+      right: 24,
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#1A6FA8",
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 8,
+    },
+
+    alertCard: {
+      backgroundColor: "#FFFBEB",
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderLeftWidth: 4,
+      borderColor: "#FDE68A",
+      borderLeftColor: "#F59E0B",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+
+    alertIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      backgroundColor: "#FEF3C7",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    alertMainTitle: {
+      color: "#92400E",
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 2,
+    },
+
+    alertMainSub: {
+      color: "#B45309",
+      fontSize: 12,
+    },
+
+    overviewCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
+
+    overviewTitle: {
+      color: theme.text,
+      fontSize: 18,
+      fontWeight: "600",
+      marginBottom: 6,
+    },
+
+    overviewSub: {
+      color: theme.textMuted,
+      fontSize: 13,
+      marginBottom: 16,
+    },
+
+    latestRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: 14,
+    },
+
+    latestPill: {
+      alignItems: "flex-end",
+      gap: 4,
+    },
+
+    latestWrap: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      marginBottom: 4,
+    },
+
+    latestValue: {
+      fontSize: 42,
+      fontWeight: "700",
+      color: theme.text,
+      lineHeight: 46,
+    },
+
+    latestUnit: {
+      fontSize: 14,
+      color: theme.textMuted,
+      marginLeft: 6,
+      marginBottom: 8,
+    },
+
+    latestStatusWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 14,
+    },
+
+    latestStatusLabel: {
+      fontSize: 12,
+      color: theme.textMuted,
+      marginRight: 6,
+    },
+
+    latestStatusValue: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.text,
+    },
+
+    statusBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: 20,
+      backgroundColor: "#E6F7F2",
+    },
+
+    statusBadgeText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#0D9E6E",
+    },
+
+    trendWrap: {
+      marginTop: 8,
+      minHeight: 200,
+      justifyContent: "center",
+    },
+
+    trendLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.textMuted,
+      marginBottom: 8,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+
+    trendChart: {
+      borderRadius: 12,
+      marginLeft: -8,
+    },
+
+    trendLegend: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 16,
+      marginTop: 10,
+    },
+
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+
+    legendText: {
+      fontSize: 11,
+      color: theme.textMuted,
+    },
+
+    trendEmpty: {
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 200,
+      gap: 8,
+    },
+
+    trendEmptyText: {
+      fontSize: 13,
+      color: theme.border,
+    },
+
+    glucoseButtonsRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 16,
+    },
+
+    glucosePrimaryBtn: {
+      flex: 1,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#1A6FA8",
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+
+    glucosePrimaryText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
+      letterSpacing: 0.3,
+    },
+
+    glucoseSecondaryBtn: {
+      flex: 1,
+      height: 48,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.bgCard,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    glucoseSecondaryText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    recentList: {
+      gap: 12,
+    },
+
+    reminderCard: {
+      backgroundColor: "#F0FDF4",
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderLeftWidth: 4,
+      borderColor: "#BBF7D0",
+      borderLeftColor: "#22C55E",
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 12,
+    },
+
+    reminderIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      backgroundColor: "#DCFCE7",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+
+    reminderTitle: {
+      color: "#14532D",
+      fontSize: 14,
+      fontWeight: "600" as const,
+      marginBottom: 2,
+    },
+
+    reminderSub: {
+      color: "#15803D",
+      fontSize: 12,
+    },
+
+    tipCard: {
+      backgroundColor: "#EFF6FF",
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderLeftWidth: 4,
+      borderColor: "#BFDBFE",
+      borderLeftColor: "#3B82F6",
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 12,
+    },
+
+    tipIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      backgroundColor: "#DBEAFE",
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+
+    tipTitle: {
+      color: "#1E3A8A",
+      fontSize: 14,
+      fontWeight: "600" as const,
+      marginBottom: 2,
+    },
+
+    tipSub: {
+      color: "#1D4ED8",
+      fontSize: 12,
+    },
+
+    recentItem: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 18,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      shadowColor: "#000",
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      marginTop: 6,
+    },
+
+    recentTitle: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 2,
+    },
+
+    recentSub: {
+      color: theme.textMuted,
+      fontSize: 12,
+      marginBottom: 4,
+    },
+
+    recentTime: {
+      color: theme.textLight,
+      fontSize: 11,
+    },
+
+    // Prediction Card
+    predictionCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      padding: 20,
+      shadowColor: "#000",
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    predictionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 14,
+    },
+    predictionLabel: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      fontWeight: "500",
+    },
+    predictionLoading: {
+      fontSize: 14,
+      color: theme.textMuted,
+      textAlign: "center",
+      paddingVertical: 8,
+    },
+    predictionInsufficient: {
+      fontSize: 13,
+      color: theme.textMuted,
+      textAlign: "center",
+      paddingVertical: 8,
+      lineHeight: 20,
+    },
+    predictionValueRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
+    predictionValue: {
+      fontSize: 40,
+      fontWeight: "700",
+      color: theme.text,
+    },
+    predictionUnit: {
+      fontSize: 14,
+      color: theme.textMuted,
+      fontWeight: "400",
+    },
+    trendBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    probRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 8,
+      marginBottom: 2,
+      paddingHorizontal: 2,
+    },
+    probText: {
+      fontSize: 13,
+      color: "#4A6480",
+    },
+    probValue: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#1A6FA8",
+    },
+    trendBadgeText: {
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    predictionAlert: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+    },
+    speakBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      alignSelf: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: "#1A6FA8",
+      marginBottom: 10,
+    },
+    speakBtnActive: {
+      borderColor: "#D32F2F",
+      backgroundColor: "#FFF1F1",
+    },
+    speakBtnText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#1A6FA8",
+    },
+    dayNav: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.bg,
+      borderRadius: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 6,
+      marginBottom: 10,
+      alignSelf: "center",
+      width: "70%",
+    },
+    navArrow: { padding: 4 },
+    dayNavCenter: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+    },
+    dayNavLabel: { fontSize: 12, fontWeight: "600", color: theme.text },
+    calBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    calBox: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      padding: 16,
+      width: Dimensions.get("window").width - 48,
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    calCloseBtn: {
+      marginTop: 12,
+      alignItems: "center",
+      paddingVertical: 10,
+      backgroundColor: theme.bg,
+      borderRadius: 10,
+    },
+    calCloseTxt: { fontSize: 14, fontWeight: "600", color: "#1A6FA8" },
+    predictionAlertText: {
+      fontSize: 13,
+      flex: 1,
+      lineHeight: 20,
+    },
+
+    // Pattern card — new design
+    patternStatusStrip: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+      backgroundColor: theme.bgAlt,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderLight,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+    },
+    patternStatusText: {
+      fontSize: 12,
+      color: "#6B7280",
+      flex: 1,
+      lineHeight: 17,
+    },
+    patternMainRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: 14,
+    },
+    patternMainLabel: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: theme.inactive,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+      marginBottom: 4,
+    },
+    patternBigValue: {
+      fontSize: 46,
+      fontWeight: "800",
+      lineHeight: 52,
+    },
+    patternBigUnit: {
+      fontSize: 15,
+      fontWeight: "400",
+      color: theme.inactive,
+    },
+    patternRangeText: {
+      fontSize: 12,
+      color: "#64748B",
+      marginTop: 4,
+      fontWeight: "500",
+    },
+    patternRiskPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      marginTop: 6,
+      alignSelf: "flex-start",
+    },
+    patternRiskPillText: {
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    patternAlertBox: {
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 14,
+    },
+    patternAlertText: {
+      fontSize: 13,
+      fontWeight: "500",
+      lineHeight: 20,
+    },
+    patternFooterRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    patternSamplesText: {
+      fontSize: 11,
+      color: theme.inactive,
+    },
+    patternConfRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    patternDots: {
+      fontSize: 10,
+      letterSpacing: 2,
+    },
+    patternConfLabel: {
+      fontSize: 11,
+      color: theme.inactive,
+    },
+
+    staleBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: "#FEF9EC",
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 12,
+    },
+    staleBannerText: {
+      fontSize: 12,
+      color: "#92400E",
+      flex: 1,
+      lineHeight: 18,
+    },
+
+    staleWarningCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      backgroundColor: "#FEF9EC",
+      borderWidth: 1,
+      borderColor: "#FDE68A",
+      borderRadius: 12,
+      padding: 14,
+      marginTop: 4,
+    },
+    staleWarningText: {
+      fontSize: 13,
+      color: "#92400E",
+      flex: 1,
+      lineHeight: 20,
+    },
+
+    addModalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    addModalSheet: {
+      backgroundColor: theme.bgCard,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 20,
+      paddingBottom: 28,
+      paddingTop: 10,
+      shadowColor: "#000",
+      shadowOpacity: 0.18,
+      shadowRadius: 24,
+      elevation: 12,
+    },
+    addModalHandle: {
+      width: 44,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: theme.borderLight,
+      alignSelf: "center",
+      marginBottom: 12,
+    },
+    addModalTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginBottom: 14,
+    },
+    addModalTitleBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      backgroundColor: theme.bg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addModalTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.text,
+    },
+
+    // Blue card — Manual Entry
+    addCardBlue: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: 16,
+      backgroundColor: "#EFF6FF",
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: "#BFDBFE",
+      borderLeftWidth: 5,
+      borderLeftColor: "#1A6FA8",
+    },
+    addCardIconBlue: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      backgroundColor: "#1A6FA8",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#1A6FA8",
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+    addCardLabelBlue: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#1E3A5F",
+      marginBottom: 2,
+    },
+    addCardSubBlue: {
+      fontSize: 12,
+      color: "#3B82F6",
+    },
+    addCardArrowBlue: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      backgroundColor: "#DBEAFE",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    // Green card — CSV Import
+    addCardGreen: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: 16,
+      backgroundColor: "#F0FDF4",
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: "#BBF7D0",
+      borderLeftWidth: 5,
+      borderLeftColor: "#16A34A",
+    },
+    addCardIconGreen: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      backgroundColor: "#16A34A",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#16A34A",
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+    addCardLabelGreen: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#14532D",
+      marginBottom: 2,
+    },
+    addCardSubGreen: {
+      fontSize: 12,
+      color: "#16A34A",
+      marginBottom: 4,
+    },
+    addCardInfoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+    },
+    addCardInfoText: {
+      fontSize: 10,
+      color: "#15803D",
+      flex: 1,
+      lineHeight: 14,
+      opacity: 0.85,
+    },
+    addCardArrowGreen: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      backgroundColor: "#DCFCE7",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    addOptionText: { flex: 1 },
+    addModalCancel: {
+      alignItems: "center",
+      paddingVertical: 14,
+      marginTop: 6,
+      borderTopWidth: 1,
+      borderTopColor: "#F1F5F9",
+    },
+    addModalCancelText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.inactive,
+    },
+
+    // kept for any legacy references
+    addOptionBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: theme.bg,
+      marginBottom: 12,
+    },
+    addOptionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: theme.bgCard,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addOptionLabel: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 2,
+    },
+    addOptionSub: { fontSize: 12, color: theme.textMuted },
+    importInfoBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: theme.bg,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 12,
+    },
+    importInfoText: { fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17 },
+
+    reminderBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 32,
+    },
+    reminderBox: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 24,
+      padding: 24,
+      width: "100%",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    reminderIconWrap: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: theme.bg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+    },
+    reminderModalTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 10,
+      textAlign: "center",
+    },
+    reminderModalMsg: {
+      fontSize: 14,
+      color: theme.textMuted,
+      textAlign: "center",
+      lineHeight: 22,
+      marginBottom: 24,
+    },
+    reminderAddBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#1A6FA8",
+      borderRadius: 14,
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      width: "100%",
+      justifyContent: "center",
+      marginBottom: 12,
+    },
+    reminderAddText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    reminderDismiss: { paddingVertical: 8 },
+    reminderDismissText: { fontSize: 13, color: theme.inactive, fontWeight: "500" },
+
+    welcomeBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 28,
+    },
+    welcomeBox: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 28,
+      padding: 28,
+      width: "100%",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 24,
+      elevation: 12,
+    },
+    welcomeIconWrap: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: theme.bg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 18,
+    },
+    welcomeModalTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: theme.text,
+      textAlign: "center",
+      marginBottom: 12,
+    },
+    welcomeBody: {
+      fontSize: 14,
+      color: theme.textMuted,
+      textAlign: "center",
+      lineHeight: 22,
+      marginBottom: 24,
+    },
+    welcomePrimaryBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: "#1A6FA8",
+      paddingVertical: 14,
+      borderRadius: 16,
+      width: "100%",
+      marginBottom: 10,
+    },
+    welcomePrimaryText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    welcomeSkipBtn: { paddingVertical: 8 },
+    welcomeSkipText: { fontSize: 13, color: theme.inactive, fontWeight: "500" },
+  });
+}

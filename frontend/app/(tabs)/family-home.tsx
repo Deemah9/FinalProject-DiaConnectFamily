@@ -4,15 +4,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { Colors } from "@/constants/Colors";
 import AppHeader from "@/src/components/AppHeader";
 import { getLinkedPatients, getProfile, getUnreadCount, registerPushToken } from "@/services/api";
 import * as Notifications from "expo-notifications";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 export default function FamilyHomeScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
 
   const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
@@ -75,7 +77,7 @@ export default function FamilyHomeScreen() {
   };
 
   return (
-    <LinearGradient colors={["#FFFFFF", "#EBF3FA"]} style={styles.container}>
+    <LinearGradient colors={[theme.bgCard, theme.bg]} style={styles.container}>
       <AppHeader left={null} unreadCount={unreadCount} />
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -92,7 +94,7 @@ export default function FamilyHomeScreen() {
 
           {patients.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Ionicons name="people-outline" size={36} color="#B8D0E8" />
+              <Ionicons name="people-outline" size={36} color={theme.border} />
               <Text style={styles.emptyText}>{t("noPatients")}</Text>
               <Text style={styles.emptySub}>{t("noPatientsSubtext")}</Text>
               <Pressable
@@ -122,7 +124,7 @@ export default function FamilyHomeScreen() {
                   <Text style={styles.patientName}>{p.patient_name}</Text>
                   <Text style={styles.patientSub}>{t("viewGlucose")}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                <Ionicons name={I18nManager.isRTL ? "chevron-back" : "chevron-forward"} size={18} color={theme.textMuted} />
               </Pressable>
             ))
           )}
@@ -146,79 +148,81 @@ export default function FamilyHomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    content: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
-  hero: { marginTop: 12, marginBottom: 16 },
-  welcomeTitle: { fontSize: 20, fontWeight: "700", color: "#0B1A2E", marginBottom: 6 },
-  welcomeSub: { fontSize: 14, color: "#4A6480" },
+    hero: { marginTop: 12, marginBottom: 16 },
+    welcomeTitle: { fontSize: 20, fontWeight: "700", color: theme.text, marginBottom: 6 },
+    welcomeSub: { fontSize: 14, color: theme.textMuted },
 
-  section: { marginBottom: 24 },
-  sectionLabel: { fontSize: 12, fontWeight: "700", color: "#4A6480", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 12 },
+    section: { marginBottom: 24 },
+    sectionLabel: { fontSize: 12, fontWeight: "700", color: theme.textMuted, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 12 },
 
-  emptyCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 28,
-    alignItems: "center",
-    gap: 8,
-  },
-  emptyText: { fontSize: 15, fontWeight: "700", color: "#0B1A2E", marginTop: 8 },
-  emptySub: { fontSize: 13, color: "#4A6480", textAlign: "center" },
-  linkBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 14,
-    marginTop: 8,
-  },
-  linkBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+    emptyCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 28,
+      alignItems: "center",
+      gap: 8,
+    },
+    emptyText: { fontSize: 15, fontWeight: "700", color: theme.text, marginTop: 8 },
+    emptySub: { fontSize: 13, color: theme.textMuted, textAlign: "center" },
+    linkBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: theme.primary,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 14,
+      marginTop: 8,
+    },
+    linkBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
 
-  patientCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  avatar: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: Colors.primary,
-    alignItems: "center", justifyContent: "center",
-  },
-  avatarText: { color: "#fff", fontSize: 20, fontWeight: "700" },
-  patientName: { fontSize: 16, fontWeight: "600", color: "#0B1A2E" },
-  patientSub: { fontSize: 12, color: "#4A6480", marginTop: 2 },
+    patientCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      marginBottom: 10,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    avatar: {
+      width: 48, height: 48, borderRadius: 24,
+      backgroundColor: theme.primary,
+      alignItems: "center", justifyContent: "center",
+    },
+    avatarText: { color: "#fff", fontSize: 20, fontWeight: "700" },
+    patientName: { fontSize: 16, fontWeight: "600", color: theme.text },
+    patientSub: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
 
-  quickRow: { flexDirection: "row", gap: 12 },
-  quickCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#D6E8F5",
-    padding: 16,
-    alignItems: "center",
-    gap: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  quickIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  quickLabel: { fontSize: 12, fontWeight: "600", color: "#0B1A2E", textAlign: "center" },
-});
+    quickRow: { flexDirection: "row", gap: 12 },
+    quickCard: {
+      flex: 1,
+      backgroundColor: theme.bgCard,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.bgSoft,
+      padding: 16,
+      alignItems: "center",
+      gap: 10,
+      shadowColor: "#000",
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    quickIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    quickLabel: { fontSize: 12, fontWeight: "600", color: theme.text, textAlign: "center" },
+  });
+}

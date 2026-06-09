@@ -10,13 +10,16 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
-import { Colors } from "@/constants/Colors";
 import { joinWithCode } from "@/services/api";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 const CODE_LENGTH = 6;
 
 export default function FamilyJoinScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
+  const styles = createStyles(theme);
+
   const [chars, setChars] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -122,10 +125,11 @@ export default function FamilyJoinScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: theme.bg,
   },
   inner: {
     flex: 1,
@@ -135,7 +139,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: theme.textSecondary,
     textAlign: "center",
     marginBottom: 28,
     fontWeight: "500",
@@ -149,26 +153,26 @@ const styles = StyleSheet.create({
     width: 46,
     height: 56,
     borderRadius: 12,
-    backgroundColor: Colors.bgCard,
+    backgroundColor: theme.bgCard,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: theme.border,
     textAlign: "center",
     fontSize: 22,
     fontWeight: "700",
-    color: Colors.text,
+    color: theme.text,
   },
   codeBoxFilled: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.bgInput,
+    borderColor: "#1A6FA8",
+    backgroundColor: theme.bgInput,
   },
   errorText: {
-    color: Colors.error,
+    color: "#D32F2F",
     fontSize: 13,
     marginBottom: 16,
     textAlign: "center",
   },
   joinBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: "#1A6FA8",
     width: "100%",
     paddingVertical: 14,
     borderRadius: 14,
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
   },
   successContainer: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: theme.bg,
   },
   successCard: {
     flex: 1,
@@ -200,23 +204,23 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: Colors.text,
+    color: theme.text,
     textAlign: "center",
   },
   successSub: {
     fontSize: 16,
-    color: Colors.primary,
+    color: "#1A6FA8",
     fontWeight: "600",
     textAlign: "center",
   },
   successNote: {
     fontSize: 14,
-    color: Colors.textMuted,
+    color: theme.textMuted,
     textAlign: "center",
     lineHeight: 22,
   },
   doneBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: "#1A6FA8",
     marginTop: 16,
     paddingHorizontal: 40,
     paddingVertical: 14,
@@ -227,4 +231,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 15,
   },
-});
+  });
+}

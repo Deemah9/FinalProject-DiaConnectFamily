@@ -13,14 +13,17 @@ import { useTranslation } from "react-i18next";
 
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
-import { addActivity } from "@/services/api";
+import { addSleep } from "@/services/api";
 import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { buildTimestamp, initTime } from "@/components/TimePicker";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
-export default function AddActivityScreen() {
+export default function AddSleepScreen() {
 const { t } = useTranslation();
-const [type, setType] = useState("");
-const [durationMinutes, setDurationMinutes] = useState("");
+const theme = useAppTheme();
+const styles = createStyles(theme);
+
+const [sleepHours, setSleepHours] = useState("");
 const [notes, setNotes] = useState("");
 const [timeState, setTime] = useState(initTime);
 const { hours, minutes, isPM } = timeState;
@@ -32,26 +35,16 @@ const onSave = async () => {
 try {
 setErrorMsg("");
 
-if (!type.trim()) {
-setErrorMsg(t("enterActivityType"));
-return;
-}
-
-const durationValue = Number(durationMinutes);
-if (
-!durationMinutes ||
-Number.isNaN(durationValue) ||
-durationValue <= 0
-) {
-setErrorMsg(t("invalidDuration"));
+const hoursValue = Number(sleepHours);
+if (!sleepHours || Number.isNaN(hoursValue) || hoursValue <= 0) {
+setErrorMsg(t("invalidSleepHours"));
 return;
 }
 
 setSaving(true);
 
-await addActivity({
-type: type.trim(),
-duration_minutes: durationValue,
+await addSleep({
+sleep_hours: hoursValue,
 notes: notes.trim(),
 timestamp: buildTimestamp(hours, minutes, isPM),
 });
@@ -59,8 +52,8 @@ timestamp: buildTimestamp(hours, minutes, isPM),
 markPredictionStale();
 router.back();
 } catch (error: any) {
-console.log("add activity error:", error);
-setErrorMsg(error?.message || "Failed to add activity");
+console.log("add sleep error:", error);
+setErrorMsg(error?.message || "Failed to add sleep log");
 } finally {
 setSaving(false);
 }
@@ -75,8 +68,8 @@ keyboardShouldPersistTaps="handled"
 >
 
 <View style={styles.hero}>
-<Text style={styles.screenTitle}>{t("addActivity")}</Text>
-<Text style={styles.screenSub}>{t("trackActivity")}</Text>
+<Text style={styles.screenTitle}>{t("addSleep")}</Text>
+<Text style={styles.screenSub}>{t("trackSleepHours")}</Text>
 </View>
 
 {!!errorMsg && (
@@ -87,24 +80,13 @@ keyboardShouldPersistTaps="handled"
 
 <View style={styles.formCard}>
 <View style={styles.formGroup}>
-<Text style={styles.label}>{t("activityType")}</Text>
+<Text style={styles.label}>{t("sleepHours")}</Text>
 <TextInput
-value={type}
-onChangeText={setType}
-placeholder={t("activityTypePlaceholder")}
-placeholderTextColor={stylesVars.muted}
-style={styles.input}
-/>
-</View>
-
-<View style={styles.formGroup}>
-<Text style={styles.label}>{t("durationMinutes")}</Text>
-<TextInput
-value={durationMinutes}
-onChangeText={setDurationMinutes}
-placeholder={t("durationPlaceholder")}
-placeholderTextColor={stylesVars.muted}
-keyboardType="number-pad"
+value={sleepHours}
+onChangeText={setSleepHours}
+placeholder={t("sleepHoursPlaceholder")}
+placeholderTextColor={theme.placeholder}
+keyboardType="numeric"
 style={styles.input}
 />
 </View>
@@ -115,7 +97,7 @@ style={styles.input}
 value={notes}
 onChangeText={setNotes}
 placeholder={t("optionalNotes")}
-placeholderTextColor={stylesVars.muted}
+placeholderTextColor={theme.placeholder}
 style={[styles.input, styles.textArea]}
 multiline
 />
@@ -139,7 +121,7 @@ onPress={onSave}
 disabled={saving}
 >
 <Text style={styles.saveBtnText}>
-{saving ? t("saving") : t("saveActivity")}
+{saving ? t("saving") : t("saveSleep")}
 </Text>
 </Pressable>
 </View>
@@ -148,16 +130,9 @@ disabled={saving}
 );
 }
 
-const stylesVars = {
-primary: "#1A6FA8",
-bg: "#EBF3FA",
-text: "#0B1A2E",
-muted: "#4A6480",
-border: "#B8D0E8",
-};
-
-const styles = StyleSheet.create({
-container: { flex: 1, backgroundColor: stylesVars.bg },
+function createStyles(theme: ReturnType<typeof useAppTheme>) {
+  return StyleSheet.create({
+container: { flex: 1, backgroundColor: theme.bg },
 
 content: {
 paddingHorizontal: 24,
@@ -210,14 +185,14 @@ marginBottom: 20,
 },
 
 screenTitle: {
-color: stylesVars.text,
+color: theme.text,
 fontSize: 28,
 fontWeight: "700",
 marginBottom: 8,
 },
 
 screenSub: {
-color: stylesVars.muted,
+color: theme.textMuted,
 fontSize: 14,
 },
 
@@ -237,12 +212,12 @@ fontWeight: "500",
 },
 
 formCard: {
-backgroundColor: "#FFFFFF",
+backgroundColor: theme.bgCard,
 borderRadius: 24,
 borderWidth: 1,
-borderColor: "#D6E8F5",
+borderColor: theme.bgSoft,
 padding: 24,
-shadowColor: "#000",
+shadowColor: theme.shadow,
 shadowOpacity: 0.05,
 shadowRadius: 8,
 shadowOffset: { width: 0, height: 3 },
@@ -256,7 +231,7 @@ marginBottom: 18,
 label: {
 fontSize: 14,
 fontWeight: "600",
-color: "#1E3A52",
+color: theme.textSecondary,
 marginBottom: 10,
 },
 
@@ -264,11 +239,11 @@ input: {
 minHeight: 52,
 borderRadius: 16,
 borderWidth: 1,
-borderColor: "#B8D0E8",
-backgroundColor: "#E8F1F8",
+borderColor: theme.border,
+backgroundColor: theme.bgInput,
 paddingHorizontal: 14,
 paddingVertical: 14,
-color: "#0B1A2E",
+color: theme.text,
 ...Typography.button,
 },
 
@@ -280,14 +255,14 @@ textAlignVertical: "top",
 helperText: {
 marginTop: 8,
 fontSize: 12,
-color: stylesVars.muted,
+color: theme.textMuted,
 },
 
 saveBtn: {
 marginTop: 10,
 height: 48,
 borderRadius: 16,
-backgroundColor: stylesVars.primary,
+backgroundColor: "#1A6FA8",
 alignItems: "center",
 justifyContent: "center",
 },
@@ -301,3 +276,4 @@ color: "#FFFFFF",
 ...Typography.button,
 },
 });
+}
