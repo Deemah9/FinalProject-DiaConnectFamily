@@ -41,6 +41,7 @@ export default function ReminderSettingsScreen() {
   const [pickerHour, setPickerHour] = useState("08");
   const [pickerMin, setPickerMin] = useState("00");
   const [pickerPM, setPickerPM] = useState(false);
+  const [deleteConfirmTime, setDeleteConfirmTime] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([getReminderTimes(), getRemindersEnabled()]).then(
@@ -93,8 +94,10 @@ export default function ReminderSettingsScreen() {
     await persist(sorted, sorted.length > 0 ? true : enabled);
   };
 
-  const handleDeleteTime = async (time: string) => {
-    const newTimes = times.filter((v) => v !== time);
+  const handleDeleteTime = async () => {
+    if (!deleteConfirmTime) return;
+    const newTimes = times.filter((v) => v !== deleteConfirmTime);
+    setDeleteConfirmTime(null);
     await persist(newTimes, enabled);
   };
 
@@ -156,7 +159,7 @@ export default function ReminderSettingsScreen() {
                   </View>
                   <Pressable
                     style={styles.deleteBtn}
-                    onPress={() => handleDeleteTime(time)}
+                    onPress={() => setDeleteConfirmTime(time)}
                     hitSlop={10}
                     accessibilityLabel={t("aria.deleteTime", { time: formatTime(time, t("am", "AM"), t("pm", "PM")) })}
                     accessibilityRole="button"
@@ -192,6 +195,41 @@ export default function ReminderSettingsScreen() {
         </View>
 
       </ScrollView>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <Modal
+        visible={deleteConfirmTime !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmTime(null)}
+      >
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmBox}>
+            <View style={styles.confirmIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#D32F2F" />
+            </View>
+            <Text style={styles.confirmTitle}>
+              {t("deleteReminderTitle", "Remove Reminder")}
+            </Text>
+            <Text style={styles.confirmMsg}>
+              {deleteConfirmTime
+                ? t("deleteReminderConfirm", {
+                    time: formatTime(deleteConfirmTime, t("am", "AM"), t("pm", "PM")),
+                    defaultValue: `Remove reminder at ${formatTime(deleteConfirmTime, t("am", "AM"), t("pm", "PM"))}?`,
+                  })
+                : ""}
+            </Text>
+            <View style={styles.confirmBtns}>
+              <Pressable style={styles.confirmCancelBtn} onPress={() => setDeleteConfirmTime(null)}>
+                <Text style={styles.confirmCancelText}>{t("cancel")}</Text>
+              </Pressable>
+              <Pressable style={styles.confirmDeleteBtn} onPress={handleDeleteTime}>
+                <Text style={styles.confirmDeleteText}>{t("delete", "Remove")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Time picker bottom sheet modal */}
       <Modal
@@ -361,7 +399,51 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       lineHeight: 17,
     },
 
-    // Modal
+    // Delete confirmation modal
+    confirmBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 32,
+    },
+    confirmBox: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 24,
+      padding: 24,
+      width: "100%",
+      alignItems: "center",
+      shadowColor: theme.shadow,
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    confirmIconWrap: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: "#FDEDED",
+      alignItems: "center", justifyContent: "center",
+      marginBottom: 16,
+    },
+    confirmTitle: { fontSize: 17, fontWeight: "700", color: theme.text, marginBottom: 8 },
+    confirmMsg: {
+      fontSize: 14, color: theme.textMuted,
+      textAlign: "center", marginBottom: 24, lineHeight: 20,
+    },
+    confirmBtns: { flexDirection: "row", gap: 12, width: "100%" },
+    confirmCancelBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      borderWidth: 1, borderColor: theme.border,
+      alignItems: "center", justifyContent: "center",
+    },
+    confirmCancelText: { fontSize: 15, fontWeight: "600", color: theme.textMuted },
+    confirmDeleteBtn: {
+      flex: 1, height: 48, borderRadius: 14,
+      backgroundColor: "#D32F2F",
+      alignItems: "center", justifyContent: "center",
+    },
+    confirmDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+
+    // Time picker modal
     modalBackdrop: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.45)",

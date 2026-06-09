@@ -149,6 +149,8 @@ const resources = {
       notHaveAccount: "Don't have an account?",
       signupHere: "Sign up",
 
+      emergencySection: "EMERGENCY",
+
       // Family Connection
       familySection: "FAMILY CONNECTION",
       inviteFamily: "Invite Family Member",
@@ -502,6 +504,7 @@ const resources = {
       "emergency.missingFields": "Please fill in all fields",
       "emergency.deleteTitle": "Remove Contact",
       "emergency.deleteConfirm": "Are you sure you want to remove this emergency contact?",
+      "emergency.maxContacts": "Maximum {{max}} contacts reached",
 
       // Notifications screen
       "notif.title": "Notifications",
@@ -596,6 +599,8 @@ const resources = {
       addReminderTime: "Add Time",
       maxRemindersNote: "Maximum {{max}} reminders",
       noRemindersAdded: "No reminder times added yet",
+      deleteReminderTitle: "Remove Reminder",
+      deleteReminderConfirm: "Remove reminder at {{time}}?",
       reminderInfoNote: "You'll receive a daily notification at each set time",
       reminderNotifTitle: "Glucose Reminder",
       reminderNotifBody: "Time to measure your blood glucose 🩸",
@@ -758,6 +763,8 @@ const resources = {
       loginAndLink: "دخول واقتران",
       notHaveAccount: "ليس لديك حساب؟",
       signupHere: "سجّل الآن",
+
+      emergencySection: "الطوارئ",
 
       // Family Connection
       familySection: "ربط العائلة",
@@ -1112,6 +1119,7 @@ const resources = {
       "emergency.missingFields": "يرجى ملء جميع الحقول",
       "emergency.deleteTitle": "إزالة جهة الاتصال",
       "emergency.deleteConfirm": "هل أنت متأكد من إزالة جهة اتصال الطوارئ؟",
+      "emergency.maxContacts": "وصلت للحد الأقصى {{max}} جهات اتصال",
 
       // Notifications screen
       "notif.title": "الإشعارات",
@@ -1206,6 +1214,8 @@ const resources = {
       addReminderTime: "إضافة وقت",
       maxRemindersNote: "الحد الأقصى {{max}} تذكيرات",
       noRemindersAdded: "لا توجد أوقات مضافة",
+      deleteReminderTitle: "حذف التذكير",
+      deleteReminderConfirm: "هل تريد حذف التذكير عند {{time}}؟",
       reminderInfoNote: "ستتلقى إشعاراً يومياً في كل وقت محدد",
       reminderNotifTitle: "تذكير قياس السكر",
       reminderNotifBody: "حان وقت قياس مستوى السكر في الدم 🩸",
@@ -1368,6 +1378,8 @@ const resources = {
       loginAndLink: "כניסה וחיבור",
       notHaveAccount: "אין לך חשבון?",
       signupHere: "הירשם כאן",
+
+      emergencySection: "חירום",
 
       // Family Connection
       familySection: "קשר משפחתי",
@@ -1722,6 +1734,7 @@ const resources = {
       "emergency.missingFields": "אנא מלא את כל השדות",
       "emergency.deleteTitle": "הסר איש קשר",
       "emergency.deleteConfirm": "האם אתה בטוח שברצונך להסיר איש קשר לחירום זה?",
+      "emergency.maxContacts": "הגעת למקסימום {{max}} אנשי קשר",
 
       // Notifications screen
       "notif.title": "התראות",
@@ -1816,6 +1829,8 @@ const resources = {
       addReminderTime: "הוסף זמן",
       maxRemindersNote: "מקסימום {{max}} תזכורות",
       noRemindersAdded: "לא נוספו זמני תזכורות",
+      deleteReminderTitle: "הסר תזכורת",
+      deleteReminderConfirm: "להסיר את התזכורת בשעה {{time}}?",
       reminderInfoNote: "תקבל התראה יומית בכל זמן שנקבע",
       reminderNotifTitle: "תזכורת גלוקוז",
       reminderNotifBody: "הגיע הזמן למדוד את רמת הסוכר בדם 🩸",

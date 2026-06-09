@@ -298,6 +298,18 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                 </>
               )}
 
+              {/* Emergency Contacts — visible to all roles */}
+              <Text style={styles.drawerSection}>{t("emergencySection", "Emergency")}</Text>
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => closeDrawer(() => router.push("/emergency" as any))}
+              >
+                <Ionicons name="call-outline" size={17} color="#E53E3E" />
+                <Text style={[styles.drawerItemText, { color: "#E53E3E" }]}>
+                  {t("emergency.title", "Emergency Contact")}
+                </Text>
+              </Pressable>
+
               <Text style={styles.drawerSection}>{t("familySection")}</Text>
               {userRole === "patient" && (
                 <Pressable

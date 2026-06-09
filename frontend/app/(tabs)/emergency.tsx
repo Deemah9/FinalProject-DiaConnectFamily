@@ -1,8 +1,8 @@
 import { useAuth } from "@/context/AuthContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import AppHeader from "@/src/components/AppHeader";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,68 +19,101 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface EmergencyContact {
+  id: string;
   name: string;
   phone: string;
 }
 
+const MAX_CONTACTS = 5;
+const AVATAR_COLORS = ["#E53E3E", "#1A6FA8", "#059669", "#D97706", "#7C3AED"];
+
 export default function EmergencyScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { top } = useSafeAreaInsets();
   const isRTL = I18nManager.isRTL;
-  const isFamily = user?.role === "family_member";
   const theme = useAppTheme();
   const styles = createStyles(theme);
 
-  const [contact, setContact] = useState<EmergencyContact | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [nameInput, setNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
 
-  const storageKey = `emergency_contact_${(user as any)?.email ?? "default"}`;
+  const storageKey = `emergency_contacts_${(user as any)?.email ?? "default"}`;
+  const oldStorageKey = `emergency_contact_${(user as any)?.email ?? "default"}`;
 
   useEffect(() => {
-    AsyncStorage.getItem(storageKey).then((val) => {
-      if (val) {
-        const parsed = JSON.parse(val) as EmergencyContact;
-        setContact(parsed);
-        setNameInput(parsed.name);
-        setPhoneInput(parsed.phone);
+    const load = async () => {
+      // Migrate old single-contact format
+      const oldVal = await AsyncStorage.getItem(oldStorageKey);
+      if (oldVal) {
+        const old = JSON.parse(oldVal);
+        const migrated: EmergencyContact[] = [{ id: Date.now().toString(), name: old.name, phone: old.phone }];
+        await AsyncStorage.setItem(storageKey, JSON.stringify(migrated));
+        await AsyncStorage.removeItem(oldStorageKey);
+        setContacts(migrated);
+        return;
       }
-    });
+      const val = await AsyncStorage.getItem(storageKey);
+      if (val) setContacts(JSON.parse(val));
+    };
+    load();
   }, []);
+
+  const persist = async (updated: EmergencyContact[]) => {
+    setContacts(updated);
+    await AsyncStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  const openAdd = () => {
+    setEditingIndex(null);
+    setNameInput("");
+    setPhoneInput("");
+    setIsFormOpen(true);
+  };
+
+  const openEdit = (index: number) => {
+    setEditingIndex(index);
+    setNameInput(contacts[index].name);
+    setPhoneInput(contacts[index].phone);
+    setIsFormOpen(true);
+  };
 
   const handleSave = async () => {
     if (!nameInput.trim() || !phoneInput.trim()) {
       Alert.alert(t("emergency.missingFields", "Please fill in all fields"));
       return;
     }
-    const c: EmergencyContact = { name: nameInput.trim(), phone: phoneInput.trim() };
-    await AsyncStorage.setItem(storageKey, JSON.stringify(c));
-    setContact(c);
-    setIsEditing(false);
+    if (editingIndex !== null) {
+      const updated = contacts.map((c, i) =>
+        i === editingIndex ? { ...c, name: nameInput.trim(), phone: phoneInput.trim() } : c
+      );
+      await persist(updated);
+    } else {
+      const newContact: EmergencyContact = {
+        id: Date.now().toString(),
+        name: nameInput.trim(),
+        phone: phoneInput.trim(),
+      };
+      await persist([...contacts, newContact]);
+    }
+    setIsFormOpen(false);
   };
 
-  const handleCall = () => {
-    if (!contact?.phone) return;
-    const url = `tel:${contact.phone}`;
-    Linking.openURL(url).catch(() =>
+  const handleCall = (contact: EmergencyContact) => {
+    Linking.openURL(`tel:${contact.phone}`).catch(() =>
       Alert.alert(t("emergency.callFailed", "Could not open phone app"))
     );
   };
 
-  const handleDelete = () => setShowDeleteConfirm(true);
-
   const confirmDelete = async () => {
-    await AsyncStorage.removeItem(storageKey);
-    setContact(null);
-    setNameInput("");
-    setPhoneInput("");
-    setShowDeleteConfirm(false);
+    if (deleteIndex === null) return;
+    await persist(contacts.filter((_, i) => i !== deleteIndex));
+    setDeleteIndex(null);
   };
 
   return (
@@ -88,37 +121,25 @@ export default function EmergencyScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* ── Header ── */}
-      <LinearGradient
-        colors={["#C0392B", "#E53E3E"]}
-        style={[styles.header, { paddingTop: top + 10 }]}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerIcons}>
-            <View style={styles.sosCircle}>
-              <Ionicons name="call" size={22} color="#fff" />
-            </View>
-            <View style={styles.sosCircle}>
-              <Ionicons name="accessibility" size={22} color="#fff" />
-            </View>
-          </View>
-          <Text style={styles.headerTitle}>
-            {t("emergency.title", "Emergency Contact")}
-          </Text>
-          <Text style={styles.headerSub}>
-            {isFamily
-              ? t("emergency.subFamily", "Your personal emergency contact")
-              : t("emergency.sub", "Call for help instantly")}
-          </Text>
+      <AppHeader left={null} />
+
+      {/* ── Page title ── */}
+      <View style={styles.pageHeader}>
+        <View style={styles.pageIconCircle}>
+          <Ionicons name="call" size={24} color="#E53E3E" />
         </View>
-      </LinearGradient>
+        <View style={styles.pageHeaderText}>
+          <Text style={styles.pageTitle}>{t("emergency.title", "Emergency Contact")}</Text>
+          <Text style={styles.pageSub}>{t("emergency.sub", "Call for help instantly")}</Text>
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── No Contact State ── */}
-        {!contact && !isEditing && (
+        {/* ── Empty state ── */}
+        {contacts.length === 0 && (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIcon}>
               <Ionicons name="person-add-outline" size={42} color="#E53E3E" />
@@ -129,7 +150,7 @@ export default function EmergencyScreen() {
             <Text style={styles.emptySub}>
               {t("emergency.noContactSub", "Add a contact to call in case of emergency")}
             </Text>
-            <Pressable style={styles.addBtn} onPress={() => setIsEditing(true)}>
+            <Pressable style={styles.addBtn} onPress={openAdd}>
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
               <Text style={styles.addBtnText}>
                 {t("emergency.addContact", "Add Emergency Contact")}
@@ -138,79 +159,84 @@ export default function EmergencyScreen() {
           </View>
         )}
 
-        {/* ── Contact Card ── */}
-        {contact && !isEditing && (
+        {/* ── Contacts list ── */}
+        {contacts.length > 0 && (
           <>
-            <View style={styles.contactCard}>
-              <View style={styles.contactAvatar}>
-                <Text style={styles.contactAvatarText}>
-                  {contact.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactPhone}>{contact.phone}</Text>
-              </View>
-              <View style={styles.contactActions}>
-                <Pressable
-                  style={styles.callSmallBtn}
-                  onPress={handleCall}
-                  accessibilityLabel={t("aria.callContact", { name: contact.name })}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="call" size={18} color="#fff" />
-                </Pressable>
-                <Pressable
-                  style={styles.editSmallBtn}
-                  onPress={() => setIsEditing(true)}
-                  accessibilityLabel={t("aria.editContact")}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="pencil-outline" size={18} color={theme.primary} />
-                </Pressable>
-                <Pressable
-                  style={styles.deleteSmallBtn}
-                  onPress={handleDelete}
-                  accessibilityLabel={t("aria.deleteContact")}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="trash-outline" size={18} color="#E53E3E" />
-                </Pressable>
-              </View>
-            </View>
-
-            {/* ── BIG CALL BUTTON ── */}
-            <Pressable
-              style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.88 }]}
-              onPress={handleCall}
-              accessibilityLabel={t("aria.callContact", { name: contact.name })}
-              accessibilityRole="button"
-            >
-              <LinearGradient
-                colors={["#C0392B", "#E53E3E"]}
-                style={styles.callBtnGradient}
-              >
-                <View style={styles.callBtnInner}>
-                  <Ionicons name="call" size={40} color="#fff" />
+            {contacts.map((contact, index) => (
+              <View key={contact.id} style={styles.contactCard}>
+                <View style={[styles.contactAvatar, { backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length] }]}>
+                  <Text style={styles.contactAvatarText}>
+                    {contact.name.charAt(0).toUpperCase()}
+                  </Text>
                 </View>
-                <Text style={styles.callBtnText}>
-                  {t("emergency.callNow", "Call Now")}
-                </Text>
-                <Text style={styles.callBtnPhone}>{contact.phone}</Text>
-              </LinearGradient>
-            </Pressable>
+                <View style={styles.contactInfo}>
+                  <Text style={styles.contactName}>{contact.name}</Text>
+                  <Text style={styles.contactPhone}>{contact.phone}</Text>
+                </View>
+                <View style={styles.contactActions}>
+                  <Pressable
+                    style={styles.callSmallBtn}
+                    onPress={() => handleCall(contact)}
+                    accessibilityLabel={t("aria.callContact", { name: contact.name })}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="call" size={18} color="#fff" />
+                  </Pressable>
+                  <Pressable
+                    style={styles.editSmallBtn}
+                    onPress={() => openEdit(index)}
+                    accessibilityLabel={t("aria.editContact")}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="pencil-outline" size={18} color={theme.primary} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.deleteSmallBtn}
+                    onPress={() => setDeleteIndex(index)}
+                    accessibilityLabel={t("aria.deleteContact")}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#E53E3E" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
 
-            <Text style={styles.callHint}>
-              {t("emergency.callHint", "Press the button to call your emergency contact immediately")}
-            </Text>
+            {/* Add another contact button */}
+            {contacts.length < MAX_CONTACTS && (
+              <Pressable style={styles.addMoreBtn} onPress={openAdd}>
+                <Ionicons name="add-circle-outline" size={18} color="#E53E3E" />
+                <Text style={styles.addMoreText}>
+                  {t("emergency.addContact", "Add Emergency Contact")}
+                </Text>
+              </Pressable>
+            )}
+
+            {contacts.length >= MAX_CONTACTS && (
+              <Text style={styles.maxNote}>
+                {t("emergency.maxContacts", { max: MAX_CONTACTS })}
+              </Text>
+            )}
           </>
         )}
+      </ScrollView>
 
-        {/* ── Edit / Add Form ── */}
-        {isEditing && (
-          <View style={styles.form}>
+      {/* ── Add / Edit Form Modal ── */}
+      <Modal
+        visible={isFormOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsFormOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable style={styles.formBackdrop} onPress={() => setIsFormOpen(false)} />
+          <View style={styles.formSheet}>
+            <View style={styles.formHandle} />
             <Text style={styles.formTitle}>
-              {contact
+              {editingIndex !== null
                 ? t("emergency.editContact", "Edit Contact")
                 : t("emergency.addContact", "Add Emergency Contact")}
             </Text>
@@ -236,23 +262,15 @@ export default function EmergencyScreen() {
                 style={[styles.input, isRTL && { textAlign: "right" }]}
                 value={phoneInput}
                 onChangeText={setPhoneInput}
-                placeholder="e.g. +972501234567"
+                placeholder="e.g. +972501234"
                 placeholderTextColor={theme.placeholder}
                 keyboardType="phone-pad"
+                maxLength={10}
               />
             </View>
 
             <View style={styles.formBtns}>
-              <Pressable
-                style={styles.cancelBtn}
-                onPress={() => {
-                  setIsEditing(false);
-                  if (contact) {
-                    setNameInput(contact.name);
-                    setPhoneInput(contact.phone);
-                  }
-                }}
-              >
+              <Pressable style={styles.cancelBtn} onPress={() => setIsFormOpen(false)}>
                 <Text style={styles.cancelBtnText}>{t("cancel", "Cancel")}</Text>
               </Pressable>
               <Pressable style={styles.saveBtn} onPress={handleSave}>
@@ -261,15 +279,15 @@ export default function EmergencyScreen() {
               </Pressable>
             </View>
           </View>
-        )}
-      </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── Delete Confirmation Modal ── */}
       <Modal
-        visible={showDeleteConfirm}
+        visible={deleteIndex !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowDeleteConfirm(false)}
+        onRequestClose={() => setDeleteIndex(null)}
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
@@ -283,7 +301,7 @@ export default function EmergencyScreen() {
               {t("emergency.deleteConfirm", "Are you sure you want to remove this emergency contact?")}
             </Text>
             <View style={styles.modalBtns}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setShowDeleteConfirm(false)}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setDeleteIndex(null)}>
                 <Text style={styles.modalCancelText}>{t("cancel", "Cancel")}</Text>
               </Pressable>
               <Pressable style={styles.modalDeleteBtn} onPress={confirmDelete}>
@@ -301,19 +319,27 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
 
-    // Header
-    header: { paddingBottom: 14 },
-    headerContent: { alignItems: "center", paddingHorizontal: 24, gap: 6 },
-    headerIcons: { flexDirection: "row", gap: 12, marginBottom: 2 },
-    sosCircle: {
-      width: 52, height: 52, borderRadius: 26,
-      backgroundColor: "rgba(255,255,255,0.2)",
+    // Page header
+    pageHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      backgroundColor: theme.bgCard,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.bgSoft,
+    },
+    pageIconCircle: {
+      width: 44, height: 44, borderRadius: 22,
+      backgroundColor: "#FDEDED",
       alignItems: "center", justifyContent: "center",
     },
-    headerTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
-    headerSub: { color: "rgba(255,255,255,0.8)", fontSize: 13, textAlign: "center" },
+    pageHeaderText: { flex: 1 },
+    pageTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
+    pageSub: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
 
-    content: { padding: 20, gap: 16 },
+    content: { padding: 20, gap: 14, paddingBottom: 40 },
 
     // Empty state
     emptyCard: {
@@ -357,13 +383,12 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       shadowRadius: 8,
     },
     contactAvatar: {
-      width: 52, height: 52, borderRadius: 26,
-      backgroundColor: "#E53E3E",
+      width: 48, height: 48, borderRadius: 24,
       alignItems: "center", justifyContent: "center",
     },
-    contactAvatarText: { color: "#fff", fontSize: 22, fontWeight: "800" },
+    contactAvatarText: { color: "#fff", fontSize: 20, fontWeight: "800" },
     contactInfo: { flex: 1 },
-    contactName: { fontSize: 16, fontWeight: "700", color: theme.text },
+    contactName: { fontSize: 15, fontWeight: "700", color: theme.text },
     contactPhone: { fontSize: 13, color: theme.textLight, marginTop: 2 },
     contactActions: { flexDirection: "row", gap: 8 },
     callSmallBtn: {
@@ -381,6 +406,65 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.dangerBg,
       alignItems: "center", justifyContent: "center",
     },
+
+    // Add more button
+    addMoreBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderStyle: "dashed" as any,
+      borderColor: "#E53E3E",
+    },
+    addMoreText: { color: "#E53E3E", fontWeight: "600", fontSize: 14 },
+    maxNote: { fontSize: 12, color: theme.textMuted, textAlign: "center" },
+
+    // Form sheet (bottom modal)
+    formBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
+    formSheet: {
+      backgroundColor: theme.bgCard,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      padding: 24,
+      paddingTop: 12,
+      gap: 16,
+    },
+    formHandle: {
+      width: 36, height: 4, borderRadius: 2,
+      backgroundColor: theme.border,
+      alignSelf: "center",
+      marginBottom: 8,
+    },
+    formTitle: { fontSize: 17, fontWeight: "700", color: theme.text },
+    inputGroup: { gap: 6 },
+    inputLabel: { fontSize: 13, fontWeight: "600", color: theme.textMuted },
+    input: {
+      backgroundColor: theme.bgInput,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: theme.text,
+    },
+    formBtns: { flexDirection: "row", gap: 12, marginTop: 4 },
+    cancelBtn: {
+      flex: 1, paddingVertical: 13, borderRadius: 12,
+      borderWidth: 1.5, borderColor: theme.borderStrong,
+      alignItems: "center",
+    },
+    cancelBtnText: { color: theme.textLight, fontWeight: "600", fontSize: 14 },
+    saveBtn: {
+      flex: 1, flexDirection: "row", gap: 6,
+      paddingVertical: 13, borderRadius: 12,
+      backgroundColor: "#E53E3E",
+      alignItems: "center", justifyContent: "center",
+    },
+    saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
     // Delete confirmation modal
     modalBackdrop: {
@@ -412,56 +496,5 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       alignItems: "center", justifyContent: "center",
     },
     modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-
-    // Call button
-    callBtn: { borderRadius: 24, overflow: "hidden", elevation: 6, shadowColor: "#E53E3E", shadowOpacity: 0.4, shadowRadius: 12 },
-    callBtnGradient: { padding: 28, alignItems: "center", gap: 10 },
-    callBtnInner: {
-      width: 80, height: 80, borderRadius: 40,
-      backgroundColor: "rgba(255,255,255,0.2)",
-      alignItems: "center", justifyContent: "center",
-    },
-    callBtnText: { color: "#fff", fontSize: 22, fontWeight: "800" },
-    callBtnPhone: { color: "rgba(255,255,255,0.8)", fontSize: 15 },
-    callHint: { fontSize: 12, color: theme.placeholder, textAlign: "center", paddingHorizontal: 32 },
-
-    // Form
-    form: {
-      backgroundColor: theme.bgCard,
-      borderRadius: 20,
-      padding: 20,
-      gap: 16,
-      elevation: 2,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-    },
-    formTitle: { fontSize: 17, fontWeight: "700", color: theme.text },
-    inputGroup: { gap: 6 },
-    inputLabel: { fontSize: 13, fontWeight: "600", color: theme.textMuted },
-    input: {
-      backgroundColor: theme.bgInput,
-      borderWidth: 1,
-      borderColor: theme.borderLight,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontSize: 15,
-      color: theme.text,
-    },
-    formBtns: { flexDirection: "row", gap: 12, marginTop: 4 },
-    cancelBtn: {
-      flex: 1, paddingVertical: 13, borderRadius: 12,
-      borderWidth: 1.5, borderColor: theme.borderStrong,
-      alignItems: "center",
-    },
-    cancelBtnText: { color: theme.textLight, fontWeight: "600", fontSize: 14 },
-    saveBtn: {
-      flex: 1, flexDirection: "row", gap: 6,
-      paddingVertical: 13, borderRadius: 12,
-      backgroundColor: "#E53E3E",
-      alignItems: "center", justifyContent: "center",
-    },
-    saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   });
 }

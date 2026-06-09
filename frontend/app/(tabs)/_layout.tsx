@@ -99,9 +99,31 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hidden tabs */}
-      <Tabs.Screen name="stats"   options={{ href: null }} />
-      <Tabs.Screen name="explore" options={{ href: null }} />
+      {/* Hidden tabs — authenticated screens with tab bar */}
+      <Tabs.Screen name="stats"                   options={{ href: null }} />
+      <Tabs.Screen name="explore"                 options={{ href: null }} />
+      <Tabs.Screen name="reminder-settings"       options={{ href: null }} />
+      <Tabs.Screen name="a1c"                     options={{ href: null }} />
+      <Tabs.Screen name="add-activity"            options={{ href: null }} />
+      <Tabs.Screen name="add-glucose"             options={{ href: null }} />
+      <Tabs.Screen name="add-insulin"             options={{ href: null }} />
+      <Tabs.Screen name="add-meal"                options={{ href: null }} />
+      <Tabs.Screen name="add-sleep"               options={{ href: null }} />
+      <Tabs.Screen name="change-password"         options={{ href: null }} />
+      <Tabs.Screen name="daily-log"               options={{ href: null }} />
+      <Tabs.Screen name="edit-profile"            options={{ href: null }} />
+      <Tabs.Screen name="family-access"           options={{ href: null }} />
+      <Tabs.Screen name="family-home"             options={{ href: null }} />
+      <Tabs.Screen name="family-invite"           options={{ href: null }} />
+      <Tabs.Screen name="family-join"             options={{ href: null }} />
+      <Tabs.Screen name="family-patient-glucose"  options={{ href: null }} />
+      <Tabs.Screen name="family-patients"         options={{ href: null }} />
+      <Tabs.Screen name="family-profile"          options={{ href: null }} />
+      <Tabs.Screen name="glucose-history"         options={{ href: null }} />
+      <Tabs.Screen name="glucose-stats"           options={{ href: null }} />
+      <Tabs.Screen name="lifestyle-habits"        options={{ href: null }} />
+      <Tabs.Screen name="medical-info"            options={{ href: null }} />
+      <Tabs.Screen name="notifications"           options={{ href: null }} />
     </Tabs>
   );
 }
