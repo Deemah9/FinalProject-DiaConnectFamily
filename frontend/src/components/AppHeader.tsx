@@ -258,7 +258,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
                 </Text>
               </View>
 
-              {/* Slider row */}
+              {/* Slider row — direction:ltr keeps slider LTR in RTL mode */}
               <View style={styles.sliderRow}>
                 <Text style={styles.sliderLabelSmall}>{t("fontLetter", "A")}</Text>
                 <Slider
@@ -394,7 +394,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
+    direction: "ltr",
+  } as any,
   sliderLabelSmall: { fontSize: 12, fontWeight: "700", color: "#94A3B8", width: 18 },
   sliderLabelLarge: { fontSize: 22, fontWeight: "700", color: "#94A3B8", width: 22 },
   slider: { flex: 1, height: 36 },
