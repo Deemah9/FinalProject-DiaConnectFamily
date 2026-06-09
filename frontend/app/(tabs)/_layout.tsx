@@ -98,7 +98,6 @@ export default function TabLayout() {
           name="emergency"
           options={{
             title: "SOS",
-            href: null,
             tabBarButton: () => (
               <Pressable style={tabStyles.sosWrapper} onPress={openSOS}>
                 <View style={tabStyles.sosButton}>
