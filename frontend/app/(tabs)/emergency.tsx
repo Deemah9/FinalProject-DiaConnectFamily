@@ -30,11 +30,11 @@ const MAX_CONTACTS = 5;
 const AVATAR_COLORS = ["#E53E3E", "#1A6FA8", "#059669", "#D97706", "#7C3AED"];
 
 export default function EmergencyScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const isRTL = I18nManager.isRTL;
+  const isRTL = i18n.dir() === "rtl";
   const theme = useAppTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isRTL);
 
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -43,8 +43,8 @@ export default function EmergencyScreen() {
   const [nameInput, setNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
 
-  const storageKey = `emergency_contacts_${(user as any)?.email ?? "default"}`;
-  const oldStorageKey = `emergency_contact_${(user as any)?.email ?? "default"}`;
+  const storageKey = `emergency_contacts_${user?.email ?? "default"}`;
+  const oldStorageKey = `emergency_contact_${user?.email ?? "default"}`;
 
   useEffect(() => {
     const load = async () => {
@@ -125,13 +125,8 @@ export default function EmergencyScreen() {
 
       {/* ── Page title ── */}
       <View style={styles.pageHeader}>
-        <View style={styles.pageIconCircle}>
-          <Ionicons name="call" size={24} color="#E53E3E" />
-        </View>
-        <View style={styles.pageHeaderText}>
-          <Text style={styles.pageTitle}>{t("emergency.title", "Emergency Contact")}</Text>
-          <Text style={styles.pageSub}>{t("emergency.sub", "Call for help instantly")}</Text>
-        </View>
+        <Text style={styles.pageTitle}>{t("emergency.title", "Emergency Contact")}</Text>
+        <Text style={styles.pageSub}>{t("emergency.sub", "Call for help instantly")}</Text>
       </View>
 
       <ScrollView
@@ -315,29 +310,18 @@ export default function EmergencyScreen() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useAppTheme>) {
+function createStyles(theme: ReturnType<typeof useAppTheme>, isRTL: boolean) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
 
     // Page header
     pageHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
+      paddingVertical: 16,
       paddingHorizontal: 20,
-      paddingVertical: 14,
-      backgroundColor: theme.bgCard,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.bgSoft,
+      gap: 4,
     },
-    pageIconCircle: {
-      width: 44, height: 44, borderRadius: 22,
-      backgroundColor: "#FDEDED",
-      alignItems: "center", justifyContent: "center",
-    },
-    pageHeaderText: { flex: 1 },
-    pageTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
-    pageSub: { fontSize: 12, color: theme.textMuted, marginTop: 2 },
+    pageTitle: { fontSize: 20, fontWeight: "700", color: theme.text, textAlign: isRTL ? "right" : "left" },
+    pageSub: { fontSize: 13, color: theme.textMuted, lineHeight: 19, textAlign: isRTL ? "right" : "left" },
 
     content: { padding: 20, gap: 14, paddingBottom: 40 },
 

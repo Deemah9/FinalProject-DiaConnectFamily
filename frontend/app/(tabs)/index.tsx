@@ -15,7 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { checkAndClearPredictionStale } from "@/services/predictionFlag";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import React, {
   useCallback,
   useEffect,
@@ -56,12 +56,6 @@ export default function HomeScreen() {
   const lastHapticValue = useRef<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Redirect family members to their own home screen
-  useEffect(() => {
-    if (authUser?.role === "family_member") {
-      router.replace("/family-home" as any);
-    }
-  }, [authUser?.role]);
 
   // Register push token for patient notifications
   useEffect(() => {
@@ -389,6 +383,10 @@ export default function HomeScreen() {
       pickingRef.current = false;
     }
   };
+
+  if (authUser?.role === "family_member") {
+    return <Redirect href={"/family-home" as any} />;
+  }
 
   return (
     <LinearGradient colors={[theme.bgCard, theme.bg]} style={styles.container}>
@@ -1048,15 +1046,17 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* FAB — Add / Import Glucose */}
-      <Pressable
-        style={styles.fab}
-        onPress={() => !importing && setShowAddModal(true)}
-        accessibilityLabel={t("aria.addReading")}
-        accessibilityRole="button"
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </Pressable>
+      {/* FAB — Add / Import Glucose (patients only) */}
+      {authUser?.role !== "family_member" && (
+        <Pressable
+          style={styles.fab}
+          onPress={() => !importing && setShowAddModal(true)}
+          accessibilityLabel={t("aria.addReading")}
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </Pressable>
+      )}
 
       {/* Add Options Modal */}
       <Modal

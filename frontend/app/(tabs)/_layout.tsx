@@ -33,7 +33,7 @@ export default function TabLayout() {
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
 
   const openSOS = useCallback(async () => {
-    const key = `emergency_contacts_${(user as any)?.email ?? "default"}`;
+    const key = `emergency_contacts_${user?.email ?? "default"}`;
     try {
       const val = await AsyncStorage.getItem(key);
       const list: EmergencyContact[] = val ? JSON.parse(val) : [];
