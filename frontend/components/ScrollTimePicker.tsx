@@ -1,6 +1,7 @@
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { NativeViewGestureHandler } from "react-native-gesture-handler";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -58,10 +59,6 @@ function ScrollColumn({ items, selected, onSelect, width, styles, bg }: ColumnPr
   const commit = useCallback(() => {
     const i = Math.round(offsetRef.current / ITEM_H);
     const clamped = Math.max(0, Math.min(i, items.length - 1));
-    const snapped = clamped * ITEM_H;
-    if (Math.abs(offsetRef.current - snapped) > 1) {
-      scrollRef.current?.scrollTo({ y: snapped, animated: true });
-    }
     const val = items[clamped];
     if (val !== lastEmitted.current) {
       lastEmitted.current = val;
@@ -74,27 +71,29 @@ function ScrollColumn({ items, selected, onSelect, width, styles, bg }: ColumnPr
     <View style={{ width, height: PICKER_H, overflow: "hidden" }}>
       <View style={styles.selectionBand} pointerEvents="none" />
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_H}
-        decelerationRate="fast"
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingVertical: ITEM_H }}
-        onScroll={onScroll}
-        onMomentumScrollEnd={commit}
-        onScrollEndDrag={commit}
-      >
-        {items.map((item, i) => (
-          <View key={i} style={styles.item}>
-            <Text
-              style={[styles.itemText, item === localSelected && styles.itemTextActive]}
-            >
-              {item}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+      <NativeViewGestureHandler disallowInterruption>
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_H}
+          decelerationRate="fast"
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingVertical: ITEM_H }}
+          onScroll={onScroll}
+          onMomentumScrollEnd={commit}
+          onScrollEndDrag={commit}
+        >
+          {items.map((item, i) => (
+            <View key={i} style={styles.item}>
+              <Text
+                style={[styles.itemText, item === localSelected && styles.itemTextActive]}
+              >
+                {item}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      </NativeViewGestureHandler>
 
       <LinearGradient
         colors={[bg, "transparent"]}
