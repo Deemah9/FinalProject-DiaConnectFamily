@@ -1,22 +1,19 @@
 import { useAuth } from "@/context/AuthContext";
-import { useDrawer } from "@/context/DrawerContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
   FlatList,
-  I18nManager,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppHeader from "@/src/components/AppHeader";
 import {
   getNotifications,
   markAllNotificationsRead,
@@ -196,12 +193,9 @@ function EmptyState({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation();
-  const { top } = useSafeAreaInsets();
-  const isRTL = I18nManager.isRTL;
   const lang = i18n.language;
   const { user } = useAuth();
   const isFamily = user?.role === "family_member";
-  const { openDrawer, openLang } = useDrawer();
   const theme = useAppTheme();
   const styles = createStyles(theme);
 
@@ -267,73 +261,45 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Header ── */}
-      <LinearGradient colors={["#1A6FA8", "#1A6FA8"]} style={[styles.header, { paddingTop: top + 12 }]}>
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#fff" />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>{t("notif.title", "Notifications")}</Text>
-            {unread > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>{unread}</Text>
-              </View>
-            )}
-          </View>
-          {isFamily ? (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Pressable style={styles.backBtn} onPress={openLang}>
-                <Ionicons name="earth-outline" size={20} color="#fff" />
-              </Pressable>
-              <Pressable style={styles.backBtn} onPress={openDrawer}>
-                <Ionicons name="menu-outline" size={22} color="#fff" />
-              </Pressable>
-            </View>
-          ) : unread > 0 ? (
-            <Pressable style={styles.markReadBtn} onPress={handleMarkAllRead}>
-              <Ionicons name="checkmark-done" size={20} color="#fff" />
-            </Pressable>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
-        </View>
+      <AppHeader unreadCount={unread} />
 
-        {/* ── Segmented Tabs — patients only ── */}
-        {!isFamily && (
-          <View style={styles.segmentWrap}>
+      {/* ── Tabs + Mark all — patients only ── */}
+      {!isFamily && (
+        <View style={styles.tabBar}>
+          <View style={styles.tabRow}>
             {tabs.map((tab) => {
               const active = filter === tab.key;
               return (
                 <Pressable
                   key={tab.key}
-                  style={[styles.segment, active && styles.segmentActive]}
+                  style={[styles.tab, active && { borderBottomColor: tab.color, borderBottomWidth: 2 }]}
                   onPress={() => setFilter(tab.key)}
                 >
-                  <View style={[styles.segmentIconWrap, active
-                    ? { backgroundColor: tab.color + "22" }
-                    : { backgroundColor: "rgba(255,255,255,0.12)" }
-                  ]}>
-                    <Ionicons
-                      name={tab.icon}
-                      size={18}
-                      color={active ? tab.color : "rgba(255,255,255,0.7)"}
-                    />
-                  </View>
-                  <Text style={[styles.segmentLabel, active && { color: theme.text, fontWeight: "700" }]}>
+                  <Ionicons
+                    name={tab.icon}
+                    size={17}
+                    color={active ? tab.color : theme.textMuted}
+                  />
+                  <Text style={[styles.tabLabel, active && { color: tab.color, fontWeight: "700" }]}>
                     {tab.label}
                   </Text>
                   {tab.unread > 0 && (
-                    <View style={[styles.segmentBadge, { backgroundColor: tab.color }]}>
-                      <Text style={styles.segmentBadgeText}>{tab.unread}</Text>
+                    <View style={[styles.tabBadge, { backgroundColor: tab.color }]}>
+                      <Text style={styles.tabBadgeText}>{tab.unread}</Text>
                     </View>
                   )}
                 </Pressable>
               );
             })}
           </View>
-        )}
-      </LinearGradient>
+          {unread > 0 && (
+            <Pressable style={styles.markAllRow} onPress={handleMarkAllRead}>
+              <Ionicons name="checkmark-done" size={14} color="#1A6FA8" />
+              <Text style={styles.markAllText}>{t("notif.markAll", "Mark all as read")}</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* ── List ── */}
       {loading ? (
@@ -363,74 +329,48 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.bg },
 
-    // Header
-    header: { paddingBottom: 0 },
-    headerRow: {
-      flexDirection: "row", alignItems: "center",
-      paddingHorizontal: 16, paddingBottom: 14,
+    // Mark all read button
+    markAllRow: {
+      flexDirection: "row", alignItems: "center", gap: 6,
+      alignSelf: "flex-end", marginHorizontal: 14, marginTop: 10,
+      paddingHorizontal: 10, paddingVertical: 6,
+      borderRadius: 12, backgroundColor: "#EBF3FA",
     },
-    backBtn: {
-      width: 40, height: 40, borderRadius: 12,
-      alignItems: "center", justifyContent: "center",
-    },
-    headerCenter: {
-      flex: 1, flexDirection: "row", alignItems: "center",
-      justifyContent: "center", gap: 8,
-    },
-    headerTitle: { color: "#fff", fontSize: 18, fontWeight: "700" },
-    unreadBadge: {
-      backgroundColor: "#E53E3E", borderRadius: 10,
-      paddingHorizontal: 7, paddingVertical: 2,
-    },
-    unreadBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-    markReadBtn: {
-      width: 40, height: 40, borderRadius: 12,
-      alignItems: "center", justifyContent: "center",
-      backgroundColor: "rgba(255,255,255,0.15)",
-    },
+    markAllText: { fontSize: 12, fontWeight: "600", color: "#1A6FA8" },
 
-    // Segmented control
-    segmentWrap: {
+    // Tab bar
+    tabBar: {
+      backgroundColor: theme.bgCard,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border ?? "#E2E8F0",
+      paddingHorizontal: 16,
+      paddingTop: 8,
+    },
+    tabRow: {
       flexDirection: "row",
-      marginHorizontal: 16,
-      marginBottom: 16,
-      backgroundColor: "rgba(0,0,0,0.18)",
-      borderRadius: 18,
-      padding: 5,
       gap: 4,
     },
-    segment: {
+    tab: {
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 10,
-      borderRadius: 14,
       gap: 7,
+      paddingVertical: 12,
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
     },
-    segmentActive: {
-      backgroundColor: theme.bgCard,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 3,
+    tabLabel: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.textMuted,
     },
-    segmentIconWrap: {
-      width: 30, height: 30, borderRadius: 9,
-      alignItems: "center", justifyContent: "center",
-    },
-    segmentLabel: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: "rgba(255,255,255,0.75)",
-    },
-    segmentBadge: {
+    tabBadge: {
       borderRadius: 9, minWidth: 18, height: 18,
       alignItems: "center", justifyContent: "center",
       paddingHorizontal: 5,
     },
-    segmentBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+    tabBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
 
     // List
     listContent: { padding: 14, gap: 10 },
