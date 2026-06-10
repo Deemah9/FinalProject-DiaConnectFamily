@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { checkAndClearPredictionStale } from "@/services/predictionFlag";
+import { getReminderTimes, getRemindersEnabled } from "@/services/reminderScheduler";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { Redirect, router } from "expo-router";
@@ -45,6 +46,31 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 // ── Catmull-Rom → cubic bezier smooth path ─────────────────────────────────
 // ───────────────────────────────────────────────────────────────────────────
 const isRTL = I18nManager.isRTL;
+const DISMISS_KEY = "reminder_dismissed_at";
+
+async function shouldShowReminderPopup(dismissedAtMs: number): Promise<boolean> {
+  const times = await getReminderTimes();
+  const enabled = await getRemindersEnabled();
+  const now = Date.now();
+
+  if (!enabled || times.length === 0) {
+    return now - dismissedAtMs >= 4 * 60 * 60 * 1000;
+  }
+
+  const dismissedDate = new Date(dismissedAtMs);
+  for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+    for (const time of times) {
+      const [h, m] = time.split(":").map(Number);
+      const reminderDate = new Date(dismissedDate);
+      reminderDate.setDate(reminderDate.getDate() + dayOffset);
+      reminderDate.setHours(h, m, 0, 0);
+      if (reminderDate.getTime() > dismissedAtMs && reminderDate.getTime() <= now) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
@@ -190,7 +216,11 @@ export default function HomeScreen() {
           .filter((t: number) => t > 0)
           .sort((a: number, b: number) => b - a)[0];
         const hoursElapsed = (Date.now() - latest) / (1000 * 60 * 60);
-        if (hoursElapsed >= 6) setShowReminder(true);
+        if (hoursElapsed >= 6) {
+          const dismissedAt = await AsyncStorage.getItem(DISMISS_KEY);
+          const show = !dismissedAt || await shouldShowReminderPopup(parseInt(dismissedAt, 10));
+          if (show) setShowReminder(true);
+        }
       }
 
       return readings;
@@ -1163,7 +1193,10 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable
               style={styles.reminderDismiss}
-              onPress={() => setShowReminder(false)}
+              onPress={() => {
+                setShowReminder(false);
+                AsyncStorage.setItem(DISMISS_KEY, String(Date.now()));
+              }}
             >
               <Text style={styles.reminderDismissText}>{t("remindLater")}</Text>
             </Pressable>
