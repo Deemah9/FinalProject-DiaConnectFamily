@@ -90,7 +90,7 @@ export default function FamilyPatientGlucoseScreen() {
       // Always fetch glucose (works for both code-based and authenticated)
       const data = familyCode
         ? await viewWithCode(familyCode).then((res) => res.readings ?? [])
-        : await getPatientGlucose(patientId);
+        : await getPatientGlucose(patientId, 500);
 
       let result: any[] = [];
       if (Array.isArray(data)) result = data;
@@ -822,7 +822,7 @@ export default function FamilyPatientGlucoseScreen() {
                     <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{Math.round(avg)}</Text>
                     <Text style={styles.statUnit}>{t("mgdL")}</Text>
                   </View>
-                  <View style={[styles.statBox, { backgroundColor: "#E6F7F2" }]}>
+                  <View style={[styles.statBox, { backgroundColor: "#E6F7F2", borderWidth: 1, borderColor: "#A7F3D0" }]}>
                     <Text style={styles.statLabel}>{t("timeInRange")}</Text>
                     <Text style={[styles.statValue, { color: "#0D9E6E" }]}>{tir}%</Text>
                     <Text style={styles.statUnit}>{inRange}/{vals.length}</Text>
@@ -1112,7 +1112,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
 
   headerTabs: {
     flexDirection: "row",
-    backgroundColor: theme.bgSoft,
+    backgroundColor: theme.bgCard,
     paddingHorizontal: 12,
     paddingBottom: 0,
     borderBottomWidth: 1,

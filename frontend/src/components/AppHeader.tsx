@@ -15,12 +15,12 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import CustomSwitch from "./CustomSwitch";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export const HEADER_BG = "#1A6FA8";
-const SLOT_W = 164;
 
 interface AppHeaderProps {
   left?: React.ReactNode | null;
@@ -38,29 +38,28 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
   const { fontScale, setFontScale } = useFontSize();
   const { t } = useTranslation();
   const isRTL = I18nManager.isRTL;
+  const { width } = useWindowDimensions();
+  const isCompact = width < 420;
   const [accessOpen, setAccessOpen] = useState(false);
   const [sliderVal, setSliderVal] = useState(fontScale);
+
+  const btnStyle = isCompact ? styles.iconBtnSm : styles.iconBtn;
+  const icSm = isCompact ? 16 : 20;
+  const icMd = isCompact ? 17 : 22;
+  const icLg = isCompact ? 18 : 24;
 
   const defaultRight = (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <Pressable
-        style={styles.iconBtn}
-        onPress={() => { setSliderVal(fontScale); setAccessOpen(true); }}
-        accessibilityLabel={t("aria.accessBtn")}
-        accessibilityRole="button"
-      >
-        <Ionicons name="accessibility" size={20} color="#FFFFFF" />
-      </Pressable>
-      <Pressable
-        style={styles.iconBtn}
+        style={btnStyle}
         onPress={openLang}
         accessibilityLabel={t("aria.langBtn")}
         accessibilityRole="button"
       >
-        <Ionicons name="earth-outline" size={20} color="#FFFFFF" />
+        <Ionicons name="earth-outline" size={icSm} color="#FFFFFF" />
       </Pressable>
       <Pressable
-        style={styles.iconBtn}
+        style={btnStyle}
         onPress={() => router.push("/notifications" as any)}
         accessibilityLabel={
           unreadCount > 0
@@ -70,7 +69,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
         accessibilityRole="button"
       >
         <View>
-          <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+          <Ionicons name="notifications-outline" size={icMd} color="#FFFFFF" />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
@@ -79,47 +78,62 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
         </View>
       </Pressable>
       <Pressable
-        style={styles.iconBtn}
+        style={btnStyle}
         onPress={openDrawer}
         accessibilityLabel={t("aria.menuBtn")}
         accessibilityRole="button"
       >
-        <Ionicons name="menu-outline" size={24} color="#FFFFFF" />
+        <Ionicons name="menu-outline" size={icLg} color="#FFFFFF" />
       </Pressable>
     </View>
   );
 
+  const accessBtn = (
+    <Pressable
+      style={btnStyle}
+      onPress={() => { setSliderVal(fontScale); setAccessOpen(true); }}
+      accessibilityLabel={t("aria.accessBtn")}
+      accessibilityRole="button"
+    >
+      <Ionicons name="accessibility" size={icSm} color="#FFFFFF" />
+    </Pressable>
+  );
+
   const leftNode =
     left === null
-      ? <View style={styles.slot} />
+      ? accessBtn
       : left ?? (
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-            accessibilityLabel={t("aria.backBtn")}
-            accessibilityRole="button"
-          >
-            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#FFFFFF" />
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => router.back()}
+              accessibilityLabel={t("aria.backBtn")}
+              accessibilityRole="button"
+            >
+              <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={22} color="#FFFFFF" />
+            </Pressable>
+            {accessBtn}
+          </View>
         );
 
   const rightNode =
     right === null
-      ? <View style={styles.slot} />
+      ? <View style={{ width: 40 }} />
       : right ?? defaultRight;
 
   return (
     <View style={[styles.bar, { paddingTop: top + 8 }]}>
       <View style={styles.topRow}>
-        <View style={styles.slot}>{leftNode}</View>
+        {/* Absolutely centered logo — always in the middle */}
         <Pressable style={styles.logo} onPress={() => router.push("/" as any)}>
           <Ionicons name="heart-outline" size={26} color="#E8A317" />
           <View style={{ marginLeft: 10 }}>
-            <Text style={styles.title}>DiaConnect</Text>
-            <Text style={styles.sub}>Family</Text>
+            <Text style={styles.title} numberOfLines={1}>DiaConnect</Text>
+            <Text style={styles.sub} numberOfLines={1}>Family</Text>
           </View>
         </Pressable>
-        <View style={[styles.slot, { alignItems: "flex-end" }]}>{rightNode}</View>
+        <View style={styles.leftSlot}>{leftNode}</View>
+        <View style={styles.rightSlot}>{rightNode}</View>
       </View>
       {bottom}
 
@@ -141,7 +155,7 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
             style={[
               styles.panel,
               { marginTop: top + 60 },
-              isRTL ? { marginLeft: 16 } : { marginRight: 16 },
+              isRTL ? { marginRight: 16 } : { marginLeft: 16 },
             ]}
           >
             {/* Panel header */}
@@ -302,19 +316,35 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingBottom: 10,
   },
-  slot: { width: SLOT_W, flexDirection: "row", alignItems: "center" },
   logo: {
-    flex: 1,
+    position: "absolute",
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     direction: "ltr",
   } as any,
+  leftSlot: {
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 1,
+  },
+  rightSlot: {
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 1,
+  },
   iconBtn: {
     width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  iconBtnSm: {
+    width: 30, height: 30, borderRadius: 9,
     alignItems: "center", justifyContent: "center",
   },
   badge: {
@@ -335,7 +365,7 @@ const styles = StyleSheet.create({
   // Panel
   panelBackdrop: {
     flex: 1,
-    alignItems: I18nManager.isRTL ? "flex-start" : "flex-end",
+    alignItems: I18nManager.isRTL ? "flex-end" : "flex-start",
   },
   panel: {
     backgroundColor: "#FFFFFF",

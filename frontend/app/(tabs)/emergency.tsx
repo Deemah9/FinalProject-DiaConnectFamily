@@ -8,7 +8,6 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  I18nManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -121,7 +120,7 @@ export default function EmergencyScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <AppHeader left={null} />
+      <AppHeader />
 
       {/* ── Page title ── */}
       <View style={styles.pageHeader}>
