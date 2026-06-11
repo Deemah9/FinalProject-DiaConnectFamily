@@ -18,8 +18,7 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 import {
   formatTime,
   from24h,
-  getRemindersEnabled,
-  getReminderTimes,
+  loadReminderSettings,
   saveReminderPreferences,
   to24h,
 } from "@/services/reminderScheduler";
@@ -44,13 +43,11 @@ export default function ReminderSettingsScreen() {
   const [deleteConfirmTime, setDeleteConfirmTime] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getReminderTimes(), getRemindersEnabled()]).then(
-      ([savedTimes, savedEnabled]) => {
-        setTimes(savedTimes);
-        setEnabled(savedEnabled);
-        setLoading(false);
-      }
-    );
+    loadReminderSettings().then(({ times: savedTimes, enabled: savedEnabled }) => {
+      setTimes(savedTimes);
+      setEnabled(savedEnabled);
+      setLoading(false);
+    });
   }, []);
 
   const persist = useCallback(
