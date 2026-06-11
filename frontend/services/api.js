@@ -270,4 +270,25 @@ export const getHealthInfo = () => request("GET", "/health/info");
 export const updateHealthInfo = (data) => request("PUT", "/health/info", data);
 export const addInsulinDose = (data) => request("POST", "/health/insulin", data);
 export const getInsulinToday = () => request("GET", "/health/insulin/today");
+
+// ==========================================
+// Emergency Contacts APIs
+// ==========================================
+
+export const getEmergencyContacts = () =>
+  request("GET", "/users/me/emergency-contacts");
+
+export const saveEmergencyContacts = (contacts) =>
+  request("PUT", "/users/me/emergency-contacts", { contacts });
+
+// ==========================================
+// Reminder Settings APIs
+// ==========================================
+
+export const getReminderSettingsRemote = () =>
+  request("GET", "/users/me/reminders");
+
+export const saveReminderSettingsRemote = (enabled, times) =>
+  request("PUT", "/users/me/reminders", { enabled, times });
+
 export const deleteInsulinDose = (id) => request("DELETE", `/health/insulin/${id}`);

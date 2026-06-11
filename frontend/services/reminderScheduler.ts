@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import { getReminderSettingsRemote, saveReminderSettingsRemote } from "./api";
 
 const TIMES_KEY   = "custom_reminder_times";    // string[] of "HH:MM" (24h)
 const ENABLED_KEY = "custom_reminders_enabled"; // "true" | "false"
@@ -13,6 +14,23 @@ export async function getReminderTimes(): Promise<string[]> {
 export async function getRemindersEnabled(): Promise<boolean> {
   const val = await AsyncStorage.getItem(ENABLED_KEY);
   return val !== "false";
+}
+
+/** Fetch from backend, write to AsyncStorage, fall back to local on error */
+export async function loadReminderSettings(): Promise<{ times: string[]; enabled: boolean }> {
+  try {
+    const remote = await getReminderSettingsRemote();
+    const times: string[] = remote?.times ?? [];
+    const enabled: boolean = remote?.enabled ?? true;
+    await AsyncStorage.setItem(TIMES_KEY, JSON.stringify(times));
+    await AsyncStorage.setItem(ENABLED_KEY, String(enabled));
+    return { times, enabled };
+  } catch {
+    return {
+      times: await getReminderTimes(),
+      enabled: await getRemindersEnabled(),
+    };
+  }
 }
 
 /** Cancel all scheduled glucose reminder notifications */
@@ -55,7 +73,7 @@ export async function applyReminderSchedule(
   }
 }
 
-/** Save preferences and reschedule */
+/** Save preferences locally, reschedule notifications, and sync to backend */
 export async function saveReminderPreferences(
   times: string[],
   enabled: boolean,
@@ -65,6 +83,9 @@ export async function saveReminderPreferences(
   await AsyncStorage.setItem(TIMES_KEY, JSON.stringify(times));
   await AsyncStorage.setItem(ENABLED_KEY, String(enabled));
   await applyReminderSchedule(times, enabled, title, body);
+  try {
+    await saveReminderSettingsRemote(enabled, times);
+  } catch { /* local schedule is set — backend sync is best-effort */ }
 }
 
 /** Convert 12h picker values → 24h "HH:MM" */

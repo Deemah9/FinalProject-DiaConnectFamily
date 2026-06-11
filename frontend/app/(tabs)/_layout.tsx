@@ -2,7 +2,7 @@ import { HapticTab } from "@/components/haptic-tab";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getEmergencyContacts } from "@/services/api";
 import * as Linking from "expo-linking";
 import { Redirect, Tabs } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -33,16 +33,14 @@ export default function TabLayout() {
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
 
   const openSOS = useCallback(async () => {
-    const key = `emergency_contacts_${user?.email ?? "default"}`;
     try {
-      const val = await AsyncStorage.getItem(key);
-      const list: EmergencyContact[] = val ? JSON.parse(val) : [];
-      setContacts(list);
-      setSosOpen(true);
+      const res = await getEmergencyContacts();
+      setContacts(res?.contacts ?? []);
     } catch {
-      setSosOpen(true);
+      setContacts([]);
     }
-  }, [user]);
+    setSosOpen(true);
+  }, []);
 
   const callContact = (contact: EmergencyContact) => {
     setSosOpen(false);

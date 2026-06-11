@@ -125,6 +125,103 @@ async def update_lifestyle_info(
 
 
 # ==========================================
+# GET /users/me/reminders
+# ==========================================
+
+@router.get("/me/reminders")
+async def get_reminder_settings(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Returns the reminder settings for the current user.
+    Stored under 'reminderSettings' in the user document.
+    """
+    user_id = current_user["sub"]
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    data = doc.to_dict()
+    settings = data.get(
+        "reminderSettings", {"enabled": True, "times": []}
+    )
+    return settings
+
+
+# ==========================================
+# PUT /users/me/reminders
+# ==========================================
+
+@router.put("/me/reminders")
+async def update_reminder_settings(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Saves reminder settings for the current user.
+    Expects: { "enabled": bool, "times": ["HH:MM", ...] }
+    """
+    user_id = current_user["sub"]
+    settings = {
+        "enabled": request.get("enabled", True),
+        "times": request.get("times", []),
+    }
+    db.collection("users").document(user_id).update({
+        "reminderSettings": settings,
+        "updatedAt": firestore.SERVER_TIMESTAMP
+    })
+    return settings
+
+
+# ==========================================
+# GET /users/me/emergency-contacts
+# ==========================================
+
+@router.get("/me/emergency-contacts")
+async def get_emergency_contacts(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Returns the emergency contacts list for the current user.
+    Stored as an array under 'emergencyContacts' in the user document.
+    """
+    user_id = current_user["sub"]
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    data = doc.to_dict()
+    return {"contacts": data.get("emergencyContacts", [])}
+
+
+# ==========================================
+# PUT /users/me/emergency-contacts
+# ==========================================
+
+@router.put("/me/emergency-contacts")
+async def update_emergency_contacts(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Saves the emergency contacts list for the current user.
+    Expects: { "contacts": [ { "id": "...", "name": "...", "phone": "..." } ] }
+    Replaces the entire list in Firestore.
+    """
+    user_id = current_user["sub"]
+    contacts = request.get("contacts", [])
+    db.collection("users").document(user_id).update({
+        "emergencyContacts": contacts,
+        "updatedAt": firestore.SERVER_TIMESTAMP
+    })
+    return {"contacts": contacts}
+
+
+# ==========================================
 # PUT /users/me/push-token
 # ==========================================
 

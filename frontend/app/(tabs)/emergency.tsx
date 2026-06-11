@@ -1,8 +1,8 @@
 import { useAuth } from "@/context/AuthContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import { getEmergencyContacts, saveEmergencyContacts } from "@/services/api";
 import AppHeader from "@/src/components/AppHeader";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,6 +28,18 @@ interface EmergencyContact {
 const MAX_CONTACTS = 5;
 const AVATAR_COLORS = ["#E53E3E", "#1A6FA8", "#059669", "#D97706", "#7C3AED"];
 
+// Israeli phone validation:
+// - Emergency: 100–104 (3 digits)
+// - Mobile:    05X + 7 digits = 10 digits
+// - Landline:  0[2-9] + 7-8 digits = 9-10 digits
+function isValidIsraeliPhone(raw: string): boolean {
+  const phone = raw.replace(/[\s\-]/g, "");
+  if (/^10[0-4]$/.test(phone)) return true;           // emergency
+  if (/^05[0-9]\d{7}$/.test(phone)) return true;      // mobile
+  if (/^0[2-9]\d{7,8}$/.test(phone)) return true;     // landline
+  return false;
+}
+
 export default function EmergencyScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -42,30 +54,15 @@ export default function EmergencyScreen() {
   const [nameInput, setNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
 
-  const storageKey = `emergency_contacts_${user?.email ?? "default"}`;
-  const oldStorageKey = `emergency_contact_${user?.email ?? "default"}`;
-
   useEffect(() => {
-    const load = async () => {
-      // Migrate old single-contact format
-      const oldVal = await AsyncStorage.getItem(oldStorageKey);
-      if (oldVal) {
-        const old = JSON.parse(oldVal);
-        const migrated: EmergencyContact[] = [{ id: Date.now().toString(), name: old.name, phone: old.phone }];
-        await AsyncStorage.setItem(storageKey, JSON.stringify(migrated));
-        await AsyncStorage.removeItem(oldStorageKey);
-        setContacts(migrated);
-        return;
-      }
-      const val = await AsyncStorage.getItem(storageKey);
-      if (val) setContacts(JSON.parse(val));
-    };
-    load();
+    getEmergencyContacts()
+      .then((res: any) => setContacts(res?.contacts ?? []))
+      .catch(() => {});
   }, []);
 
   const persist = async (updated: EmergencyContact[]) => {
     setContacts(updated);
-    await AsyncStorage.setItem(storageKey, JSON.stringify(updated));
+    await saveEmergencyContacts(updated);
   };
 
   const openAdd = () => {
@@ -85,6 +82,10 @@ export default function EmergencyScreen() {
   const handleSave = async () => {
     if (!nameInput.trim() || !phoneInput.trim()) {
       Alert.alert(t("emergency.missingFields", "Please fill in all fields"));
+      return;
+    }
+    if (!isValidIsraeliPhone(phoneInput.trim())) {
+      Alert.alert(t("emergency.invalidPhone", "Invalid phone number"), t("emergency.phoneHint", "Enter an Israeli mobile (05X-XXXXXXX), landline (02/03/04/08/09), or emergency number (100–104)"));
       return;
     }
     if (editingIndex !== null) {
@@ -256,7 +257,7 @@ export default function EmergencyScreen() {
                 style={[styles.input, isRTL && { textAlign: "right" }]}
                 value={phoneInput}
                 onChangeText={setPhoneInput}
-                placeholder="e.g. +972501234"
+                placeholder="e.g. 0501234567 / 101"
                 placeholderTextColor={theme.placeholder}
                 keyboardType="phone-pad"
                 maxLength={10}

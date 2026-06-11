@@ -505,6 +505,8 @@ const resources = {
       "emergency.deleteTitle": "Remove Contact",
       "emergency.deleteConfirm": "Are you sure you want to remove this emergency contact?",
       "emergency.maxContacts": "Maximum {{max}} contacts reached",
+      "emergency.invalidPhone": "Invalid phone number",
+      "emergency.phoneHint": "Enter an Israeli mobile (05X-XXXXXXX), landline (02/03/04/08/09), or emergency number (100–104)",
 
       // Notifications screen
       "notif.title": "Notifications",
@@ -1120,6 +1122,8 @@ const resources = {
       "emergency.deleteTitle": "إزالة جهة الاتصال",
       "emergency.deleteConfirm": "هل أنت متأكد من إزالة جهة اتصال الطوارئ؟",
       "emergency.maxContacts": "وصلت للحد الأقصى {{max}} جهات اتصال",
+      "emergency.invalidPhone": "رقم الهاتف غير صحيح",
+      "emergency.phoneHint": "أدخل رقم جوال إسرائيلي (05X-XXXXXXX)، ثابت (02/03/04/08/09)، أو طوارئ (100–104)",
 
       // Notifications screen
       "notif.title": "الإشعارات",
@@ -1735,6 +1739,8 @@ const resources = {
       "emergency.deleteTitle": "הסר איש קשר",
       "emergency.deleteConfirm": "האם אתה בטוח שברצונך להסיר איש קשר לחירום זה?",
       "emergency.maxContacts": "הגעת למקסימום {{max}} אנשי קשר",
+      "emergency.invalidPhone": "מספר טלפון לא תקין",
+      "emergency.phoneHint": "הכנס מספר סלולרי ישראלי (05X-XXXXXXX), קווי (02/03/04/08/09), או חירום (100–104)",
 
       // Notifications screen
       "notif.title": "התראות",
