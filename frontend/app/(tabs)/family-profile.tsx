@@ -50,7 +50,6 @@ export default function FamilyProfileScreen() {
       setFirstName(data?.firstName || data?.first_name || "");
       setLastName(data?.lastName  || data?.last_name  || "");
     } catch (e: any) {
-      console.log("FamilyProfileScreen load error:", e);
     } finally {
       setLoading(false);
     }

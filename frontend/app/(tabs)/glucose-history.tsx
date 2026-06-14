@@ -222,6 +222,16 @@ export default function GlucoseHistoryScreen() {
     <View style={styles.container}>
       <AppHeader />
 
+      {/* Upload loading overlay */}
+      <Modal visible={importing} transparent animationType="fade">
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadCard}>
+            <ActivityIndicator size="large" color="#1A6FA8" />
+            <Text style={styles.uploadText}>{t("importing")}</Text>
+          </View>
+        </View>
+      </Modal>
+
       {/* Delete Confirmation Modal */}
       <Modal visible={!!confirmId} transparent animationType="fade" onRequestClose={() => setConfirmId(null)}>
         <View style={styles.modalBackdrop}>
@@ -570,6 +580,19 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     },
     showMoreText: { fontSize: 13, color: "#1A6FA8", fontWeight: "600" },
 
+    uploadOverlay: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center", justifyContent: "center",
+    },
+    uploadCard: {
+      backgroundColor: theme.bgCard, borderRadius: 20,
+      paddingVertical: 32, paddingHorizontal: 48,
+      alignItems: "center", gap: 16,
+      shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 16, elevation: 12,
+    },
+    uploadText: {
+      color: theme.text, fontSize: 15, fontWeight: "600",
+    },
     modalBackdrop: {
       flex: 1, backgroundColor: "rgba(0,0,0,0.45)",
       alignItems: "center", justifyContent: "center", paddingHorizontal: 32,

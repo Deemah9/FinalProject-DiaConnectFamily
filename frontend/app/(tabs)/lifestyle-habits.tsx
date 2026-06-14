@@ -45,7 +45,6 @@ export default function LifestyleHabitsScreen() {
           : ""
       );
     } catch (error: any) {
-      console.log("loadLifestyleInfo error:", error);
       setErrorMsg(error?.message || "Failed to load lifestyle info");
     } finally {
       setLoading(false);
@@ -76,7 +75,6 @@ export default function LifestyleHabitsScreen() {
       await loadLifestyleInfo();
       setIsEditing(false);
     } catch (error: any) {
-      console.log("lifestyle save error:", error);
       setErrorMsg(error?.message || "Failed to update lifestyle info");
     } finally {
       setSaving(false);
@@ -235,47 +233,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 40,
-  },
-
-  topHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 16,
-    backgroundColor: "#1A6FA8",
-  },
-
-  menuBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  placeholder: {
-    width: 40,
-  },
-
-  logoWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  logoTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-
-  logoSub: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: "300",
   },
 
   heroRow: {

@@ -26,7 +26,6 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 const PRIMARY   = "#1A6FA8";
 
 const CONDITION_IDS  = ["hypertension", "kidney_disease", "heart_disease", "dyslipidemia", "obesity", "neuropathy"] as const;
-const SLOW_INSULIN_IDS = ["insulin_lantus", "insulin_tresiba", "insulin_toujeo", "insulin_basaglar", "insulin_levemir"] as const;
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -117,7 +116,6 @@ export default function ProfileScreen() {
         setIsf(health.insulin_sensitivity != null ? String(health.insulin_sensitivity) : "30");
       }
     } catch (e: any) {
-      console.log("ProfileScreen load error:", e);
     } finally {
       setLoading(false);
     }
