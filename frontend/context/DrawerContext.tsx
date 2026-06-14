@@ -250,6 +250,11 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                       label: t("alerts"),
                       route: "/notifications",
                     },
+                    {
+                      icon: "alarm-outline",
+                      label: t("customReminders", "Reminder Settings"),
+                      route: "/reminder-settings",
+                    },
                   ].map(({ icon, label, route }) => (
                     <Pressable
                       key={route}

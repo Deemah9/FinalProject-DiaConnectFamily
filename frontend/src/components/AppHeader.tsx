@@ -234,28 +234,6 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
 
             <View style={styles.panelDivider} />
 
-            {/* Reminder Settings row */}
-            <Pressable
-              style={styles.panelRow}
-              onPress={() => { setAccessOpen(false); router.push("/reminder-settings" as any); }}
-              accessibilityLabel={t("aria.reminderLink")}
-              accessibilityRole="button"
-            >
-              <View style={styles.panelRowLeft}>
-                <Ionicons name="alarm-outline" size={18} color={HEADER_BG} />
-                <Text style={styles.panelRowLabel}>
-                  {t("customReminders", "Reminder Settings")}
-                </Text>
-              </View>
-              <Ionicons
-                name={isRTL ? "chevron-back" : "chevron-forward"}
-                size={16}
-                color="#94A3B8"
-              />
-            </Pressable>
-
-            <View style={styles.panelDivider} />
-
             {/* Font Size Slider */}
             <View style={styles.fontSection}>
               <View style={styles.fontSectionHeader}>
