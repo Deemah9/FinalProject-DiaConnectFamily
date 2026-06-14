@@ -16,6 +16,7 @@ import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import PasswordRules, { isPasswordStrong } from "@/components/PasswordRules";
 import { useAuth } from "../context/AuthContext";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,7 +56,7 @@ export default function SignUp() {
     else if (!emailRegex.test(em)) e.email = t("errors.emailInvalid");
 
     if (!password) e.password = t("errors.passwordRequired");
-    else if (password.length < 6) e.password = t("errors.passwordMin");
+    else if (!isPasswordStrong(password)) e.password = t("errors.passwordMin");
 
     if (!confirmPassword) e.confirmPassword = t("errors.confirmRequired");
     else if (confirmPassword !== password)
@@ -186,6 +187,7 @@ export default function SignUp() {
               onChangeText={setPassword}
               onBlur={() => touch("password")}
             />
+            <PasswordRules password={password} />
             {showErr("password") && (
               <Text style={styles.errText}>{errors.password}</Text>
             )}

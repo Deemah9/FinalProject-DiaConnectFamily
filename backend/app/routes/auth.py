@@ -1,4 +1,5 @@
 import os
+import re
 import socket
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
@@ -14,6 +15,18 @@ from app.models.user import User
 from app.models.password_reset_token import PasswordResetToken
 from app.services.email_service import send_password_reset_email
 from app.middleware.dependencies import get_current_user
+
+_PASSWORD_RE = re.compile(
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$'
+)
+
+def _validate_password(password: str) -> None:
+    if not _PASSWORD_RE.match(password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character (!@#$%)"
+        )
+
 
 # ==========================================
 # Router Configuration
@@ -152,12 +165,7 @@ async def register(request: RegisterRequest):
         400: If role is invalid
     """
 
-    # Validate password length
-    if len(request.password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters long"
-        )
+    _validate_password(request.password)
 
     # Validate role
     if request.role not in ["patient", "family_member"]:
@@ -385,11 +393,7 @@ async def reset_password(request: ResetPasswordRequest):
     """
     Verify the reset token and update the user's password.
     """
-    if len(request.new_password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters long"
-        )
+    _validate_password(request.new_password)
 
     token_data = PasswordResetToken.find_valid(request.token)
     if not token_data:
@@ -427,11 +431,7 @@ async def change_password(
     Change password for the currently authenticated user.
     Verifies current password before applying the update.
     """
-    if len(request.new_password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 6 characters long."
-        )
+    _validate_password(request.new_password)
 
     if request.new_password != request.confirm_password:
         raise HTTPException(

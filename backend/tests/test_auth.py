@@ -17,7 +17,7 @@ def make_user_doc(email="patient@test.com", password_hash=None):
     doc.id = PATIENT_ID
     doc.to_dict.return_value = {
         "email": email,
-        "password": password_hash or hash_password("password123"),
+        "password": password_hash or hash_password("StrongPass1!"),
         "role": "patient",
         "firstName": "Test",
         "lastName": "Patient",
@@ -47,7 +47,7 @@ class TestRegistration:
 
         res = client.post("/auth/register", json={
             "email": "newpatient@test.com",
-            "password": "password123",
+            "password": "StrongPass1!",
             "first_name": "Test",
             "last_name": "Patient",
             "role": "patient",
@@ -72,7 +72,7 @@ class TestRegistration:
 
         res = client.post("/auth/register", json={
             "email": "newfamily@test.com",
-            "password": "password123",
+            "password": "StrongPass1!",
             "first_name": "Family",
             "last_name": "Member",
             "role": "family_member",
@@ -93,7 +93,7 @@ class TestRegistration:
 
         res = client.post("/auth/register", json={
             "email": "patient@test.com",
-            "password": "password123",
+            "password": "StrongPass1!",
             "first_name": "Test",
             "last_name": "Patient",
             "role": "patient",
@@ -102,23 +102,23 @@ class TestRegistration:
         assert res.status_code == 400
         assert "already registered" in res.json()["detail"].lower()
 
-    def test_register_short_password_fails(self, client):
-        """TC01: Password shorter than 6 characters is rejected."""
+    def test_register_weak_password_fails(self, client):
+        """TC01: Password that does not meet strength requirements is rejected."""
         res = client.post("/auth/register", json={
             "email": "test@test.com",
-            "password": "123",
+            "password": "password123",
             "first_name": "Test",
             "last_name": "User",
             "role": "patient",
         })
         assert res.status_code == 400
-        assert "6 characters" in res.json()["detail"]
+        assert "8 characters" in res.json()["detail"]
 
     def test_register_invalid_role_fails(self, client):
         """TC01: Role other than 'patient' or 'family_member' is rejected."""
         res = client.post("/auth/register", json={
             "email": "test@test.com",
-            "password": "password123",
+            "password": "StrongPass1!",
             "first_name": "Test",
             "last_name": "User",
             "role": "admin",
@@ -144,7 +144,7 @@ class TestLogin:
 
         res = client.post("/auth/login", json={
             "email": "patient@test.com",
-            "password": "password123",
+            "password": "StrongPass1!",
         })
 
         assert res.status_code == 200
