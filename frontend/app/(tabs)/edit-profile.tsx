@@ -23,6 +23,7 @@ export default function EditProfileScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -35,6 +36,7 @@ export default function EditProfileScreen() {
         setFirstName(data.firstName || data.first_name || "");
         setLastName(data.lastName || data.last_name || "");
         setPhone(data.phone || "");
+        setDateOfBirth(data.dateOfBirth || "");
       } catch (error: any) {
         if (!active) return;
         setErrorMsg(error?.message || "Failed to load profile");
@@ -53,6 +55,7 @@ export default function EditProfileScreen() {
         firstName,
         lastName,
         phone,
+        ...(dateOfBirth ? { dateOfBirth } : {}),
       });
 
       router.back();
@@ -115,6 +118,18 @@ export default function EditProfileScreen() {
               placeholder={t("phone")}
               placeholderTextColor={theme.placeholder}
               keyboardType="phone-pad"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>{t("dateOfBirth")}</Text>
+            <TextInput
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={theme.placeholder}
+              keyboardType="numbers-and-punctuation"
               style={styles.input}
             />
           </View>

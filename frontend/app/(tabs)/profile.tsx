@@ -42,6 +42,7 @@ export default function ProfileScreen() {
   const [firstName, setFirstName]       = useState("");
   const [lastName, setLastName]         = useState("");
   const [phone, setPhone]               = useState("");
+  const [dateOfBirth, setDateOfBirth]   = useState("");
   const [savingBasic, setSavingBasic]   = useState(false);
   const [errorBasic, setErrorBasic]     = useState("");
 
@@ -90,6 +91,7 @@ export default function ProfileScreen() {
       setFirstName(data?.firstName || data?.first_name || "");
       setLastName(data?.lastName  || data?.last_name  || "");
       setPhone(data?.phone || "");
+      setDateOfBirth(data?.dateOfBirth || "");
 
       const med = data?.medical || data?.medical_info || data?.medicalInfo || {};
       setMedications(
@@ -161,7 +163,7 @@ export default function ProfileScreen() {
     try {
       setSavingBasic(true);
       setErrorBasic("");
-      await updateProfile({ firstName, lastName, phone });
+      await updateProfile({ firstName, lastName, phone, ...(dateOfBirth ? { dateOfBirth } : {}) });
       await load();
       setEditBasic(false);
     } catch (e: any) {
@@ -323,6 +325,11 @@ export default function ProfileScreen() {
                   placeholder={t("phone")} placeholderTextColor={theme.textMuted}
                   keyboardType="phone-pad" style={styles.input} />
               </Field>
+              <Field label={t("dateOfBirth")} styles={styles}>
+                <TextInput value={dateOfBirth} onChangeText={setDateOfBirth}
+                  placeholder="YYYY-MM-DD" placeholderTextColor={theme.textMuted}
+                  keyboardType="numbers-and-punctuation" style={styles.input} />
+              </Field>
               <SaveCancelRow
                 saving={savingBasic}
                 onSave={saveBasic}
@@ -336,7 +343,8 @@ export default function ProfileScreen() {
               <InfoRow label={t("firstName")} value={user?.firstName || "--"} styles={styles} />
               <InfoRow label={t("lastName")}  value={user?.lastName  || "--"} styles={styles} />
               <InfoRow label={t("email")}     value={user?.email     || "--"} styles={styles} />
-              <InfoRow label={t("phone")}     value={user?.phone     || "--"} styles={styles} />
+              <InfoRow label={t("phone")}       value={user?.phone       || "--"} styles={styles} />
+              <InfoRow label={t("dateOfBirth")} value={user?.dateOfBirth || "--"} styles={styles} />
             </>
           )}
         </View>

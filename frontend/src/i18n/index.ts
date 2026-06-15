@@ -46,6 +46,7 @@ const resources = {
       user: "User",
       patient: "Patient",
       phone: "Phone",
+      dateOfBirth: "Date of Birth",
       role: "Role",
       minUnit: "min",
       hoursUnit: "hours",
@@ -217,6 +218,8 @@ const resources = {
       onboardingActivityLabel: "Physical Activity Level",
       onboardingComplete: "Complete Setup",
       onboardingSkip: "Skip for now",
+      onboardingValidationError: "Please complete all fields: dietary pattern, sleep hours, and activity level",
+      onboardingSleepInvalid: "Please enter a valid number of sleep hours (1–14)",
 
       // Home screen
       welcomeBack: "Welcome Back",
@@ -671,6 +674,7 @@ const resources = {
       user: "مستخدم",
       patient: "مريض",
       phone: "الهاتف",
+      dateOfBirth: "تاريخ الميلاد",
       role: "الدور",
       minUnit: "دقيقة",
       hoursUnit: "ساعات",
@@ -842,6 +846,8 @@ const resources = {
       onboardingActivityLabel: "مستوى النشاط البدني",
       onboardingComplete: "إكمال الإعداد",
       onboardingSkip: "تخطي الآن",
+      onboardingValidationError: "يرجى إكمال جميع الحقول: النمط الغذائي، ساعات النوم، ومستوى النشاط",
+      onboardingSleepInvalid: "يرجى إدخال عدد ساعات نوم صحيح (1–14)",
 
       // Home screen
       welcomeBack: "مرحباً بعودتك",
@@ -1296,6 +1302,7 @@ const resources = {
       user: "משתמש",
       patient: "מטופל",
       phone: "טלפון",
+      dateOfBirth: "תאריך לידה",
       role: "תפקיד",
       minUnit: "דק'",
       hoursUnit: "שעות",
@@ -1467,6 +1474,8 @@ const resources = {
       onboardingActivityLabel: "רמת פעילות גופנית",
       onboardingComplete: "השלם הגדרה",
       onboardingSkip: "דלג כעת",
+      onboardingValidationError: "אנא מלא את כל השדות: דפוס תזונה, שעות שינה, ורמת פעילות",
+      onboardingSleepInvalid: "אנא הזן מספר שעות שינה תקין (1–14)",
 
       // Home screen
       welcomeBack: "ברוך שובך",

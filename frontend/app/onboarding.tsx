@@ -48,6 +48,18 @@ export default function OnboardingScreen() {
 
   const onComplete = async () => {
     if (saving) return;
+
+    if (!activityLevel || !sleepHours || !dietType) {
+      setErrorMsg(t("onboardingValidationError"));
+      return;
+    }
+
+    const hours = Number(sleepHours);
+    if (isNaN(hours) || hours < 1 || hours > 14) {
+      setErrorMsg(t("onboardingSleepInvalid"));
+      return;
+    }
+
     try {
       setSaving(true);
       setErrorMsg("");
