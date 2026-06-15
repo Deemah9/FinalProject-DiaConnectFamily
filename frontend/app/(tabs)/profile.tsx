@@ -17,7 +17,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import AppHeader from "@/src/components/AppHeader";
 import { Typography } from "@/constants/Typography";
-import { getProfile, updateLifestyle, updateMedical, updateProfile, deleteAccount, getHealthInfo, updateHealthInfo } from "@/services/api";
+import { getProfile, updateLifestyle, updateProfile, deleteAccount, getHealthInfo, updateHealthInfo } from "@/services/api";
+import { isValidDob, isValidIsraeliPhone } from "@/utils/validation";
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -25,7 +26,7 @@ import { useAppTheme } from "@/hooks/useAppTheme";
 
 const PRIMARY   = "#1A6FA8";
 
-const CONDITION_IDS  = ["hypertension", "kidney_disease", "heart_disease", "dyslipidemia", "obesity", "neuropathy"] as const;
+const CONDITION_IDS = ["hypertension", "kidney_disease", "heart_disease", "dyslipidemia", "obesity", "neuropathy", "condition_other", "condition_none"] as const;
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -45,12 +46,6 @@ export default function ProfileScreen() {
   const [dateOfBirth, setDateOfBirth]   = useState("");
   const [savingBasic, setSavingBasic]   = useState(false);
   const [errorBasic, setErrorBasic]     = useState("");
-
-  // ── Medical edit state ─────────────────────────────────────────────────────
-  const [editMedical, setEditMedical]         = useState(false);
-  const [medications, setMedications]         = useState("");
-  const [savingMedical, setSavingMedical]     = useState(false);
-  const [errorMedical, setErrorMedical]       = useState("");
 
   // ── Lifestyle edit state ───────────────────────────────────────────────────
   const [editLifestyle, setEditLifestyle]     = useState(false);
@@ -92,13 +87,6 @@ export default function ProfileScreen() {
       setLastName(data?.lastName  || data?.last_name  || "");
       setPhone(data?.phone || "");
       setDateOfBirth(data?.dateOfBirth || "");
-
-      const med = data?.medical || data?.medical_info || data?.medicalInfo || {};
-      setMedications(
-        Array.isArray(med?.medications)
-          ? med.medications.join(", ")
-          : med?.medications || ""
-      );
 
       const life = data?.lifestyle || {};
       setActivityLevel(life?.activity_level || "");
@@ -160,6 +148,14 @@ export default function ProfileScreen() {
 
   // ── Save helpers ───────────────────────────────────────────────────────────
   const saveBasic = async () => {
+    if (phone && !isValidIsraeliPhone(phone)) {
+      setErrorBasic(t("onboardingPhoneInvalid"));
+      return;
+    }
+    if (dateOfBirth && !isValidDob(dateOfBirth)) {
+      setErrorBasic(t("onboardingDobInvalid"));
+      return;
+    }
     try {
       setSavingBasic(true);
       setErrorBasic("");
@@ -173,32 +169,12 @@ export default function ProfileScreen() {
     }
   };
 
-  const saveMedical = async () => {
-    try {
-      setSavingMedical(true);
-      setErrorMedical("");
-      const medicationsArray = medications
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      await updateMedical({
-        medications: medicationsArray,
-      });
-      await load();
-      setEditMedical(false);
-    } catch (e: any) {
-      setErrorMedical(e?.message || t("saveFailed"));
-    } finally {
-      setSavingMedical(false);
-    }
-  };
-
   const saveHealth = async () => {
     try {
       setSavingHealth(true);
       setErrorHealth("");
       const payload: any = {
-        conditions,
+        conditions: conditions.filter((c) => c !== "condition_none"),
         insulin_sensitivity: isf ? Number(isf) : 30,
       };
       if (basalType && basalDose) {
@@ -244,12 +220,7 @@ export default function ProfileScreen() {
       ? `${user.firstName} ${user.lastName}`
       : user?.firstName || t("user");
 
-  const med  = user?.medical || {};
   const life = user?.lifestyle || {};
-
-  const medicationsDisplay = Array.isArray(med?.medications)
-    ? med.medications.join(", ")
-    : med?.medications || "--";
 
   const activityOptions = ["low", "moderate", "high"];
   const dietOptions     = ["balanced", "low_carb", "keto", "vegetarian", "vegan", "other"];
@@ -352,48 +323,6 @@ export default function ProfileScreen() {
         {/* ── Medical Info, Health Info, Lifestyle — patient only ─────── */}
         {user?.role !== "family_member" && (<>
 
-        {/* ── Medical Info ───────────────────────────────────────────────── */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <Ionicons name="pulse-outline" size={18} color={PRIMARY} />
-              <Text style={styles.cardTitle}>{t("medicalInfo")}</Text>
-            </View>
-            {!loading && (
-              <Pressable
-                style={styles.editBtn}
-                onPress={() => { setEditMedical((v) => !v); setErrorMedical(""); }}
-              >
-                <Ionicons name="create-outline" size={15} color={PRIMARY} />
-                <Text style={styles.editBtnText}>{editMedical ? t("close") : t("edit")}</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {!!errorMedical && <Text style={styles.errorText}>{errorMedical}</Text>}
-
-          {editMedical ? (
-            <>
-              <Field label={t("medications")} styles={styles}>
-                <TextInput value={medications} onChangeText={setMedications}
-                  placeholder={t("medicationsPlaceholder")} placeholderTextColor={theme.textMuted}
-                  style={styles.input} />
-              </Field>
-              <SaveCancelRow
-                saving={savingMedical}
-                onSave={saveMedical}
-                onCancel={() => { setEditMedical(false); load(); }}
-                t={t}
-                styles={styles}
-              />
-            </>
-          ) : (
-            <>
-              <InfoRow label={t("medications")}   value={medicationsDisplay} isMultiLine styles={styles} />
-            </>
-          )}
-        </View>
-
         {/* ── Health Info ────────────────────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -424,11 +353,18 @@ export default function ProfileScreen() {
                       <Pressable
                         key={id}
                         style={[styles.optionChip, selected && styles.optionChipSelected]}
-                        onPress={() =>
-                          setConditions((prev) =>
-                            selected ? prev.filter((c) => c !== id) : [...prev, id]
-                          )
-                        }
+                        onPress={() => {
+                          if (id === "condition_none") {
+                            setConditions(selected ? [] : ["condition_none"]);
+                          } else {
+                            setConditions((prev) => {
+                              const withoutNone = prev.filter((c) => c !== "condition_none");
+                              return withoutNone.includes(id)
+                                ? withoutNone.filter((c) => c !== id)
+                                : [...withoutNone, id];
+                            });
+                          }
+                        }}
                       >
                         <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
                           {t(id)}

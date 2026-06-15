@@ -15,6 +15,7 @@ CONDITION_IDS = [
     "dyslipidemia",
     "obesity",
     "neuropathy",
+    "condition_other",
 ]
 
 FAST_INSULIN_IDS = [

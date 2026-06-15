@@ -72,19 +72,32 @@ export default function SignUp() {
     setTouched({ firstName: true, lastName: true, email: true, password: true, confirmPassword: true });
     if (!canSubmit) return;
 
-    try {
-      setLoading(true);
-      await register({
-        email: email.trim(),
-        password,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        role: isFamilyMember ? "family_member" : "patient",
-      });
-    } catch (e: any) {
-      setGeneralError(e.message || t("errors.signupFailed"));
-    } finally {
-      setLoading(false);
+    if (isFamilyMember) {
+      try {
+        setLoading(true);
+        await register({
+          email: email.trim(),
+          password,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          role: "family_member",
+        });
+      } catch (e: any) {
+        setGeneralError(e.message || t("errors.signupFailed"));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      router.push({
+        pathname: "/onboarding",
+        params: {
+          email: email.trim(),
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          role: "patient",
+        },
+      } as any);
     }
   }
 
@@ -100,7 +113,7 @@ export default function SignUp() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.brand} pointerEvents="none">
+        <View style={[styles.brand, { flexDirection: isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
             <Text style={styles.brandTitle}>{t("appName1")}</Text>

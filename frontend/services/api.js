@@ -117,8 +117,6 @@ export const getProfile = () => request("GET", "/users/me");
 export const getMe = () => request("GET", "/users/me");
 export const updateProfile = (data) => request("PUT", "/users/me", data);
 
-export const updateMedical = (data) =>
-  request("PUT", "/users/me/medical", data);
 
 export const updateLifestyle = (data) =>
   request("PUT", "/users/me/lifestyle", data);

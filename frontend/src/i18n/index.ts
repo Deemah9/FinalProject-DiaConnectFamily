@@ -207,19 +207,22 @@ const resources = {
       familyLinkFailed: "Failed to link. Please try again.",
 
       // Onboarding
-      onboardingTitle: "Let's set up your profile",
-      onboardingSubtitle: "This helps us personalize your monitoring and filter out expected fluctuations.",
-      onboardingDietLabel: "Dietary Pattern",
-      onboardingDietBalanced: "Balanced",
-      onboardingDietLowCarb: "Low Carb",
-      onboardingDietVegetarian: "Vegetarian",
-      onboardingDietOther: "Other",
-      onboardingSleepLabel: "Average Sleep Hours per Night",
-      onboardingActivityLabel: "Physical Activity Level",
       onboardingComplete: "Complete Setup",
-      onboardingSkip: "Skip for now",
       onboardingValidationError: "Please complete all fields: dietary pattern, sleep hours, and activity level",
       onboardingSleepInvalid: "Please enter a valid number of sleep hours (1–14)",
+      onboardingNext: "Next",
+      onboardingBack: "Back",
+      onboardingStepOf: "Step {{step}} of {{total}}",
+      onboardingStep1Title: "Personal Information",
+      onboardingStep1Sub: "Enter your contact details to get started",
+      onboardingStep1Error: "Please fill in your phone number and date of birth",
+      onboardingPhoneInvalid: "Phone number must be 10 digits",
+      onboardingDobInvalid: "Please enter a valid date of birth",
+      onboardingStep2Title: "Health Information",
+      onboardingStep2Sub: "Accurate health data improves your glucose prediction accuracy",
+      onboardingStep2Error: "Please select your conditions and enter your insulin sensitivity factor",
+      onboardingStep3Title: "Lifestyle Habits",
+      onboardingStep3Sub: "Sleep and activity directly affect your glucose levels",
 
       // Home screen
       welcomeBack: "Welcome Back",
@@ -257,8 +260,6 @@ const resources = {
       loadingProfile: "Loading profile...",
       manageInfo: "Manage your information",
       basicInfo: "Basic Info",
-      diagnosisYear: "Diagnosis Year",
-      medications: "Medications",
       lifestyle: "Lifestyle",
       activityLevel: "Activity Level",
       sleepHours: "Sleep Hours",
@@ -266,13 +267,6 @@ const resources = {
       // Edit Profile
       updateInfo: "Update your information",
 
-      // Medical Info
-      medicalInformation: "Medical Information",
-      manageMedical: "Manage your medical details",
-      medicalDetails: "Medical Details",
-      loadingMedical: "Loading medical info...",
-      medicationsPlaceholder: "Insulin, Metformin",
-      diagnosisYearPlaceholder: "2020",
 
       // Lifestyle
       manageDailyHabits: "Manage your daily habits",
@@ -329,9 +323,11 @@ const resources = {
       hoursSlept: "{{hours}} hrs",
 
       // Welcome modal (first login)
-      welcomeModalTitle: "Welcome to DiaConnect!",
-      welcomeModalBody: "To get AI-powered glucose predictions, you need at least 15 readings. Add your first reading now to get started.",
-      welcomeModalAddBtn: "Add a Reading Now",
+      welcomeModalTitle: "Welcome! Let's Get Started",
+      welcomeInfoPrediction: "Upload a CSV file or enter readings manually to start AI glucose predictions — you need at least 15 readings.",
+      welcomeInfoAccuracy: "Log your meals and insulin doses to improve prediction accuracy.",
+      welcomeModalAddBtn: "Enter Manually",
+      welcomeModalImportBtn: "Upload CSV File",
       welcomeModalSkip: "I'll do it later",
 
       // Glucose History
@@ -564,6 +560,8 @@ const resources = {
       dyslipidemia: "Dyslipidemia",
       obesity: "Obesity",
       neuropathy: "Neuropathy",
+      condition_other: "Other",
+      condition_none: "No chronic conditions",
 
       // Insulin type names (brand names)
       insulin_humalog: "Humalog",
@@ -835,19 +833,22 @@ const resources = {
       familyLinkFailed: "فشل الاقتران. يرجى المحاولة مجدداً.",
 
       // Onboarding
-      onboardingTitle: "لنقم بإعداد ملفك الشخصي",
-      onboardingSubtitle: "يساعدنا ذلك في تخصيص المراقبة وتصفية التقلبات المتوقعة.",
-      onboardingDietLabel: "النمط الغذائي",
-      onboardingDietBalanced: "متوازن",
-      onboardingDietLowCarb: "قليل الكربوهيدرات",
-      onboardingDietVegetarian: "نباتي",
-      onboardingDietOther: "أخرى",
-      onboardingSleepLabel: "متوسط ساعات النوم في الليلة",
-      onboardingActivityLabel: "مستوى النشاط البدني",
       onboardingComplete: "إكمال الإعداد",
-      onboardingSkip: "تخطي الآن",
       onboardingValidationError: "يرجى إكمال جميع الحقول: النمط الغذائي، ساعات النوم، ومستوى النشاط",
       onboardingSleepInvalid: "يرجى إدخال عدد ساعات نوم صحيح (1–14)",
+      onboardingNext: "التالي",
+      onboardingBack: "السابق",
+      onboardingStepOf: "الخطوة {{step}} من {{total}}",
+      onboardingStep1Title: "المعلومات الشخصية",
+      onboardingStep1Sub: "أدخل بياناتك الشخصية للبدء",
+      onboardingStep1Error: "يرجى إدخال رقم هاتفك وتاريخ ميلادك",
+      onboardingPhoneInvalid: "رقم الهاتف أقل من 10 أرقام",
+      onboardingDobInvalid: "يرجى إدخال تاريخ ميلاد صحيح",
+      onboardingStep2Title: "المعلومات الصحية",
+      onboardingStep2Sub: "البيانات الصحية الدقيقة تحسّن دقة تنبؤات السكر لديك",
+      onboardingStep2Error: "يرجى تحديد الأمراض المصاحبة وإدخال معامل حساسية الأنسولين",
+      onboardingStep3Title: "عادات نمط الحياة",
+      onboardingStep3Sub: "النوم والنشاط يؤثران مباشرةً على مستوى السكر لديك",
 
       // Home screen
       welcomeBack: "مرحباً بعودتك",
@@ -885,8 +886,6 @@ const resources = {
       loadingProfile: "جاري تحميل الملف الشخصي...",
       manageInfo: "إدارة معلوماتك",
       basicInfo: "المعلومات الأساسية",
-      diagnosisYear: "سنة التشخيص",
-      medications: "الأدوية",
       lifestyle: "نمط الحياة",
       activityLevel: "مستوى النشاط",
       sleepHours: "ساعات النوم",
@@ -895,12 +894,6 @@ const resources = {
       updateInfo: "تحديث معلوماتك",
 
       // Medical Info
-      medicalInformation: "المعلومات الطبية",
-      manageMedical: "إدارة تفاصيلك الطبية",
-      medicalDetails: "التفاصيل الطبية",
-      loadingMedical: "جاري تحميل المعلومات الطبية...",
-      medicationsPlaceholder: "أنسولين، ميتفورمين",
-      diagnosisYearPlaceholder: "2020",
 
       // Lifestyle
       manageDailyHabits: "إدارة عاداتك اليومية",
@@ -957,9 +950,11 @@ const resources = {
       hoursSlept: "{{hours}} ساعات",
 
       // Welcome modal (first login)
-      welcomeModalTitle: "مرحباً بك في DiaConnect!",
-      welcomeModalBody: "لعرض تنبؤات الذكاء الاصطناعي، تحتاج إلى 15 قراءة على الأقل. أضف أول قراءة الآن للبدء.",
-      welcomeModalAddBtn: "أضف قراءة الآن",
+      welcomeModalTitle: "أهلاً! لنبدأ رحلتك",
+      welcomeInfoPrediction: "ارفع ملف CSV أو أدخل قراءاتك يدوياً لبدء تنبؤات الذكاء الاصطناعي — تحتاج 15 قراءة على الأقل.",
+      welcomeInfoAccuracy: "سجّل وجباتك وجرعات الأنسولين لزيادة دقة التوقعات.",
+      welcomeModalAddBtn: "إدخال يدوي",
+      welcomeModalImportBtn: "رفع ملف CSV",
       welcomeModalSkip: "سأفعل ذلك لاحقاً",
 
       // Glucose History
@@ -1192,6 +1187,8 @@ const resources = {
       dyslipidemia: "اضطراب الدهون",
       obesity: "السمنة",
       neuropathy: "اعتلال الأعصاب",
+      condition_other: "أخرى",
+      condition_none: "لا أعاني من مرض مصاحب",
 
       // Insulin type names (brand names - same across languages)
       insulin_humalog: "Humalog",
@@ -1463,19 +1460,22 @@ const resources = {
       familyLinkFailed: "החיבור נכשל. נסה שוב.",
 
       // Onboarding
-      onboardingTitle: "בואו נגדיר את הפרופיל שלך",
-      onboardingSubtitle: "זה עוזר לנו להתאים את המעקב ולסנן תנודות צפויות.",
-      onboardingDietLabel: "דפוס תזונה",
-      onboardingDietBalanced: "מאוזן",
-      onboardingDietLowCarb: "דל פחמימות",
-      onboardingDietVegetarian: "צמחוני",
-      onboardingDietOther: "אחר",
-      onboardingSleepLabel: "ממוצע שעות שינה בלילה",
-      onboardingActivityLabel: "רמת פעילות גופנית",
       onboardingComplete: "השלם הגדרה",
-      onboardingSkip: "דלג כעת",
       onboardingValidationError: "אנא מלא את כל השדות: דפוס תזונה, שעות שינה, ורמת פעילות",
       onboardingSleepInvalid: "אנא הזן מספר שעות שינה תקין (1–14)",
+      onboardingNext: "הבא",
+      onboardingBack: "חזור",
+      onboardingStepOf: "שלב {{step}} מתוך {{total}}",
+      onboardingStep1Title: "פרטים אישיים",
+      onboardingStep1Sub: "הזן את פרטי הקשר שלך כדי להתחיל",
+      onboardingStep1Error: "אנא הזן מספר טלפון ותאריך לידה",
+      onboardingPhoneInvalid: "מספר הטלפון קצר מ-10 ספרות",
+      onboardingDobInvalid: "אנא הזן תאריך לידה תקין",
+      onboardingStep2Title: "מידע בריאותי",
+      onboardingStep2Sub: "נתוני בריאות מדויקים משפרים את דיוק תחזיות הגלוקוז שלך",
+      onboardingStep2Error: "אנא בחר מצבים רפואיים והזן את גורם הרגישות לאינסולין",
+      onboardingStep3Title: "הרגלי אורח חיים",
+      onboardingStep3Sub: "שינה ופעילות גופנית משפיעות ישירות על רמות הגלוקוז שלך",
 
       // Home screen
       welcomeBack: "ברוך שובך",
@@ -1513,8 +1513,6 @@ const resources = {
       loadingProfile: "טוען פרופיל...",
       manageInfo: "נהל את המידע שלך",
       basicInfo: "מידע בסיסי",
-      diagnosisYear: "שנת אבחון",
-      medications: "תרופות",
       lifestyle: "אורח חיים",
       activityLevel: "רמת פעילות",
       sleepHours: "שעות שינה",
@@ -1523,12 +1521,6 @@ const resources = {
       updateInfo: "עדכן את המידע שלך",
 
       // Medical Info
-      medicalInformation: "מידע רפואי",
-      manageMedical: "נהל את הפרטים הרפואיים שלך",
-      medicalDetails: "פרטים רפואיים",
-      loadingMedical: "טוען מידע רפואי...",
-      medicationsPlaceholder: "אינסולין, מטפורמין",
-      diagnosisYearPlaceholder: "2020",
 
       // Lifestyle
       manageDailyHabits: "נהל את ההרגלים היומיים שלך",
@@ -1585,9 +1577,11 @@ const resources = {
       hoursSlept: "{{hours}} שעות",
 
       // Welcome modal (first login)
-      welcomeModalTitle: "ברוך הבא ל-DiaConnect!",
-      welcomeModalBody: "כדי לקבל תחזיות AI לגלוקוז, אתה צריך לפחות 15 קריאות. הוסף את הקריאה הראשונה שלך עכשיו כדי להתחיל.",
-      welcomeModalAddBtn: "הוסף קריאה עכשיו",
+      welcomeModalTitle: "ברוך הבא! בואו נתחיל",
+      welcomeInfoPrediction: "העלה קובץ CSV או הכנס קריאות ידנית כדי להתחיל תחזיות AI לגלוקוז — דרוש לפחות 15 קריאות.",
+      welcomeInfoAccuracy: "תעד את הארוחות ומנות האינסולין שלך כדי לשפר את דיוק התחזיות.",
+      welcomeModalAddBtn: "הכנסה ידנית",
+      welcomeModalImportBtn: "העלה קובץ CSV",
       welcomeModalSkip: "אעשה זאת מאוחר יותר",
 
       // Glucose History
@@ -1820,6 +1814,8 @@ const resources = {
       dyslipidemia: "דיסליפידמיה",
       obesity: "השמנת יתר",
       neuropathy: "נוירופתיה",
+      condition_other: "אחר",
+      condition_none: "אין מחלות כרוניות",
 
       // Insulin type names (brand names - same across languages)
       insulin_humalog: "Humalog",

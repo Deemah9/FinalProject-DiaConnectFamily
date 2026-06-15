@@ -79,6 +79,7 @@ export default function HomeScreen() {
   const theme = useAppTheme();
   const styles = createStyles(theme);
   const { triggerCriticalAlert } = useHaptic();
+  const welcomeKey = `welcome_shown_${authUser?.email ?? "guest"}`;
   const isFirstFocus = useRef(true);
   const lastHapticValue = useRef<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -186,7 +187,7 @@ export default function HomeScreen() {
 
       // Show welcome modal once for new users with no readings
       if (readings.length === 0) {
-        const seen = await AsyncStorage.getItem("welcome_shown");
+        const seen = await AsyncStorage.getItem(welcomeKey);
         if (!seen) setShowWelcome(true);
       }
 
@@ -1056,30 +1057,54 @@ export default function HomeScreen() {
               <Ionicons name="heart" size={32} color="#1A6FA8" />
             </View>
             <Text style={styles.welcomeModalTitle}>{t("welcomeModalTitle")}</Text>
-            <Text style={styles.welcomeBody}>{t("welcomeModalBody")}</Text>
+
+            <View style={styles.welcomeItem}>
+              <View style={styles.welcomeItemIcon}>
+                <Ionicons name="cloud-upload-outline" size={20} color="#1A6FA8" />
+              </View>
+              <Text style={styles.welcomeItemText}>{t("welcomeInfoPrediction")}</Text>
+            </View>
+
+            <View style={styles.welcomeItem}>
+              <View style={styles.welcomeItemIcon}>
+                <Ionicons name="restaurant-outline" size={20} color="#059669" />
+              </View>
+              <Text style={styles.welcomeItemText}>{t("welcomeInfoAccuracy")}</Text>
+            </View>
+
             <Pressable
               style={styles.welcomePrimaryBtn}
               onPress={async () => {
-                await AsyncStorage.setItem("welcome_shown", "1");
+                await AsyncStorage.setItem(welcomeKey, "1");
                 setShowWelcome(false);
                 router.push("/add-glucose" as any);
               }}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#fff" />
-              <Text style={styles.welcomePrimaryText}>
-                {t("welcomeModalAddBtn")}
-              </Text>
+              <Ionicons name="pencil-outline" size={18} color="#fff" />
+              <Text style={styles.welcomePrimaryText}>{t("welcomeModalAddBtn")}</Text>
             </Pressable>
+
+            <Pressable
+              style={[styles.welcomeSecondaryBtn, importing && { opacity: 0.6 }]}
+              onPress={async () => {
+                if (importing) return;
+                await AsyncStorage.setItem(welcomeKey, "1");
+                setShowWelcome(false);
+                pickAndImportCSV();
+              }}
+            >
+              <Ionicons name="document-text-outline" size={18} color="#1A6FA8" />
+              <Text style={styles.welcomeSecondaryText}>{t("welcomeModalImportBtn")}</Text>
+            </Pressable>
+
             <Pressable
               style={styles.welcomeSkipBtn}
               onPress={async () => {
-                await AsyncStorage.setItem("welcome_shown", "1");
+                await AsyncStorage.setItem(welcomeKey, "1");
                 setShowWelcome(false);
               }}
             >
-              <Text style={styles.welcomeSkipText}>
-                {t("welcomeModalSkip")}
-              </Text>
+              <Text style={styles.welcomeSkipText}>{t("welcomeModalSkip")}</Text>
             </Pressable>
           </View>
         </View>
@@ -1858,6 +1883,43 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       marginBottom: 10,
     },
     welcomePrimaryText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    welcomeItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      width: "100%",
+      marginBottom: 12,
+      backgroundColor: theme.bg,
+      borderRadius: 14,
+      padding: 12,
+    },
+    welcomeItemIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.bgCard,
+    },
+    welcomeItemText: {
+      flex: 1,
+      fontSize: 13,
+      color: theme.textMuted,
+      lineHeight: 20,
+    },
+    welcomeSecondaryBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderWidth: 1.5,
+      borderColor: "#1A6FA8",
+      paddingVertical: 13,
+      borderRadius: 16,
+      width: "100%",
+      marginBottom: 10,
+    },
+    welcomeSecondaryText: { fontSize: 15, fontWeight: "700", color: "#1A6FA8" },
     welcomeSkipBtn: { paddingVertical: 8 },
     welcomeSkipText: { fontSize: 13, color: theme.inactive, fontWeight: "500" },
   });

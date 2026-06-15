@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
@@ -56,7 +56,7 @@ export default function WelcomeScreen() {
       </Modal>
 
       {/* Brand */}
-      <View style={styles.brand} pointerEvents="none">
+      <View style={[styles.brand, { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
         <Ionicons name="heart-outline" size={46} color={Colors.gold} />
         <View style={{ marginLeft: Spacing.md }}>
           <Text style={styles.title}>{t("appName1")}</Text>
@@ -126,10 +126,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
 
     brand: {
       marginTop: 30,
-      flexDirection: "row",
       alignItems: "center",
-      direction: "ltr",
-    } as any,
+    },
     title: { color: Colors.white, ...Typography.title, lineHeight: 26 },
     subtitle: { color: Colors.white, ...Typography.subtitle, lineHeight: 26 },
 

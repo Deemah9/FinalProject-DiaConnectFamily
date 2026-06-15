@@ -139,7 +139,6 @@ export default function TabLayout() {
         <Tabs.Screen name="glucose-history"         options={{ href: null }} />
         <Tabs.Screen name="glucose-stats"           options={{ href: null }} />
         <Tabs.Screen name="lifestyle-habits"        options={{ href: null }} />
-        <Tabs.Screen name="medical-info"            options={{ href: null }} />
         <Tabs.Screen name="notifications"           options={{ href: null }} />
       </Tabs>
 
