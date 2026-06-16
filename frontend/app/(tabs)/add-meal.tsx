@@ -63,7 +63,6 @@ export default function AddMealScreen() {
       markPredictionStale();
       router.back();
     } catch (error: any) {
-      console.log("add meal error:", error);
       setErrorMsg(error?.message || "Failed to add meal");
     } finally {
       setSaving(false);

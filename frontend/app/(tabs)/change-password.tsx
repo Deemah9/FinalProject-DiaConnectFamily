@@ -15,6 +15,7 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
+import PasswordRules, { isPasswordStrong } from "@/components/PasswordRules";
 import { changePassword } from "@/services/api";
 
 const PRIMARY = "#1A6FA8";
@@ -34,15 +35,15 @@ export default function ChangePasswordScreen() {
     setError("");
 
     if (!currentPw || !newPw || !confirmPw) {
-      setError("All fields are required.");
+      setError(t("errors.allFieldsRequired"));
       return;
     }
     if (newPw !== confirmPw) {
-      setError("New password and confirmation do not match.");
+      setError(t("errors.passwordsMismatch"));
       return;
     }
-    if (newPw.length < 6) {
-      setError("New password must be at least 6 characters.");
+    if (!isPasswordStrong(newPw)) {
+      setError(t("errors.passwordMin"));
       return;
     }
 
@@ -71,7 +72,7 @@ export default function ChangePasswordScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Brand */}
-        <View style={styles.brand} pointerEvents="none">
+        <View style={[styles.brand, { flexDirection: isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
             <Text style={styles.brandTitle}>{t("appName1")}</Text>
@@ -118,6 +119,7 @@ export default function ChangePasswordScreen() {
                 secureTextEntry
                 style={styles.input}
               />
+              <PasswordRules password={newPw} />
             </View>
 
             <View>

@@ -23,6 +23,26 @@ def make_link_doc():
     return doc
 
 
+def make_patient_doc_no_token():
+    """Patient doc with no push token — so patient self-notification is skipped."""
+    doc = MagicMock()
+    doc.exists = True
+    doc.to_dict.return_value = {
+        "firstName": "Deema",
+        "lastName": "Nimer",
+        "pushToken": "",
+        "language": "en",
+    }
+    return doc
+
+
+def make_patient_doc_not_exists():
+    """Patient doc that doesn't exist — skips patient notification entirely."""
+    doc = MagicMock()
+    doc.exists = False
+    return doc
+
+
 def make_family_user_doc(token=EXPO_TOKEN):
     doc = MagicMock()
     doc.exists = True
@@ -30,6 +50,7 @@ def make_family_user_doc(token=EXPO_TOKEN):
         "firstName": "Ma",
         "lastName": "Ma",
         "pushToken": token,
+        "language": "en",
     }
     return doc
 
@@ -45,10 +66,14 @@ class TestEmergencyNotifications:
     def test_low_glucose_triggers_notification(self, mock_db, mock_urlopen):
         """Glucose < 70 triggers emergency push notification to family members."""
         link_doc = make_link_doc()
+        patient_doc = make_patient_doc_no_token()
         family_user = make_family_user_doc()
 
+        # Patient doc (no token) → family doc (has token)
+        mock_db.collection.return_value.document.return_value.get.side_effect = [
+            patient_doc, family_user
+        ]
         mock_db.collection.return_value.where.return_value.stream.return_value = iter([link_doc])
-        mock_db.collection.return_value.document.return_value.get.return_value = family_user
 
         from app.services.family_service import send_emergency_notification
         send_emergency_notification(
@@ -58,9 +83,8 @@ class TestEmergencyNotifications:
         )
 
         mock_urlopen.assert_called_once()
-        request_arg = mock_urlopen.call_args[0][0]
         import json
-        body = json.loads(request_arg.data.decode())
+        body = json.loads(mock_urlopen.call_args[0][0].data.decode())
         assert body[0]["to"] == EXPO_TOKEN
         assert "LOW" in body[0]["body"]
         assert "55" in body[0]["body"]
@@ -70,10 +94,13 @@ class TestEmergencyNotifications:
     def test_high_glucose_triggers_notification(self, mock_db, mock_urlopen):
         """Glucose > 300 triggers emergency push notification."""
         link_doc = make_link_doc()
+        patient_doc = make_patient_doc_no_token()
         family_user = make_family_user_doc()
 
+        mock_db.collection.return_value.document.return_value.get.side_effect = [
+            patient_doc, family_user
+        ]
         mock_db.collection.return_value.where.return_value.stream.return_value = iter([link_doc])
-        mock_db.collection.return_value.document.return_value.get.return_value = family_user
 
         from app.services.family_service import send_emergency_notification
         send_emergency_notification(
@@ -83,16 +110,17 @@ class TestEmergencyNotifications:
         )
 
         mock_urlopen.assert_called_once()
-        request_arg = mock_urlopen.call_args[0][0]
         import json
-        body = json.loads(request_arg.data.decode())
+        body = json.loads(mock_urlopen.call_args[0][0].data.decode())
         assert "HIGH" in body[0]["body"]
         assert "350" in body[0]["body"]
 
     @patch("app.services.family_service.urllib.request.urlopen")
     @patch("app.services.family_service.db")
     def test_no_notification_for_normal_glucose(self, mock_db, mock_urlopen):
-        """Normal glucose (70-300) does NOT trigger any notification."""
+        """Normal glucose (70-300): patient has no token, no family → no notification."""
+        patient_doc = make_patient_doc_no_token()
+        mock_db.collection.return_value.document.return_value.get.return_value = patient_doc
         mock_db.collection.return_value.where.return_value.stream.return_value = iter([])
 
         from app.services.family_service import send_emergency_notification
@@ -107,7 +135,9 @@ class TestEmergencyNotifications:
     @patch("app.services.family_service.urllib.request.urlopen")
     @patch("app.services.family_service.db")
     def test_no_notification_when_no_family_members(self, mock_db, mock_urlopen):
-        """No push notification sent when patient has no linked family members."""
+        """No push notification sent when patient has no token and no family members."""
+        patient_doc = make_patient_doc_no_token()
+        mock_db.collection.return_value.document.return_value.get.return_value = patient_doc
         mock_db.collection.return_value.where.return_value.stream.return_value = iter([])
 
         from app.services.family_service import send_emergency_notification

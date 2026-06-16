@@ -16,6 +16,7 @@ import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import PasswordRules, { isPasswordStrong } from "@/components/PasswordRules";
 import { useAuth } from "../context/AuthContext";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,7 +56,7 @@ export default function SignUp() {
     else if (!emailRegex.test(em)) e.email = t("errors.emailInvalid");
 
     if (!password) e.password = t("errors.passwordRequired");
-    else if (password.length < 6) e.password = t("errors.passwordMin");
+    else if (!isPasswordStrong(password)) e.password = t("errors.passwordMin");
 
     if (!confirmPassword) e.confirmPassword = t("errors.confirmRequired");
     else if (confirmPassword !== password)
@@ -71,19 +72,32 @@ export default function SignUp() {
     setTouched({ firstName: true, lastName: true, email: true, password: true, confirmPassword: true });
     if (!canSubmit) return;
 
-    try {
-      setLoading(true);
-      await register({
-        email: email.trim(),
-        password,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        role: isFamilyMember ? "family_member" : "patient",
-      });
-    } catch (e: any) {
-      setGeneralError(e.message || t("errors.signupFailed"));
-    } finally {
-      setLoading(false);
+    if (isFamilyMember) {
+      try {
+        setLoading(true);
+        await register({
+          email: email.trim(),
+          password,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          role: "family_member",
+        });
+      } catch (e: any) {
+        setGeneralError(e.message || t("errors.signupFailed"));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      router.push({
+        pathname: "/onboarding",
+        params: {
+          email: email.trim(),
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          role: "patient",
+        },
+      } as any);
     }
   }
 
@@ -99,7 +113,7 @@ export default function SignUp() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.brand} pointerEvents="none">
+        <View style={[styles.brand, { flexDirection: isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
             <Text style={styles.brandTitle}>{t("appName1")}</Text>
@@ -186,6 +200,7 @@ export default function SignUp() {
               onChangeText={setPassword}
               onBlur={() => touch("password")}
             />
+            <PasswordRules password={password} />
             {showErr("password") && (
               <Text style={styles.errText}>{errors.password}</Text>
             )}

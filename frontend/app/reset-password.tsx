@@ -15,7 +15,8 @@ import {
 import { Colors } from "@/constants/Colors";
 import { Spacing } from "@/constants/Spacing";
 import { Typography } from "@/constants/Typography";
-import { useAppTheme } from "@/hooks/useAppTheme";
+
+import PasswordRules, { isPasswordStrong } from "@/components/PasswordRules";
 import { resetPassword } from "@/services/api";
 
 export default function ResetPassword() {
@@ -29,13 +30,12 @@ export default function ResetPassword() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
-  const theme = useAppTheme();
-  const styles = createStyles(theme);
+  const styles = createStyles();
 
   const passwordsMatch = newPassword === confirmPassword;
-  const passwordLongEnough = newPassword.length >= 6;
+  const passwordStrong = isPasswordStrong(newPassword);
   const canSubmit =
-    !!token && passwordLongEnough && passwordsMatch && !loading && !done;
+    !!token && passwordStrong && passwordsMatch && !loading && !done;
 
   async function onReset() {
     setError("");
@@ -83,7 +83,7 @@ export default function ResetPassword() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.brand} pointerEvents="none">
+        <View style={[styles.brand, { flexDirection: isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
             <Text style={styles.brandTitle}>{t("appName1")}</Text>
@@ -126,12 +126,10 @@ export default function ResetPassword() {
                 autoCorrect={false}
                 style={[
                   styles.input,
-                  newPassword.length > 0 && !passwordLongEnough && styles.inputErr,
+                  newPassword.length > 0 && !passwordStrong && styles.inputErr,
                 ]}
               />
-              {newPassword.length > 0 && !passwordLongEnough && (
-                <Text style={styles.errText}>{t("errors.passwordMin")}</Text>
-              )}
+              <PasswordRules password={newPassword} />
             </View>
 
             <View>
@@ -179,7 +177,7 @@ export default function ResetPassword() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useAppTheme>) {
+function createStyles() {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.primary },
 

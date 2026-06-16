@@ -17,7 +17,6 @@ import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import {
   formatTime,
-  from24h,
   loadReminderSettings,
   saveReminderPreferences,
   to24h,

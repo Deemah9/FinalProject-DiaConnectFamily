@@ -15,7 +15,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { checkAndClearPredictionStale } from "@/services/predictionFlag";
 import { getReminderTimes, getRemindersEnabled } from "@/services/reminderScheduler";
 import * as DocumentPicker from "expo-document-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { Redirect, router } from "expo-router";
 import React, {
   useCallback,
@@ -29,6 +28,7 @@ import {
   Alert,
   Dimensions,
   I18nManager,
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -79,6 +79,7 @@ export default function HomeScreen() {
   const styles = createStyles(theme);
   const { triggerCriticalAlert } = useHaptic();
   const isFirstFocus = useRef(true);
+  const welcomeKeyRef = useRef<string>("welcome_shown_guest");
   const lastHapticValue = useRef<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -100,7 +101,6 @@ export default function HomeScreen() {
         });
         await registerPushToken(tokenData.data);
       } catch (e) {
-        console.log("[Push] Error:", e);
       }
     };
     registerPush();
@@ -120,7 +120,6 @@ export default function HomeScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const pickingRef = useRef(false);
-  const [importToast, setImportToast] = useState<{ type: "success" | "info" | "error"; text: string } | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
@@ -187,7 +186,9 @@ export default function HomeScreen() {
 
       // Show welcome modal once for new users with no readings
       if (readings.length === 0) {
-        const seen = await AsyncStorage.getItem("welcome_shown");
+        const email = await AsyncStorage.getItem("email");
+        welcomeKeyRef.current = `welcome_shown_${email ?? "guest"}`;
+        const seen = await AsyncStorage.getItem(welcomeKeyRef.current);
         if (!seen) setShowWelcome(true);
       }
 
@@ -225,7 +226,6 @@ export default function HomeScreen() {
 
       return readings;
     } catch (error: any) {
-      console.log("glucose fetch error:", error);
       setErrorGlucose(error?.message || "Failed to load glucose readings");
       setGlucoseReadings([]);
       return [];
@@ -419,8 +419,19 @@ export default function HomeScreen() {
   }
 
   return (
-    <LinearGradient colors={[theme.bgCard, theme.bg]} style={styles.container}>
+    <View style={styles.container}>
       <AppHeader left={null} unreadCount={unreadCount} />
+
+      {/* Upload loading overlay */}
+      <Modal visible={importing} transparent animationType="fade">
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadCard}>
+            <ActivityIndicator size="large" color="#1A6FA8" />
+            <Text style={styles.uploadText}>{t("importing")}</Text>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView contentContainerStyle={styles.content}>
         {/* Welcome */}
         <View style={styles.hero}>
@@ -1047,30 +1058,54 @@ export default function HomeScreen() {
               <Ionicons name="heart" size={32} color="#1A6FA8" />
             </View>
             <Text style={styles.welcomeModalTitle}>{t("welcomeModalTitle")}</Text>
-            <Text style={styles.welcomeBody}>{t("welcomeModalBody")}</Text>
+
+            <View style={styles.welcomeItem}>
+              <View style={styles.welcomeItemIcon}>
+                <Ionicons name="cloud-upload-outline" size={20} color="#1A6FA8" />
+              </View>
+              <Text style={styles.welcomeItemText}>{t("welcomeInfoPrediction")}</Text>
+            </View>
+
+            <View style={styles.welcomeItem}>
+              <View style={styles.welcomeItemIcon}>
+                <Ionicons name="restaurant-outline" size={20} color="#059669" />
+              </View>
+              <Text style={styles.welcomeItemText}>{t("welcomeInfoAccuracy")}</Text>
+            </View>
+
             <Pressable
               style={styles.welcomePrimaryBtn}
               onPress={async () => {
-                await AsyncStorage.setItem("welcome_shown", "1");
+                await AsyncStorage.setItem(welcomeKeyRef.current, "1");
                 setShowWelcome(false);
                 router.push("/add-glucose" as any);
               }}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#fff" />
-              <Text style={styles.welcomePrimaryText}>
-                {t("welcomeModalAddBtn")}
-              </Text>
+              <Ionicons name="pencil-outline" size={18} color="#fff" />
+              <Text style={styles.welcomePrimaryText}>{t("welcomeModalAddBtn")}</Text>
             </Pressable>
+
+            <Pressable
+              style={[styles.welcomeSecondaryBtn, importing && { opacity: 0.6 }]}
+              onPress={async () => {
+                if (importing) return;
+                await AsyncStorage.setItem(welcomeKeyRef.current, "1");
+                setShowWelcome(false);
+                pickAndImportCSV();
+              }}
+            >
+              <Ionicons name="document-text-outline" size={18} color="#1A6FA8" />
+              <Text style={styles.welcomeSecondaryText}>{t("welcomeModalImportBtn")}</Text>
+            </Pressable>
+
             <Pressable
               style={styles.welcomeSkipBtn}
               onPress={async () => {
-                await AsyncStorage.setItem("welcome_shown", "1");
+                await AsyncStorage.setItem(welcomeKeyRef.current, "1");
                 setShowWelcome(false);
               }}
             >
-              <Text style={styles.welcomeSkipText}>
-                {t("welcomeModalSkip")}
-              </Text>
+              <Text style={styles.welcomeSkipText}>{t("welcomeModalSkip")}</Text>
             </Pressable>
           </View>
         </View>
@@ -1205,7 +1240,7 @@ export default function HomeScreen() {
       </Modal>
 
 
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -1215,26 +1250,18 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       flex: 1,
       backgroundColor: theme.bg,
     },
-
-    importToast: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginHorizontal: 16,
-      marginTop: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 14,
-      backgroundColor: "#1A6FA8",
-      zIndex: 100,
+    uploadOverlay: {
+      flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+      alignItems: "center", justifyContent: "center",
     },
-    importToastSuccess: { backgroundColor: "#16A34A" },
-    importToastError: { backgroundColor: "#B91C1C" },
-    importToastText: {
-      flex: 1,
-      color: "#FFFFFF",
-      fontSize: 13,
-      fontWeight: "500",
+    uploadCard: {
+      backgroundColor: theme.bgCard, borderRadius: 20,
+      paddingVertical: 32, paddingHorizontal: 48,
+      alignItems: "center", gap: 16,
+      shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 16, elevation: 12,
+    },
+    uploadText: {
+      color: theme.text, fontSize: 15, fontWeight: "600",
     },
 
     content: {
@@ -1258,23 +1285,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     welcomeSub: {
       color: theme.textMuted,
       fontSize: 14,
-    },
-
-    roleBadge: {
-      alignSelf: "flex-start",
-      marginBottom: 24,
-      paddingHorizontal: 14,
-      paddingVertical: 7,
-      borderRadius: 999,
-      backgroundColor: "#EFF6FF",
-      borderWidth: 1,
-      borderColor: "#DBEAFE",
-    },
-
-    roleBadgeText: {
-      fontSize: 12,
-      color: theme.primary,
-      fontWeight: "600",
     },
 
     section: {
@@ -1304,40 +1314,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 4 },
       elevation: 8,
-    },
-
-    alertCard: {
-      backgroundColor: "#FFFBEB",
-      borderRadius: 16,
-      padding: 14,
-      borderWidth: 1,
-      borderLeftWidth: 4,
-      borderColor: "#FDE68A",
-      borderLeftColor: "#F59E0B",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-
-    alertIconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      backgroundColor: "#FEF3C7",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    alertMainTitle: {
-      color: "#92400E",
-      fontSize: 14,
-      fontWeight: "600",
-      marginBottom: 2,
-    },
-
-    alertMainSub: {
-      color: "#B45309",
-      fontSize: 12,
     },
 
     overviewCard: {
@@ -1378,12 +1354,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       gap: 4,
     },
 
-    latestWrap: {
-      flexDirection: "row",
-      alignItems: "flex-end",
-      marginBottom: 4,
-    },
-
     latestValue: {
       fontSize: 42,
       fontWeight: "700",
@@ -1396,24 +1366,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       color: theme.textMuted,
       marginLeft: 6,
       marginBottom: 8,
-    },
-
-    latestStatusWrap: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 14,
-    },
-
-    latestStatusLabel: {
-      fontSize: 12,
-      color: theme.textMuted,
-      marginRight: 6,
-    },
-
-    latestStatusValue: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: theme.text,
     },
 
     statusBadge: {
@@ -1433,20 +1385,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       marginTop: 8,
       minHeight: 200,
       justifyContent: "center",
-    },
-
-    trendLabel: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: theme.textMuted,
-      marginBottom: 8,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
-
-    trendChart: {
-      borderRadius: 12,
-      marginLeft: -8,
     },
 
     trendLegend: {
@@ -1483,163 +1421,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     trendEmptyText: {
       fontSize: 13,
       color: theme.border,
-    },
-
-    glucoseButtonsRow: {
-      flexDirection: "row",
-      gap: 10,
-      marginTop: 16,
-    },
-
-    glucosePrimaryBtn: {
-      flex: 1,
-      height: 46,
-      borderRadius: 12,
-      backgroundColor: "#1A6FA8",
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: "#1A6FA8",
-      shadowOpacity: 0.4,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 5,
-    },
-
-    glucosePrimaryText: {
-      color: "#FFFFFF",
-      fontSize: 14,
-      fontWeight: "700",
-      letterSpacing: 0.3,
-    },
-
-    glucoseSecondaryBtn: {
-      flex: 1,
-      height: 48,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.bgCard,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    glucoseSecondaryText: {
-      color: theme.textSecondary,
-      fontSize: 14,
-      fontWeight: "600",
-    },
-
-    recentList: {
-      gap: 12,
-    },
-
-    reminderCard: {
-      backgroundColor: "#F0FDF4",
-      borderRadius: 16,
-      padding: 14,
-      borderWidth: 1,
-      borderLeftWidth: 4,
-      borderColor: "#BBF7D0",
-      borderLeftColor: "#22C55E",
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: 12,
-    },
-
-    reminderIconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      backgroundColor: "#DCFCE7",
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-    },
-
-    reminderTitle: {
-      color: "#14532D",
-      fontSize: 14,
-      fontWeight: "600" as const,
-      marginBottom: 2,
-    },
-
-    reminderSub: {
-      color: "#15803D",
-      fontSize: 12,
-    },
-
-    tipCard: {
-      backgroundColor: "#EFF6FF",
-      borderRadius: 16,
-      padding: 14,
-      borderWidth: 1,
-      borderLeftWidth: 4,
-      borderColor: "#BFDBFE",
-      borderLeftColor: "#3B82F6",
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: 12,
-    },
-
-    tipIconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      backgroundColor: "#DBEAFE",
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-    },
-
-    tipTitle: {
-      color: "#1E3A8A",
-      fontSize: 14,
-      fontWeight: "600" as const,
-      marginBottom: 2,
-    },
-
-    tipSub: {
-      color: "#1D4ED8",
-      fontSize: 12,
-    },
-
-    recentItem: {
-      backgroundColor: theme.bgCard,
-      borderRadius: 18,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: theme.bgSoft,
-      shadowColor: "#000",
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 12,
-    },
-
-    dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 999,
-      marginTop: 6,
-    },
-
-    recentTitle: {
-      color: theme.text,
-      fontSize: 14,
-      fontWeight: "600",
-      marginBottom: 2,
-    },
-
-    recentSub: {
-      color: theme.textMuted,
-      fontSize: 12,
-      marginBottom: 4,
-    },
-
-    recentTime: {
-      color: theme.textLight,
-      fontSize: 11,
     },
 
     // Prediction Card
@@ -1799,103 +1580,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       fontSize: 13,
       flex: 1,
       lineHeight: 20,
-    },
-
-    // Pattern card — new design
-    patternStatusStrip: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 6,
-      backgroundColor: theme.bgAlt,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.borderLight,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-    },
-    patternStatusText: {
-      fontSize: 12,
-      color: "#6B7280",
-      flex: 1,
-      lineHeight: 17,
-    },
-    patternMainRow: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      marginBottom: 14,
-    },
-    patternMainLabel: {
-      fontSize: 11,
-      fontWeight: "600",
-      color: theme.inactive,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-      marginBottom: 4,
-    },
-    patternBigValue: {
-      fontSize: 46,
-      fontWeight: "800",
-      lineHeight: 52,
-    },
-    patternBigUnit: {
-      fontSize: 15,
-      fontWeight: "400",
-      color: theme.inactive,
-    },
-    patternRangeText: {
-      fontSize: 12,
-      color: "#64748B",
-      marginTop: 4,
-      fontWeight: "500",
-    },
-    patternRiskPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 20,
-      borderWidth: 1,
-      marginTop: 6,
-      alignSelf: "flex-start",
-    },
-    patternRiskPillText: {
-      fontSize: 13,
-      fontWeight: "700",
-    },
-    patternAlertBox: {
-      borderRadius: 12,
-      borderWidth: 1,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      marginBottom: 14,
-    },
-    patternAlertText: {
-      fontSize: 13,
-      fontWeight: "500",
-      lineHeight: 20,
-    },
-    patternFooterRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    patternSamplesText: {
-      fontSize: 11,
-      color: theme.inactive,
-    },
-    patternConfRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-    },
-    patternDots: {
-      fontSize: 10,
-      letterSpacing: 2,
-    },
-    patternConfLabel: {
-      fontSize: 11,
-      color: theme.inactive,
     },
 
     staleBanner: {
@@ -2067,18 +1751,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       color: "#16A34A",
       marginBottom: 4,
     },
-    addCardInfoRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 3,
-    },
-    addCardInfoText: {
-      fontSize: 10,
-      color: "#15803D",
-      flex: 1,
-      lineHeight: 14,
-      opacity: 0.85,
-    },
     addCardArrowGreen: {
       width: 28,
       height: 28,
@@ -2101,44 +1773,6 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       fontWeight: "600",
       color: theme.inactive,
     },
-
-    // kept for any legacy references
-    addOptionBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      borderRadius: 16,
-      backgroundColor: theme.bg,
-      marginBottom: 12,
-    },
-    addOptionIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      backgroundColor: theme.bgCard,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    addOptionLabel: {
-      fontSize: 15,
-      fontWeight: "600",
-      color: theme.text,
-      marginBottom: 2,
-    },
-    addOptionSub: { fontSize: 12, color: theme.textMuted },
-    importInfoBanner: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      backgroundColor: theme.bg,
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginBottom: 12,
-    },
-    importInfoText: { fontSize: 12, color: "#1A6FA8", flex: 1, lineHeight: 17 },
 
     reminderBackdrop: {
       flex: 1,
@@ -2250,6 +1884,43 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       marginBottom: 10,
     },
     welcomePrimaryText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    welcomeItem: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      width: "100%",
+      marginBottom: 12,
+      backgroundColor: theme.bg,
+      borderRadius: 14,
+      padding: 12,
+    },
+    welcomeItemIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.bgCard,
+    },
+    welcomeItemText: {
+      flex: 1,
+      fontSize: 13,
+      color: theme.textMuted,
+      lineHeight: 20,
+    },
+    welcomeSecondaryBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderWidth: 1.5,
+      borderColor: "#1A6FA8",
+      paddingVertical: 13,
+      borderRadius: 16,
+      width: "100%",
+      marginBottom: 10,
+    },
+    welcomeSecondaryText: { fontSize: 15, fontWeight: "700", color: "#1A6FA8" },
     welcomeSkipBtn: { paddingVertical: 8 },
     welcomeSkipText: { fontSize: 13, color: theme.inactive, fontWeight: "500" },
   });

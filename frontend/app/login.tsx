@@ -80,7 +80,7 @@ export default function Login() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.brand} pointerEvents="none">
+        <View style={[styles.brand, { flexDirection: isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
           <Ionicons name="heart-outline" size={46} color={Colors.gold} />
           <View style={{ marginLeft: Spacing.md }}>
             <Text style={styles.brandTitle}>{t("appName1")}</Text>

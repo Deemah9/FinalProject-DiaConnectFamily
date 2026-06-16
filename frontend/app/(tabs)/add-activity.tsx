@@ -63,7 +63,6 @@ timestamp: buildTimestamp(hours, minutes, isPM),
 markPredictionStale();
 router.back();
 } catch (error: any) {
-console.log("add activity error:", error);
 setErrorMsg(error?.message || "Failed to add activity");
 } finally {
 setSaving(false);
@@ -162,45 +161,6 @@ paddingTop: 20,
 paddingBottom: 40,
 },
 
-topHeader: {
-flexDirection: "row",
-alignItems: "center",
-justifyContent: "space-between",
-paddingBottom: 16,
-backgroundColor: "#1A6FA8",
-},
-
-menuBtn: {
-width: 40,
-height: 40,
-borderRadius: 12,
-alignItems: "center",
-justifyContent: "center",
-},
-
-placeholder: { width: 40 },
-
-logoWrap: {
-    flex: 1,
-    justifyContent: 'center',
-flexDirection: "row",
-alignItems: "center",
-},
-
-logoTitle: {
-color: "#FFFFFF",
-fontSize: 16,
-lineHeight: 18,
-fontWeight: "600",
-},
-
-logoSub: {
-color: "rgba(255,255,255,0.75)",
-fontSize: 14,
-lineHeight: 16,
-fontWeight: "300",
-},
-
 hero: {
 marginTop: 28,
 marginBottom: 20,
@@ -272,12 +232,6 @@ color: theme.text,
 textArea: {
 minHeight: 96,
 textAlignVertical: "top",
-},
-
-helperText: {
-marginTop: 8,
-fontSize: 12,
-color: theme.textMuted,
 },
 
 saveBtn: {

@@ -81,7 +81,7 @@ class TestPairingFlow:
         data = res.json()
         assert "code" in data
         assert len(data["code"]) == 6
-        assert data["expires_in_days"] == 7
+        assert data["expires_in_minutes"] == 30
 
     @patch("app.services.family_service.db")
     def test_generate_code_deletes_old_unused_codes(self, mock_db, client):
