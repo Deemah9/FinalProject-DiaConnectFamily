@@ -15,7 +15,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { checkAndClearPredictionStale } from "@/services/predictionFlag";
 import { getReminderTimes, getRemindersEnabled } from "@/services/reminderScheduler";
 import * as DocumentPicker from "expo-document-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { Redirect, router } from "expo-router";
 import React, {
   useCallback,
@@ -79,8 +78,8 @@ export default function HomeScreen() {
   const theme = useAppTheme();
   const styles = createStyles(theme);
   const { triggerCriticalAlert } = useHaptic();
-  const welcomeKey = `welcome_shown_${authUser?.email ?? "guest"}`;
   const isFirstFocus = useRef(true);
+  const welcomeKeyRef = useRef<string>("welcome_shown_guest");
   const lastHapticValue = useRef<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -187,7 +186,9 @@ export default function HomeScreen() {
 
       // Show welcome modal once for new users with no readings
       if (readings.length === 0) {
-        const seen = await AsyncStorage.getItem(welcomeKey);
+        const email = await AsyncStorage.getItem("email");
+        welcomeKeyRef.current = `welcome_shown_${email ?? "guest"}`;
+        const seen = await AsyncStorage.getItem(welcomeKeyRef.current);
         if (!seen) setShowWelcome(true);
       }
 
@@ -418,7 +419,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <LinearGradient colors={[theme.bgCard, theme.bg]} style={styles.container}>
+    <View style={styles.container}>
       <AppHeader left={null} unreadCount={unreadCount} />
 
       {/* Upload loading overlay */}
@@ -1075,7 +1076,7 @@ export default function HomeScreen() {
             <Pressable
               style={styles.welcomePrimaryBtn}
               onPress={async () => {
-                await AsyncStorage.setItem(welcomeKey, "1");
+                await AsyncStorage.setItem(welcomeKeyRef.current, "1");
                 setShowWelcome(false);
                 router.push("/add-glucose" as any);
               }}
@@ -1088,7 +1089,7 @@ export default function HomeScreen() {
               style={[styles.welcomeSecondaryBtn, importing && { opacity: 0.6 }]}
               onPress={async () => {
                 if (importing) return;
-                await AsyncStorage.setItem(welcomeKey, "1");
+                await AsyncStorage.setItem(welcomeKeyRef.current, "1");
                 setShowWelcome(false);
                 pickAndImportCSV();
               }}
@@ -1100,7 +1101,7 @@ export default function HomeScreen() {
             <Pressable
               style={styles.welcomeSkipBtn}
               onPress={async () => {
-                await AsyncStorage.setItem(welcomeKey, "1");
+                await AsyncStorage.setItem(welcomeKeyRef.current, "1");
                 setShowWelcome(false);
               }}
             >
@@ -1239,7 +1240,7 @@ export default function HomeScreen() {
       </Modal>
 
 
-    </LinearGradient>
+    </View>
   );
 }
 
