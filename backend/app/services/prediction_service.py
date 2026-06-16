@@ -37,21 +37,21 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # Constants
 # ==========================================
 
-MIN_READINGS          = 10
-SEQUENCE_LENGTH       = 12
-N_FEATURES            = 6
-GLUCOSE_MIN           = 40.0
-GLUCOSE_MAX           = 600.0
+MIN_READINGS = 10
+SEQUENCE_LENGTH = 12
+N_FEATURES = 6
+GLUCOSE_MIN = 40.0
+GLUCOSE_MAX = 600.0
 PATCH_ERROR_THRESHOLD = 40
-CGM_MAX_CHANGE        = 50
-MANUAL_MAX_CHANGE     = 80
-AUGMENT_COPIES        = 3
-FINETUNE_EPOCHS       = 15
-FINETUNE_LR           = 5e-4
-MAX_STALE_HOURS       = 24
-PATTERN_DAYS          = 30
-PATTERN_HOUR_WINDOW   = 1.5   # ±1.5 h circular window
-PATTERN_MIN_SAMPLES   = 5
+CGM_MAX_CHANGE = 50
+MANUAL_MAX_CHANGE = 80
+AUGMENT_COPIES = 3
+FINETUNE_EPOCHS = 15
+FINETUNE_LR = 5e-4
+MAX_STALE_HOURS = 24
+PATTERN_DAYS = 30
+PATTERN_HOUR_WINDOW = 1.5   # ±1.5 h circular window
+PATTERN_MIN_SAMPLES = 5
 
 ALERT_RATE_LIMIT: dict[str, int] = {
     "low":         60,   # minutes between same-type alerts
@@ -63,9 +63,10 @@ ALERT_RATE_LIMIT: dict[str, int] = {
 }
 
 ACTIVITY_LEVEL_MAP = {"low": 0.2, "moderate": 0.5, "high": 0.8}
-GROQ_API_KEY       = os.getenv("GROQ_API_KEY", "")
-GROQ_URL           = "https://api.groq.com/openai/v1/chat/completions"
-BASE_MODEL_PATH    = Path(__file__).parent.parent.parent / "models" / "base_model.keras"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+BASE_MODEL_PATH = Path(__file__).parent.parent.parent / \
+    "models" / "base_model.keras"
 
 
 # ==========================================
@@ -75,7 +76,7 @@ BASE_MODEL_PATH    = Path(__file__).parent.parent.parent / "models" / "base_mode
 class PredictionService:
 
     _model_cache:     dict = {}   # user_id → {model, n_readings, sigma}
-    _base_weights           = None
+    _base_weights = None
     _last_alert_sent: dict = {}   # "{user_id}:{alert_type}" → datetime
 
     def __init__(self):
@@ -87,14 +88,15 @@ class PredictionService:
 
     def _can_send_alert(self, user_id: str, alert_type: str) -> bool:
         window = ALERT_RATE_LIMIT.get(alert_type, 60)
-        key    = f"{user_id}:{alert_type}"
-        last   = PredictionService._last_alert_sent.get(key)
+        key = f"{user_id}:{alert_type}"
+        last = PredictionService._last_alert_sent.get(key)
         if last is None:
             return True
         return (datetime.now(timezone.utc) - last).total_seconds() / 60 >= window
 
     def _mark_alert_sent(self, user_id: str, alert_type: str) -> None:
-        PredictionService._last_alert_sent[f"{user_id}:{alert_type}"] = datetime.now(timezone.utc)
+        PredictionService._last_alert_sent[f"{user_id}:{alert_type}"] = datetime.now(
+            timezone.utc)
 
     # ==========================================
     # Fetch Glucose Readings
@@ -113,7 +115,8 @@ class PredictionService:
             readings.append(data)
 
         readings.sort(
-            key=lambda r: r.get("measuredAt") or datetime.min.replace(tzinfo=timezone.utc)
+            key=lambda r: r.get("measuredAt") or datetime.min.replace(
+                tzinfo=timezone.utc)
         )
         return readings
 
@@ -148,22 +151,24 @@ class PredictionService:
         meals, activities, sleep_logs = [], [], []
 
         for doc in self.db.collection("meals").where("userId", "==", user_id).stream():
-            d  = doc.to_dict()
+            d = doc.to_dict()
             ts = _ensure_tz(d.get("timestamp"))
             if ts:
                 meals.append({"ts": ts, "carbs": float(d.get("carbs", 0))})
 
         for doc in self.db.collection("activities").where("userId", "==", user_id).stream():
-            d  = doc.to_dict()
+            d = doc.to_dict()
             ts = _ensure_tz(d.get("timestamp"))
             if ts:
-                activities.append({"ts": ts, "minutes": float(d.get("duration_minutes", 0))})
+                activities.append(
+                    {"ts": ts, "minutes": float(d.get("duration_minutes", 0))})
 
         for doc in self.db.collection("sleep_logs").where("userId", "==", user_id).stream():
-            d  = doc.to_dict()
+            d = doc.to_dict()
             ts = _ensure_tz(d.get("timestamp"))
             if ts:
-                sleep_logs.append({"ts": ts, "hours": float(d.get("sleep_hours", 0))})
+                sleep_logs.append(
+                    {"ts": ts, "hours": float(d.get("sleep_hours", 0))})
 
         sleep_logs.sort(key=lambda x: x["ts"])
         return {"meals": meals, "activities": activities, "sleep_logs": sleep_logs}
@@ -181,7 +186,7 @@ class PredictionService:
         if hasattr(ts, "tzinfo") and ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
 
-        window_2h_start  = ts - timedelta(hours=2)
+        window_2h_start = ts - timedelta(hours=2)
         window_30m_start = ts - timedelta(minutes=30)
         hour = float(ts.hour) + float(ts.minute) / 60.0
 
@@ -197,7 +202,7 @@ class PredictionService:
             a["minutes"] for a in log_ctx["activities"]
             if window_2h_start <= a["ts"] <= ts
         )
-        past_sleep  = [s for s in log_ctx["sleep_logs"] if s["ts"] <= ts]
+        past_sleep = [s for s in log_ctx["sleep_logs"] if s["ts"] <= ts]
         sleep_hours = past_sleep[-1]["hours"] if past_sleep else sleep_baseline
 
         return hour, carbs_30min, carbs_2h, activity_2h, sleep_hours
@@ -211,9 +216,9 @@ class PredictionService:
             return readings
         cleaned = [readings[0]]
         for i in range(1, len(readings)):
-            current  = readings[i]
-            prev     = cleaned[-1]
-            is_cgm   = current.get("source") in ("libreview", "csv_cgm")
+            current = readings[i]
+            prev = cleaned[-1]
+            is_cgm = current.get("source") in ("libreview", "csv_cgm")
             base_max = CGM_MAX_CHANGE if is_cgm else MANUAL_MAX_CHANGE
 
             prev_ts = prev.get("measuredAt")
@@ -242,16 +247,18 @@ class PredictionService:
 
     def _calculate_trend(self, current: float, predicted: float) -> str:
         diff = predicted - current
-        if diff > 5:   return "rising"
-        if diff < -5:  return "falling"
+        if diff > 5:
+            return "rising"
+        if diff < -5:
+            return "falling"
         return "stable"
 
     def _calculate_probability(self, current: float, predicted: float, sigma: float) -> tuple[int, int]:
         from math import erf, sqrt
-        sigma   = max(1.0, sigma)
-        z       = (predicted - current) / sigma
+        sigma = max(1.0, sigma)
+        z = (predicted - current) / sigma
         prob_up = (1.0 + erf(z / sqrt(2))) / 2.0
-        prob_up   = int(min(99, max(1, round(prob_up * 100))))
+        prob_up = int(min(99, max(1, round(prob_up * 100))))
         return prob_up, 100 - prob_up
 
     # ==========================================
@@ -264,12 +271,13 @@ class PredictionService:
 
     @staticmethod
     def _normalise(feature_matrix: np.ndarray) -> np.ndarray:
-        g_norm   = (feature_matrix[:, 0] - GLUCOSE_MIN) / (GLUCOSE_MAX - GLUCOSE_MIN)
-        h_norm   = feature_matrix[:, 1] / 24.0
+        g_norm = (feature_matrix[:, 0] - GLUCOSE_MIN) / \
+            (GLUCOSE_MAX - GLUCOSE_MIN)
+        h_norm = feature_matrix[:, 1] / 24.0
         c30_norm = np.clip(feature_matrix[:, 2] / 100.0, 0.0, 1.0)
         c2h_norm = np.clip(feature_matrix[:, 3] / 150.0, 0.0, 1.0)
-        a_norm   = np.clip(feature_matrix[:, 4] / 120.0, 0.0, 1.0)
-        s_norm   = np.clip(feature_matrix[:, 5] / 12.0,  0.0, 1.0)
+        a_norm = np.clip(feature_matrix[:, 4] / 120.0, 0.0, 1.0)
+        s_norm = np.clip(feature_matrix[:, 5] / 12.0,  0.0, 1.0)
         return np.stack([g_norm, h_norm, c30_norm, c2h_norm, a_norm, s_norm], axis=1)
 
     @staticmethod
@@ -283,7 +291,8 @@ class PredictionService:
     def _get_base_model(self):
         import tensorflow as tf
         model = tf.keras.Sequential([
-            tf.keras.layers.LSTM(64, input_shape=(SEQUENCE_LENGTH, N_FEATURES)),
+            tf.keras.layers.LSTM(64, input_shape=(
+                SEQUENCE_LENGTH, N_FEATURES)),
             tf.keras.layers.Dense(16, activation="relu"),
             tf.keras.layers.Dense(1),
         ], name="glucose_lstm")
@@ -317,7 +326,7 @@ class PredictionService:
         tf.random.set_seed(42)
         np.random.seed(42)
 
-        n      = feature_matrix.shape[0]
+        n = feature_matrix.shape[0]
         scaled = self._normalise(feature_matrix)
 
         X, y = [], []
@@ -327,13 +336,14 @@ class PredictionService:
         X = np.array(X, dtype=np.float32)
         y = np.array(y, dtype=np.float32)
 
-        split       = max(1, int(len(X) * 0.8))
+        split = max(1, int(len(X) * 0.8))
         X_raw_train, X_val = X[:split], X[split:]
         y_raw_train, y_val = y[:split], y[split:]
 
         X_aug, y_aug = [X_raw_train], [y_raw_train]
         for _ in range(AUGMENT_COPIES - 1):
-            noise = np.random.normal(0, 0.01, X_raw_train.shape).astype(np.float32)
+            noise = np.random.normal(
+                0, 0.01, X_raw_train.shape).astype(np.float32)
             X_aug.append(X_raw_train + noise)
             y_aug.append(y_raw_train)
         X_train = np.concatenate(X_aug)
@@ -350,7 +360,8 @@ class PredictionService:
                 optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
                 loss="mse",
             )
-            raw_w = np.exp(np.linspace(0, 3, len(X_raw_train))).astype(np.float32)
+            raw_w = np.exp(np.linspace(0, 3, len(X_raw_train))
+                           ).astype(np.float32)
             aug_w = np.concatenate([raw_w] * AUGMENT_COPIES)
             aug_w = aug_w / aug_w.mean()
 
@@ -359,35 +370,41 @@ class PredictionService:
 
             if len(X_val) > 0:
                 y_pred_val = model.predict(X_val, verbose=0).flatten()
-                y_true_mg  = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                y_pred_mg  = np.clip(y_pred_val, 0.0, 1.0) * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                y_true_mg = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                y_pred_mg = np.clip(y_pred_val, 0.0, 1.0) * \
+                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
                 sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
             else:
                 y_pred_tr = model.predict(X_raw_train, verbose=0).flatten()
-                y_true_mg = y_raw_train * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                y_pred_mg = np.clip(y_pred_tr, 0.0, 1.0) * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                y_true_mg = y_raw_train * \
+                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+                y_pred_mg = np.clip(y_pred_tr, 0.0, 1.0) * \
+                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
                 sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
             sigma = max(1.0, sigma)
             print(f"[Prediction] σ (val RMSE) = {sigma:.1f} mg/dL")
-            PredictionService._model_cache[user_id] = {"model": model, "n_readings": n, "sigma": sigma}
+            PredictionService._model_cache[user_id] = {
+                "model": model, "n_readings": n, "sigma": sigma}
 
         if seed_override is not None:
-            seed_scaled   = self._normalise(seed_override)
-            seq           = list(seed_scaled[-SEQUENCE_LENGTH:])
+            seed_scaled = self._normalise(seed_override)
+            seq = list(seed_scaled[-SEQUENCE_LENGTH:])
             last_hour_raw = seed_override[-1, 1]
-            last_context  = seed_scaled[-1, 2:].copy()
+            last_context = seed_scaled[-1, 2:].copy()
         else:
-            seq           = list(scaled[-SEQUENCE_LENGTH:])
+            seq = list(scaled[-SEQUENCE_LENGTH:])
             last_hour_raw = feature_matrix[-1, 1]
-            last_context  = scaled[-1, 2:].copy()
+            last_context = scaled[-1, 2:].copy()
 
         predicted_norm = 0.0
         for step in range(hours):
-            inp            = np.array(seq[-SEQUENCE_LENGTH:]).reshape(1, SEQUENCE_LENGTH, N_FEATURES)
+            inp = np.array(seq[-SEQUENCE_LENGTH:]).reshape(1,
+                                                           SEQUENCE_LENGTH, N_FEATURES)
             predicted_norm = float(model.predict(inp, verbose=0)[0][0])
             predicted_norm = float(np.clip(predicted_norm, 0.0, 1.0))
             next_hour = ((last_hour_raw + step + 1) % 24) / 24.0
-            next_row  = np.concatenate([[predicted_norm, next_hour], last_context])
+            next_row = np.concatenate(
+                [[predicted_norm, next_hour], last_context])
             seq.append(next_row)
 
         return round(self._denormalise_glucose(predicted_norm), 1), sigma
@@ -414,10 +431,11 @@ class PredictionService:
 
         Returns a dict matching PatternPrediction fields.
         """
-        all_readings = preloaded_readings if preloaded_readings is not None else self._fetch_readings(user_id)
-        now          = datetime.now(timezone.utc)
+        all_readings = preloaded_readings if preloaded_readings is not None else self._fetch_readings(
+            user_id)
+        now = datetime.now(timezone.utc)
         current_hour = now.hour + now.minute / 60.0
-        cutoff       = now - timedelta(days=days)
+        cutoff = now - timedelta(days=days)
 
         window_readings: list[tuple[dict, datetime]] = []
         for r in all_readings:
@@ -437,22 +455,22 @@ class PredictionService:
             return {"available": False, "sample_count": sample_count}
 
         raw_values:       list[float] = []
-        weighted_sum:     float       = 0.0
-        total_weight:     float       = 0.0
+        weighted_sum:     float = 0.0
+        total_weight:     float = 0.0
 
         for r, ts in window_readings:
-            days_ago      = max(0.0, (now - ts).total_seconds() / 86400)
-            weight        = 1.0 / (days_ago + 1.0)
-            value         = float(r["value"])
+            days_ago = max(0.0, (now - ts).total_seconds() / 86400)
+            weight = 1.0 / (days_ago + 1.0)
+            value = float(r["value"])
             raw_values.append(value)
-            weighted_sum  += value * weight
-            total_weight  += weight
+            weighted_sum += value * weight
+            total_weight += weight
 
         weighted_avg = weighted_sum / total_weight
-        values_arr   = np.array(raw_values)
-        typical_min  = int(np.percentile(values_arr, 25))
-        typical_max  = int(np.percentile(values_arr, 75))
-        std          = float(np.std(values_arr))
+        values_arr = np.array(raw_values)
+        typical_min = int(np.percentile(values_arr, 25))
+        typical_max = int(np.percentile(values_arr, 75))
+        std = float(np.std(values_arr))
 
         # risk_level — variable wins if spread is high regardless of mean
         if std > 40:
@@ -477,7 +495,7 @@ class PredictionService:
         # Human-readable hour label
         h = int(current_hour)
         h_end = (h + 1) % 24
-        ampm = lambda x: f"{x % 12 or 12} {'AM' if x < 12 else 'PM'}"
+        def ampm(x): return f"{x % 12 or 12} {'AM' if x < 12 else 'PM'}"
         hour_label = {
             "ar": f"{h}:00 - {h_end}:00",
             "en": f"{ampm(h)} – {ampm(h_end)}",
@@ -506,7 +524,8 @@ class PredictionService:
                 "he": f"הסוכר שלך בדרך כלל יציב בשעה זו ({hour_label}). המשך לשמור על שגרת התזונה ואורח החיים שלך.",
             },
         }
-        message = messages.get(risk_level, {}).get(lang, messages.get(risk_level, {}).get("en", ""))
+        message = messages.get(risk_level, {}).get(
+            lang, messages.get(risk_level, {}).get("en", ""))
 
         return {
             "available":    True,
@@ -572,7 +591,8 @@ class PredictionService:
         x = list(range(n))
         x_mean = (n - 1) / 2
         y_mean = sum(values) / n
-        slope_num = sum((x[i] - x_mean) * (values[i] - y_mean) for i in range(n))
+        slope_num = sum((x[i] - x_mean) * (values[i] - y_mean)
+                        for i in range(n))
         slope_den = sum((x[i] - x_mean) ** 2 for i in range(n))
         slope_per_interval = slope_num / slope_den if slope_den else 0.0
 
@@ -581,29 +601,30 @@ class PredictionService:
         trend_adjustment = slope_per_interval * intervals_per_hour * 1
 
         # ── 2. Weights based on data freshness ────────────────────
-        w_lstm  = max(0.5, 1.0 - (hours_elapsed / 12.0))
+        w_lstm = max(0.5, 1.0 - (hours_elapsed / 12.0))
         w_trend = 1.0 - w_lstm
 
         # Meal-context adjustment
         if meal_ctx:
             h_meal = meal_ctx["hours_ago"]
-            conf   = meal_ctx["confidence"]
+            conf = meal_ctx["confidence"]
             if h_meal < 2:
                 # Post-meal rise: LSTM captures this dynamic best
-                boost   = 0.2 if conf == "high" else 0.1
-                w_lstm  = min(0.85, w_lstm + boost)
+                boost = 0.2 if conf == "high" else 0.1
+                w_lstm = min(0.85, w_lstm + boost)
                 w_trend = 1.0 - w_lstm
-            print(f"[Ensemble] meal detected {h_meal:.1f}h ago ({conf}) → w_lstm={w_lstm:.2f}")
+            print(
+                f"[Ensemble] meal detected {h_meal:.1f}h ago ({conf}) → w_lstm={w_lstm:.2f}")
 
         # ── 3. Ensemble ────────────────────────────────────────────
         trend_predicted = current + trend_adjustment
         if pattern_avg is not None:
             # Blend: LSTM + trend + pattern
             w_pattern = w_trend * 0.5
-            w_slope   = w_trend * 0.5
-            ensemble  = (lstm_predicted * w_lstm
-                         + trend_predicted  * w_slope
-                         + pattern_avg      * w_pattern)
+            w_slope = w_trend * 0.5
+            ensemble = (lstm_predicted * w_lstm
+                        + trend_predicted * w_slope
+                        + pattern_avg * w_pattern)
         else:
             ensemble = lstm_predicted * w_lstm + trend_predicted * w_trend
 
@@ -686,7 +707,7 @@ class PredictionService:
         Each dose is clamped to 100 mg/dL individually before summing,
         and the total is clamped to 150 mg/dL as a physiological safety cap.
         """
-        now   = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         doses = health_service.get_doses_last_hours(user_id=user_id, hours=4)
         total = 0.0
         for dose in doses:
@@ -695,14 +716,16 @@ class PredictionService:
                 continue
             if hasattr(ts, "tzinfo") and ts.tzinfo is None:
                 ts = ts.replace(tzinfo=timezone.utc)
-            hours_ago   = (now - ts).total_seconds() / 3600.0
-            decay       = self._insulin_decay(hours_ago)
-            dose_effect = min(dose["units"] * isf * decay, 100.0)  # per-dose cap
-            total      += dose_effect
+            hours_ago = (now - ts).total_seconds() / 3600.0
+            decay = self._insulin_decay(hours_ago)
+            dose_effect = min(dose["units"] * isf *
+                              decay, 100.0)  # per-dose cap
+            total += dose_effect
 
         effect = min(total, 150.0)
         if effect > 0:
-            print(f"[Insulin] effect={effect:.1f} mg/dL (ISF={isf}, {len(doses)} doses)")
+            print(
+                f"[Insulin] effect={effect:.1f} mg/dL (ISF={isf}, {len(doses)} doses)")
         return effect
 
     # ==========================================
@@ -728,7 +751,7 @@ class PredictionService:
     def _call_groq(self, payload: dict) -> dict | None:
         try:
             body = json.dumps(payload).encode()
-            req  = urllib.request.Request(
+            req = urllib.request.Request(
                 GROQ_URL, data=body,
                 headers={
                     "Content-Type":  "application/json",
@@ -737,9 +760,11 @@ class PredictionService:
                 },
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
-                text = json.loads(resp.read().decode())["choices"][0]["message"]["content"].strip()
+                text = json.loads(resp.read().decode())[
+                    "choices"][0]["message"]["content"].strip()
                 if text.startswith("```"):
-                    text = text.split("```")[-2] if "```" in text[3:] else text[3:]
+                    text = text.split(
+                        "```")[-2] if "```" in text[3:] else text[3:]
                     text = text.lstrip("json").strip()
                 return json.loads(text)
         except urllib.error.HTTPError as e:
@@ -776,9 +801,9 @@ class PredictionService:
 
         ctx_lines = ""
         if lifestyle_ctx:
-            carbs   = lifestyle_ctx.get("carbs_2h", 0)
+            carbs = lifestyle_ctx.get("carbs_2h", 0)
             act_min = lifestyle_ctx.get("activity_2h", 0)
-            sleep   = lifestyle_ctx.get("sleep_hours", 7)
+            sleep = lifestyle_ctx.get("sleep_hours", 7)
             act_lvl = lifestyle_ctx.get("activity_level", "moderate")
             ctx_lines = f"""
 Lifestyle context (last 2 hours / baseline):
@@ -811,8 +836,8 @@ Prediction context:
         health_lines = ""
         if health_ctx:
             conditions = health_ctx.get("conditions", [])
-            basal      = health_ctx.get("basal_insulin")
-            bolus_now  = health_ctx.get("insulin_effect", 0)
+            basal = health_ctx.get("basal_insulin")
+            bolus_now = health_ctx.get("insulin_effect", 0)
             if conditions:
                 health_lines += f"\n- Chronic conditions: {', '.join(conditions)}"
             if basal:
@@ -829,6 +854,12 @@ Prediction context:
                 condition_rules += "\nHEART RULE: Patient has heart disease — avoid recommending intense physical activity."
             if "hypertension" in conds:
                 condition_rules += "\nBP RULE: Patient has hypertension — mention avoiding salty foods if relevant."
+            if "obesity" in conds:
+                condition_rules += "\nOBESITY RULE: Patient has obesity — encourage portion control, regular physical activity, and avoidance of sugary beverages."
+            if "dyslipidemia" in conds:
+                condition_rules += "\nDYSLIPIDEMIA RULE: Patient has dyslipidemia — encourage limiting saturated fats, fried foods, and processed foods."
+            if "neuropathy" in conds:
+                condition_rules += "\nNEUROPATHY RULE: Patient has neuropathy — encourage daily foot checks, proper footwear, and reporting any new numbness or wounds."
 
         prompt = f"""You are a medical assistant specialized in Type 2 diabetes patients.
 {lang_instruction}{alert_rule}{condition_rules}
@@ -932,7 +963,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         3. hours_elapsed >= 6              → mode = hybrid  (LSTM + stale warning)
         4. hours_elapsed < 6               → mode = real_time
         """
-        raw_readings     = self._fetch_readings(user_id)
+        raw_readings = self._fetch_readings(user_id)
         cleaned_readings = self._remove_outliers(raw_readings)
 
         # ── Insufficient data ─────────────────────────────────────────────
@@ -962,7 +993,8 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             if hasattr(last_ts, "tzinfo") and last_ts.tzinfo is None:
                 last_ts = last_ts.replace(tzinfo=timezone.utc)
             hours_elapsed = max(
-                0.0, (datetime.now(timezone.utc) - last_ts).total_seconds() / 3600
+                0.0, (datetime.now(timezone.utc) -
+                      last_ts).total_seconds() / 3600
             )
 
         # ── Determine prediction mode ─────────────────────────────────────
@@ -973,14 +1005,16 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         else:
             prediction_mode = "real_time"
 
-        print(f"[Prediction] mode={prediction_mode}, elapsed={hours_elapsed:.1f}h")
+        print(
+            f"[Prediction] mode={prediction_mode}, elapsed={hours_elapsed:.1f}h")
 
         # ══════════════════════════════════════════════════════════════════
         # MODE: PATTERN — data too old, show historical analysis only
         # ══════════════════════════════════════════════════════════════════
         if prediction_mode == "pattern":
-            pattern = self.calculate_pattern_prediction(user_id, lang, preloaded_readings=raw_readings)
-            e       = self._elapsed_str(hours_elapsed, lang)
+            pattern = self.calculate_pattern_prediction(
+                user_id, lang, preloaded_readings=raw_readings)
+            e = self._elapsed_str(hours_elapsed, lang)
 
             stale_msg = {
                 "ar": (
@@ -1014,10 +1048,11 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             # Groq personalised advice for pattern mode
             pattern_advice = None
             if pattern.get("available"):
-                _now    = datetime.now(timezone.utc)
-                h_now   = _now.hour
-                h_end   = (h_now + 1) % 24
-                hl      = {"ar": f"{h_now}:00 - {h_end}:00", "en": f"{h_now}:00–{h_end}:00", "he": f"{h_now}:00–{h_end}:00"}.get(lang, f"{h_now}:00–{h_end}:00")
+                _now = datetime.now(timezone.utc)
+                h_now = _now.hour
+                h_end = (h_now + 1) % 24
+                hl = {"ar": f"{h_now}:00 - {h_end}:00", "en": f"{h_now}:00–{h_end}:00",
+                      "he": f"{h_now}:00–{h_end}:00"}.get(lang, f"{h_now}:00–{h_end}:00")
                 pattern_advice = self._get_pattern_advice(
                     patient_name=patient_name,
                     typical_avg=pattern.get("typical_avg", 0),
@@ -1032,8 +1067,8 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
             # Send family alert if pattern shows risk (rate-limited)
             if pattern.get("available") and pattern.get("risk_level") in ("high", "low", "variable"):
-                risk    = pattern["risk_level"]
-                ak      = f"pattern_{risk}"
+                risk = pattern["risk_level"]
+                ak = f"pattern_{risk}"
                 if self._can_send_alert(user_id, ak):
                     try:
                         send_stale_pattern_alert(
@@ -1069,19 +1104,20 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         # ══════════════════════════════════════════════════════════════════
         # MODE: REAL_TIME or HYBRID — run LSTM
         # ══════════════════════════════════════════════════════════════════
-        profile  = self._fetch_lifestyle_profile(user_id)
-        log_ctx  = self._fetch_daily_log_context(user_id)
+        profile = self._fetch_lifestyle_profile(user_id)
+        log_ctx = self._fetch_daily_log_context(user_id)
         sleep_bl = profile["sleep_hours_baseline"]
 
         rows = []
         for r in cleaned_readings:
-            hour, c30, c2h, activity, sleep = self._context_for_reading(r, log_ctx, sleep_bl)
+            hour, c30, c2h, activity, sleep = self._context_for_reading(
+                r, log_ctx, sleep_bl)
             rows.append([r["value"], hour, c30, c2h, activity, sleep])
         feature_matrix = np.array(rows, dtype=np.float32)
 
-        raw_last         = raw_readings[-1]["value"] if raw_readings else None
+        raw_last = raw_readings[-1]["value"] if raw_readings else None
         last_was_outlier = raw_last is not None and raw_last != cleaned_readings[-1]["value"]
-        current          = raw_last if raw_last is not None else feature_matrix[-1, 0]
+        current = raw_last if raw_last is not None else feature_matrix[-1, 0]
 
         # Stale note for hybrid mode
         stale_note = None
@@ -1094,7 +1130,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             }
 
         # Virtual "now" seed row when lifestyle context changed
-        now         = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
         now_reading = {"measuredAt": now, "value": current}
         _, c30_now, c2h_now, act_now, sleep_now = self._context_for_reading(
             now_reading, log_ctx, sleep_bl
@@ -1104,21 +1140,23 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         )
         seed_matrix = None
         if c30_now != c30_last or c2h_now != c2h_last or act_now > act_last:
-            now_hour    = float(now.hour) + float(now.minute) / 60.0
+            now_hour = float(now.hour) + float(now.minute) / 60.0
             virtual_row = np.array(
                 [[current, now_hour, c30_now, c2h_now, act_now, sleep_now]],
                 dtype=np.float32,
             )
             seed_matrix = np.vstack([feature_matrix, virtual_row])
-            print(f"[Prediction] Virtual now-row injected: carbs_30={c30_now:.0f}g, act={act_now:.0f}min")
+            print(
+                f"[Prediction] Virtual now-row injected: carbs_30={c30_now:.0f}g, act={act_now:.0f}min")
 
-        predicted, sigma  = self._predict_lstm(
+        predicted, sigma = self._predict_lstm(
             feature_matrix, user_id=user_id, hours=hours, seed_override=seed_matrix
         )
 
         # Ensemble: blend LSTM with global trend + historical pattern
-        pattern_data = self.calculate_pattern_prediction(user_id, lang, preloaded_readings=raw_readings)
-        meal_ctx     = self._estimate_last_meal(raw_readings)
+        pattern_data = self.calculate_pattern_prediction(
+            user_id, lang, preloaded_readings=raw_readings)
+        meal_ctx = self._estimate_last_meal(raw_readings)
         predicted = self._ensemble_adjust(
             lstm_predicted=predicted,
             current=current,
@@ -1129,8 +1167,8 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         )
 
         # Insulin effect: subtract estimated bolus impact from prediction
-        health_info    = health_service.get_health_info(user_id)
-        isf            = health_info.insulin_sensitivity
+        health_info = health_service.get_health_info(user_id)
+        isf = health_info.insulin_sensitivity
         insulin_effect = self._compute_insulin_effect(user_id, isf)
         if insulin_effect > 0:
             # Trend-aware factor: scale insulin effect based on natural glucose direction
@@ -1145,22 +1183,24 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             else:
                 trend_factor = 1.0
             adjusted_effect = insulin_effect * trend_factor
-            predicted = float(np.clip(predicted - adjusted_effect, GLUCOSE_MIN, GLUCOSE_MAX))
+            predicted = float(
+                np.clip(predicted - adjusted_effect, GLUCOSE_MIN, GLUCOSE_MAX))
             print(f"[Insulin] trend={pre_insulin_trend} factor={trend_factor} "
                   f"adjusted={adjusted_effect:.1f} mg/dL")
 
-        trend              = self._calculate_trend(current, predicted)
-        prob_up, prob_down = self._calculate_probability(current, predicted, sigma)
-        probability        = (
-            prob_up   if trend == "rising"  else
+        trend = self._calculate_trend(current, predicted)
+        prob_up, prob_down = self._calculate_probability(
+            current, predicted, sigma)
+        probability = (
+            prob_up if trend == "rising" else
             prob_down if trend == "falling" else
             max(prob_up, prob_down)
         )
         patch_error = last_was_outlier
-        alert_type  = self._get_alert_type(current, predicted, patch_error)
+        alert_type = self._get_alert_type(current, predicted, patch_error)
 
         # Pattern comparison (internal — used for Groq context, not shown as card)
-        comparison         = self._compare_to_pattern(
+        comparison = self._compare_to_pattern(
             predicted, pattern_data.get("typical_avg")
         )
         pattern_risk_level = pattern_data.get("risk_level")
