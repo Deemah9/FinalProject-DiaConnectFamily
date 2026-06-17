@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from app.middleware.dependencies import get_current_user
 from app.services.notification_service import (
     get_notifications,
@@ -7,9 +8,25 @@ from app.services.notification_service import (
     get_unread_count,
     delete_notification,
     delete_all_notifications,
+    save_notification,
 )
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+class ReminderFiredPayload(BaseModel):
+    title: str
+    body: str
+
+
+@router.post("/reminder-fired")
+def log_reminder_fired(
+    payload: ReminderFiredPayload,
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = current_user["sub"]
+    save_notification(user_id, "custom_reminder", payload.title, payload.body)
+    return {"success": True}
 
 
 @router.get("/")

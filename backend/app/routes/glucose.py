@@ -1,5 +1,6 @@
 import csv
 import io
+import threading
 from datetime import datetime, timezone, timedelta
 
 from fastapi import (
@@ -11,6 +12,8 @@ from app.models.glucose_reading import (
 )
 from app.services.glucose_service import glucose_service
 from app.services.alert_service import alert_service
+from app.services.family_service import send_emergency_notification
+from app.config.firebase import db as _db
 
 
 router = APIRouter(prefix="/glucose", tags=["Glucose Readings"])
@@ -44,6 +47,22 @@ async def add_glucose_reading(
         reading_id=reading["id"],
         value=reading["value"]
     )
+
+    value = reading["value"]
+    if value > 180 or value < 70:
+        user_doc = _db.collection("users").document(user_id).get()
+        patient_name = user_id
+        if user_doc.exists:
+            udata = user_doc.to_dict()
+            first = udata.get("firstName", "")
+            last = udata.get("lastName", "")
+            patient_name = f"{first} {last}".strip() or user_id
+        threading.Thread(
+            target=send_emergency_notification,
+            args=(user_id, patient_name, value),
+            daemon=True,
+        ).start()
+
     return reading
 
 

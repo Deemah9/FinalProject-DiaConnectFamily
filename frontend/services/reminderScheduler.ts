@@ -2,13 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { getReminderSettingsRemote, saveReminderSettingsRemote } from "./api";
 
-const TIMES_KEY   = "custom_reminder_times";    // string[] of "HH:MM" (24h)
-const ENABLED_KEY = "custom_reminders_enabled"; // "true" | "false"
-const ID_PREFIX   = "dia_glucose_reminder_";
+const REMINDERS_KEY = "custom_reminders";       // JSON array of {name, time}
+const ENABLED_KEY   = "custom_reminders_enabled"; // "true" | "false"
+const ID_PREFIX     = "dia_glucose_reminder_";
 
-export async function getReminderTimes(): Promise<string[]> {
-  const val = await AsyncStorage.getItem(TIMES_KEY);
-  return val ? JSON.parse(val) : [];
+export interface Reminder {
+  name: string;
+  time: string; // "HH:MM" 24h
+}
+
+export async function getReminders(): Promise<Reminder[]> {
+  const val = await AsyncStorage.getItem(REMINDERS_KEY);
+  if (!val) return [];
+  try { return JSON.parse(val); } catch { return []; }
 }
 
 export async function getRemindersEnabled(): Promise<boolean> {
@@ -17,18 +23,18 @@ export async function getRemindersEnabled(): Promise<boolean> {
 }
 
 /** Fetch from backend, write to AsyncStorage, fall back to local on error */
-export async function loadReminderSettings(): Promise<{ times: string[]; enabled: boolean }> {
+export async function loadReminderSettings(): Promise<{ reminders: Reminder[]; enabled: boolean }> {
   try {
     const remote = await getReminderSettingsRemote();
-    const times: string[] = remote?.times ?? [];
+    const reminders: Reminder[] = remote?.reminders ?? [];
     const enabled: boolean = remote?.enabled ?? true;
-    await AsyncStorage.setItem(TIMES_KEY, JSON.stringify(times));
+    await AsyncStorage.setItem(REMINDERS_KEY, JSON.stringify(reminders));
     await AsyncStorage.setItem(ENABLED_KEY, String(enabled));
-    return { times, enabled };
+    return { reminders, enabled };
   } catch {
     return {
-      times: await getReminderTimes(),
-      enabled: await getRemindersEnabled(),
+      reminders: await getReminders(),
+      enabled:   await getRemindersEnabled(),
     };
   }
 }
@@ -45,22 +51,23 @@ async function cancelAll() {
   } catch { /* web may not support this */ }
 }
 
-/** Schedule a daily local notification for each "HH:MM" time */
+/** Schedule a daily local notification for each reminder, using its name as title */
 export async function applyReminderSchedule(
-  times: string[],
+  reminders: Reminder[],
   enabled: boolean,
-  title: string,
-  body: string
+  defaultTitle: string,
+  defaultBody: string
 ): Promise<void> {
   await cancelAll();
-  if (!enabled || times.length === 0) return;
+  if (!enabled || reminders.length === 0) return;
 
-  for (const time of times) {
-    const [h, m] = time.split(":").map(Number);
+  for (const reminder of reminders) {
+    const [h, m] = reminder.time.split(":").map(Number);
+    const title = reminder.name.trim() || defaultTitle;
     try {
       await Notifications.scheduleNotificationAsync({
-        identifier: `${ID_PREFIX}${time}`,
-        content: { title, body, sound: true },
+        identifier: `${ID_PREFIX}${reminder.time}`,
+        content: { title, body: defaultBody, sound: true },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
           hour: h,
@@ -75,16 +82,16 @@ export async function applyReminderSchedule(
 
 /** Save preferences locally, reschedule notifications, and sync to backend */
 export async function saveReminderPreferences(
-  times: string[],
+  reminders: Reminder[],
   enabled: boolean,
-  title: string,
-  body: string
+  defaultTitle: string,
+  defaultBody: string
 ): Promise<void> {
-  await AsyncStorage.setItem(TIMES_KEY, JSON.stringify(times));
+  await AsyncStorage.setItem(REMINDERS_KEY, JSON.stringify(reminders));
   await AsyncStorage.setItem(ENABLED_KEY, String(enabled));
-  await applyReminderSchedule(times, enabled, title, body);
+  await applyReminderSchedule(reminders, enabled, defaultTitle, defaultBody);
   try {
-    await saveReminderSettingsRemote(enabled, times);
+    await saveReminderSettingsRemote(enabled, reminders);
   } catch { /* local schedule is set — backend sync is best-effort */ }
 }
 

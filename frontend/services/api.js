@@ -259,6 +259,8 @@ export const markAllNotificationsRead = () => request("PATCH", "/notifications/r
 export const markNotificationRead = (id) => request("PATCH", `/notifications/${id}/read`);
 export const deleteNotification = (id) => request("DELETE", `/notifications/${id}`);
 export const deleteAllNotifications = () => request("DELETE", "/notifications/clear-all");
+export const logReminderFired = (title, body) =>
+  request("POST", "/notifications/reminder-fired", { title, body });
 
 // ==========================================
 // Health Info + Insulin APIs
@@ -286,7 +288,17 @@ export const saveEmergencyContacts = (contacts) =>
 export const getReminderSettingsRemote = () =>
   request("GET", "/users/me/reminders");
 
-export const saveReminderSettingsRemote = (enabled, times) =>
-  request("PUT", "/users/me/reminders", { enabled, times });
+export const saveReminderSettingsRemote = (enabled, reminders) =>
+  request("PUT", "/users/me/reminders", { enabled, reminders });
 
 export const deleteInsulinDose = (id) => request("DELETE", `/health/insulin/${id}`);
+
+// ==========================================
+// Preferences APIs
+// ==========================================
+
+export const getPreferences = () =>
+  request("GET", "/users/me/preferences");
+
+export const savePreferences = (prefs) =>
+  request("PUT", "/users/me/preferences", prefs);

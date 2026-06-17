@@ -526,6 +526,20 @@ const resources = {
       notif_glucose_high_body: "Glucose is dangerously HIGH: {{value}} mg/dL. Please check immediately.",
       notif_glucose_reminder_title: "Glucose Reminder",
       notif_glucose_reminder_body: "Hi {{name}}, you haven't logged a glucose reading in over {{hours}} hours. Please check now.",
+      // Prediction alerts — patient
+      notif_prediction_high_patient_title: "⬆️ High Glucose Prediction",
+      notif_prediction_high_patient_body: "Your glucose is currently {{current}} mg/dL and may rise to {{predicted}} mg/dL within {{hours}}h.",
+      notif_prediction_low_patient_title: "⬇️ Low Glucose Prediction",
+      notif_prediction_low_patient_body: "Your glucose is currently {{current}} mg/dL and may drop to {{predicted}} mg/dL within {{hours}}h.",
+      notif_prediction_sensor_patient_title: "⚠️ Sensor Reading Warning",
+      notif_prediction_sensor_patient_body: "A suspicious glucose reading was detected. Please check your sensor.",
+      // Prediction alerts — family
+      notif_prediction_high_family_title: "⬆️ High Glucose Alert",
+      notif_prediction_high_family_body: "{{name}}'s glucose may rise to {{predicted}} mg/dL in {{hours}}h (now {{current}}).",
+      notif_prediction_low_family_title: "⬇️ Low Glucose Alert",
+      notif_prediction_low_family_body: "{{name}}'s glucose may drop to {{predicted}} mg/dL in {{hours}}h (now {{current}}).",
+      notif_prediction_sensor_family_title: "⚠️ Sensor Error",
+      notif_prediction_sensor_family_body: "A suspicious reading was detected for {{name}}.",
 
       // Delete
       deleteReading: "Delete Reading",
@@ -1153,6 +1167,20 @@ const resources = {
       notif_glucose_high_body: "مستوى السكر مرتفع جداً: {{value}} mg/dL. يرجى اتخاذ الإجراء اللازم فوراً.",
       notif_glucose_reminder_title: "تذكير قياس السكر",
       notif_glucose_reminder_body: "مرحباً {{name}}، لم تقم بتسجيل قراءة سكر منذ أكثر من {{hours}} ساعات. يرجى القياس الآن.",
+      // Prediction alerts — patient
+      notif_prediction_high_patient_title: "⬆️ توقع ارتفاع السكر",
+      notif_prediction_high_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_low_patient_title: "⬇️ توقع انخفاض السكر",
+      notif_prediction_low_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_sensor_patient_title: "⚠️ تحذير قراءة المستشعر",
+      notif_prediction_sensor_patient_body: "تم رصد قراءة سكر مشبوهة. يرجى التحقق من المستشعر.",
+      // Prediction alerts — family
+      notif_prediction_high_family_title: "⬆️ توقع ارتفاع سكر المريض",
+      notif_prediction_high_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_low_family_title: "⬇️ توقع انخفاض سكر المريض",
+      notif_prediction_low_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_sensor_family_title: "⚠️ خطأ في المستشعر",
+      notif_prediction_sensor_family_body: "تم رصد قراءة مشبوهة للمريض {{name}}.",
 
       // Delete
       deleteReading: "حذف القراءة",
@@ -1780,6 +1808,20 @@ const resources = {
       notif_glucose_high_body: "רמת הסוכר גבוהה מסוכנת: {{value}} mg/dL. אנא בדוק מיד.",
       notif_glucose_reminder_title: "תזכורת סוכר",
       notif_glucose_reminder_body: "שלום {{name}}, לא רשמת קריאת סוכר מזה יותר מ-{{hours}} שעות. אנא בדוק עכשיו.",
+      // Prediction alerts — patient
+      notif_prediction_high_patient_title: "⬆️ תחזית סוכר גבוה",
+      notif_prediction_high_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_low_patient_title: "⬇️ תחזית סוכר נמוך",
+      notif_prediction_low_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_sensor_patient_title: "⚠️ אזהרת חיישן",
+      notif_prediction_sensor_patient_body: "זוהתה קריאת גלוקוז חשודה. אנא בדוק את החיישן שלך.",
+      // Prediction alerts — family
+      notif_prediction_high_family_title: "⬆️ התראת סוכר גבוה",
+      notif_prediction_high_family_body: "הסוכר של {{name}} עשוי לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש' (כעת {{current}}).",
+      notif_prediction_low_family_title: "⬇️ התראת סוכר נמוך",
+      notif_prediction_low_family_body: "הסוכר של {{name}} עשוי לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש' (כעת {{current}}).",
+      notif_prediction_sensor_family_title: "⚠️ שגיאת חיישן",
+      notif_prediction_sensor_family_body: "זוהתה קריאה חשודה עבור {{name}}.",
 
       // Delete
       deleteReading: "מחק קריאה",

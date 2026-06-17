@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import CustomSwitch from "@/src/components/CustomSwitch";
@@ -16,6 +17,7 @@ import CustomSwitch from "@/src/components/CustomSwitch";
 import ScrollTimePicker from "@/components/ScrollTimePicker";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import {
+  Reminder,
   formatTime,
   loadReminderSettings,
   saveReminderPreferences,
@@ -32,29 +34,30 @@ export default function ReminderSettingsScreen() {
   const styles = createStyles(theme);
 
   const [enabled, setEnabled] = useState(false);
-  const [times, setTimes] = useState<string[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerHour, setPickerHour] = useState("08");
   const [pickerMin, setPickerMin] = useState("00");
   const [pickerPM, setPickerPM] = useState(false);
-  const [deleteConfirmTime, setDeleteConfirmTime] = useState<string | null>(null);
+  const [pickerName, setPickerName] = useState("");
+  const [deleteConfirmReminder, setDeleteConfirmReminder] = useState<Reminder | null>(null);
 
   useEffect(() => {
-    loadReminderSettings().then(({ times: savedTimes, enabled: savedEnabled }) => {
-      setTimes(savedTimes);
+    loadReminderSettings().then(({ reminders: saved, enabled: savedEnabled }) => {
+      setReminders(saved);
       setEnabled(savedEnabled);
       setLoading(false);
     });
   }, []);
 
   const persist = useCallback(
-    async (newTimes: string[], newEnabled: boolean) => {
-      setTimes(newTimes);
+    async (newReminders: Reminder[], newEnabled: boolean) => {
+      setReminders(newReminders);
       setEnabled(newEnabled);
       await saveReminderPreferences(
-        newTimes,
+        newReminders,
         newEnabled,
         t("reminderNotifTitle", "Glucose Reminder"),
         t("reminderNotifBody", "Time to measure your blood glucose 🩸")
@@ -71,33 +74,40 @@ export default function ReminderSettingsScreen() {
 
   const handleToggleEnabled = async (val: boolean) => {
     if (val) await requestPermission();
-    await persist(times, val);
+    await persist(reminders, val);
   };
 
   const openPicker = () => {
     setPickerHour("08");
     setPickerMin("00");
     setPickerPM(false);
+    setPickerName("");
     setPickerOpen(true);
   };
 
-  const handleAddTime = async () => {
+  const handleAddReminder = async () => {
     const time24 = to24h(pickerHour, pickerMin, pickerPM);
     setPickerOpen(false);
-    if (times.includes(time24)) return;
-    const sorted = [...times, time24].sort();
-    // Enable automatically when adding first reminder
-    await persist(sorted, sorted.length > 0 ? true : enabled);
+    // Prevent exact duplicate (same name + same time)
+    if (reminders.some((r) => r.time === time24 && r.name === pickerName.trim())) return;
+    const newReminder: Reminder = { name: pickerName.trim(), time: time24 };
+    const sorted = [...reminders, newReminder].sort((a, b) => a.time.localeCompare(b.time));
+    await persist(sorted, true);
   };
 
-  const handleDeleteTime = async () => {
-    if (!deleteConfirmTime) return;
-    const newTimes = times.filter((v) => v !== deleteConfirmTime);
-    setDeleteConfirmTime(null);
-    await persist(newTimes, enabled);
+  const handleDeleteReminder = async () => {
+    if (!deleteConfirmReminder) return;
+    const updated = reminders.filter(
+      (r) => !(r.time === deleteConfirmReminder.time && r.name === deleteConfirmReminder.name)
+    );
+    setDeleteConfirmReminder(null);
+    await persist(updated, enabled);
   };
 
   if (loading) return null;
+
+  const amLabel = t("am", "AM");
+  const pmLabel = t("pm", "PM");
 
   return (
     <View style={styles.root}>
@@ -134,30 +144,37 @@ export default function ReminderSettingsScreen() {
           </View>
         </View>
 
-        {/* Times section */}
+        {/* Reminders list */}
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>{t("reminderTimesSection")}</Text>
 
-          {times.length === 0 ? (
+          {reminders.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="time-outline" size={36} color={theme.inactive} />
               <Text style={styles.emptyText}>{t("noRemindersAdded")}</Text>
             </View>
           ) : (
             <View style={styles.timesList}>
-              {times.map((time) => (
-                <View key={time} style={styles.timeRow}>
+              {reminders.map((reminder, idx) => (
+                <View key={`${reminder.time}-${idx}`} style={styles.timeRow}>
                   <View style={styles.timeLeft}>
                     <Ionicons name="time-outline" size={18} color={PRIMARY} />
-                    <Text style={styles.timeText}>
-                      {formatTime(time, t("am", "AM"), t("pm", "PM"))}
-                    </Text>
+                    <View style={styles.timeInfo}>
+                      {reminder.name ? (
+                        <Text style={styles.reminderName}>{reminder.name}</Text>
+                      ) : null}
+                      <Text style={styles.timeText}>
+                        {formatTime(reminder.time, amLabel, pmLabel)}
+                      </Text>
+                    </View>
                   </View>
                   <Pressable
                     style={styles.deleteBtn}
-                    onPress={() => setDeleteConfirmTime(time)}
+                    onPress={() => setDeleteConfirmReminder(reminder)}
                     hitSlop={10}
-                    accessibilityLabel={t("aria.deleteTime", { time: formatTime(time, t("am", "AM"), t("pm", "PM")) })}
+                    accessibilityLabel={t("aria.deleteTime", {
+                      time: formatTime(reminder.time, amLabel, pmLabel),
+                    })}
                     accessibilityRole="button"
                   >
                     <Ionicons name="trash-outline" size={16} color="#D32F2F" />
@@ -167,7 +184,7 @@ export default function ReminderSettingsScreen() {
             </View>
           )}
 
-          {times.length < MAX_REMINDERS ? (
+          {reminders.length < MAX_REMINDERS ? (
             <Pressable
               style={styles.addBtn}
               onPress={openPicker}
@@ -194,10 +211,10 @@ export default function ReminderSettingsScreen() {
 
       {/* ── Delete Confirmation Modal ── */}
       <Modal
-        visible={deleteConfirmTime !== null}
+        visible={deleteConfirmReminder !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setDeleteConfirmTime(null)}
+        onRequestClose={() => setDeleteConfirmReminder(null)}
       >
         <View style={styles.confirmBackdrop}>
           <View style={styles.confirmBox}>
@@ -208,18 +225,18 @@ export default function ReminderSettingsScreen() {
               {t("deleteReminderTitle", "Remove Reminder")}
             </Text>
             <Text style={styles.confirmMsg}>
-              {deleteConfirmTime
+              {deleteConfirmReminder
                 ? t("deleteReminderConfirm", {
-                    time: formatTime(deleteConfirmTime, t("am", "AM"), t("pm", "PM")),
-                    defaultValue: `Remove reminder at ${formatTime(deleteConfirmTime, t("am", "AM"), t("pm", "PM"))}?`,
+                    time: formatTime(deleteConfirmReminder.time, amLabel, pmLabel),
+                    defaultValue: `Remove reminder at ${formatTime(deleteConfirmReminder.time, amLabel, pmLabel)}?`,
                   })
                 : ""}
             </Text>
             <View style={styles.confirmBtns}>
-              <Pressable style={styles.confirmCancelBtn} onPress={() => setDeleteConfirmTime(null)}>
+              <Pressable style={styles.confirmCancelBtn} onPress={() => setDeleteConfirmReminder(null)}>
                 <Text style={styles.confirmCancelText}>{t("cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.confirmDeleteBtn} onPress={handleDeleteTime}>
+              <Pressable style={styles.confirmDeleteBtn} onPress={handleDeleteReminder}>
                 <Text style={styles.confirmDeleteText}>{t("delete", "Remove")}</Text>
               </Pressable>
             </View>
@@ -227,7 +244,7 @@ export default function ReminderSettingsScreen() {
         </View>
       </Modal>
 
-      {/* Time picker bottom sheet modal */}
+      {/* ── Time + Name picker modal ── */}
       <Modal
         visible={pickerOpen}
         transparent
@@ -239,7 +256,21 @@ export default function ReminderSettingsScreen() {
           <Pressable style={{ flex: 1 }} onPress={() => setPickerOpen(false)} />
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>{t("selectTime")}</Text>
+            <Text style={styles.modalTitle}>{t("addReminderTime")}</Text>
+
+            {/* Name input */}
+            <View style={styles.nameInputWrap}>
+              <Ionicons name="pencil-outline" size={16} color={theme.textSecondary} style={styles.nameIcon} />
+              <TextInput
+                style={styles.nameInput}
+                placeholder={t("reminderNamePlaceholder", "e.g. Insulin dose")}
+                placeholderTextColor={theme.inactive}
+                value={pickerName}
+                onChangeText={setPickerName}
+                maxLength={40}
+                returnKeyType="done"
+              />
+            </View>
 
             <ScrollTimePicker
               label=""
@@ -258,7 +289,7 @@ export default function ReminderSettingsScreen() {
               >
                 <Text style={styles.modalCancelText}>{t("cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.modalSave} onPress={handleAddTime}>
+              <Pressable style={styles.modalSave} onPress={handleAddReminder}>
                 <Text style={styles.modalSaveText}>{t("add")}</Text>
               </Pressable>
             </View>
@@ -343,13 +374,20 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       borderWidth: 1,
       borderColor: theme.bgSoft,
     },
-    timeLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+    timeLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+    timeInfo: { flex: 1 },
+    reminderName: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 2,
+    },
     timeText: {
       fontSize: 17,
       fontWeight: "700",
       color: PRIMARY,
-      direction: "ltr",
-    } as any,
+      writingDirection: "ltr",
+    },
     deleteBtn: {
       width: 34,
       height: 34,
@@ -467,6 +505,25 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       color: theme.text,
       textAlign: "center",
     },
+
+    // Name input inside picker modal
+    nameInputWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: theme.bg,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 12,
+      height: 48,
+    },
+    nameIcon: { marginRight: 8 },
+    nameInput: {
+      flex: 1,
+      fontSize: 15,
+      color: theme.text,
+    },
+
     modalActions: { flexDirection: "row", gap: 12 },
     modalCancel: {
       flex: 1,
