@@ -25,7 +25,6 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Alert,
   Dimensions,
   I18nManager,
   ActivityIndicator,
@@ -119,6 +118,7 @@ export default function HomeScreen() {
   const [showReminder, setShowReminder] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importDialog, setImportDialog] = useState<{ title: string; message: string; isSuccess?: boolean } | null>(null);
   const pickingRef = useRef(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -360,12 +360,30 @@ export default function HomeScreen() {
         copyToCacheDirectory: true,
       });
 
-      setShowAddModal(false);
-      if (result.canceled) return;
+      if (result.canceled) {
+        setShowAddModal(false);
+        return;
+      }
 
       const asset = result.assets?.[0];
-      if (!asset) return;
+      if (!asset) {
+        setShowAddModal(false);
+        return;
+      }
 
+      const fileName = (asset.name ?? "").toLowerCase();
+      if (!fileName.endsWith(".csv")) {
+        setShowAddModal(false);
+        setImportDialog({ title: t("importCSV"), message: t("importInvalidFile") });
+        return;
+      }
+      if (asset.size && asset.size > 5 * 1024 * 1024) {
+        setShowAddModal(false);
+        setImportDialog({ title: t("importCSV"), message: t("importFileTooLarge") });
+        return;
+      }
+
+      setShowAddModal(false);
       setImporting(true);
       // On web, asset.file is the native File object; on native, use { uri, name, type }
       const filePayload = (asset as any).file ?? {
@@ -379,7 +397,7 @@ export default function HomeScreen() {
         asset.mimeType ?? "text/csv",
       );
       const freshReadings = await loadGlucose();
-      setShowReminder(false); // don't show stale reminder right after an import
+      setShowReminder(false);
       loadPrediction();
 
       // Navigate chart to the date of the most recent imported reading
@@ -397,17 +415,26 @@ export default function HomeScreen() {
         }
       }
 
-      if (data.imported_count === 0 && data.skipped_count > 0) {
-        Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
+      if (data.imported_count === 0 && data.skipped_count === 0) {
+        setImportDialog({ title: t("importCSV"), message: t("importInvalidFile") });
+      } else if (data.imported_count === 0 && data.skipped_count > 0) {
+        setImportDialog({ title: t("importAlreadyTitle"), message: t("importAlreadyMessage") });
       } else {
-        Alert.alert(
-          t("importSuccessTitle"),
-          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-          [{ text: t("close"), onPress: () => router.push("/glucose-history" as any) }],
-        );
+        setImportDialog({
+          title: t("importSuccessTitle"),
+          message: `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          isSuccess: true,
+        });
       }
     } catch (e: any) {
-      Alert.alert(t("importCSV"), e?.message || t("importFailed"));
+      const msg: string = e?.message || "";
+      const translated =
+        msg.includes("Only CSV") || msg.includes("Invalid file type")
+          ? t("importInvalidFile")
+          : msg.includes("too large") || msg.includes("413")
+            ? t("importFileTooLarge")
+            : t("importFailed");
+      setImportDialog({ title: t("importCSV"), message: translated });
     } finally {
       setImporting(false);
       pickingRef.current = false;
@@ -428,6 +455,26 @@ export default function HomeScreen() {
           <View style={styles.uploadCard}>
             <ActivityIndicator size="large" color="#1A6FA8" />
             <Text style={styles.uploadText}>{t("importing")}</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Import result dialog */}
+      <Modal visible={!!importDialog} transparent animationType="fade">
+        <View style={styles.uploadOverlay}>
+          <View style={styles.importDialogCard}>
+            <Text style={styles.importDialogTitle}>{importDialog?.title}</Text>
+            <Text style={styles.importDialogMessage}>{importDialog?.message}</Text>
+            <Pressable
+              style={[styles.importDialogBtn, importDialog?.isSuccess && styles.importDialogBtnSuccess]}
+              onPress={() => {
+                const wasSuccess = importDialog?.isSuccess;
+                setImportDialog(null);
+                if (wasSuccess) router.push("/glucose-history" as any);
+              }}
+            >
+              <Text style={styles.importDialogBtnText}>{t("close")}</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -1923,5 +1970,46 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     welcomeSecondaryText: { fontSize: 15, fontWeight: "700", color: "#1A6FA8" },
     welcomeSkipBtn: { paddingVertical: 8 },
     welcomeSkipText: { fontSize: 13, color: theme.inactive, fontWeight: "500" },
+
+    importDialogCard: {
+      backgroundColor: theme.bgCard,
+      borderRadius: 16,
+      padding: 24,
+      marginHorizontal: 32,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    importDialogTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 10,
+      textAlign: "center",
+    },
+    importDialogMessage: {
+      fontSize: 14,
+      color: theme.textMuted,
+      textAlign: "center",
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    importDialogBtn: {
+      backgroundColor: "#EF4444",
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 32,
+    },
+    importDialogBtnSuccess: {
+      backgroundColor: "#1A6FA8",
+    },
+    importDialogBtnText: {
+      color: "#fff",
+      fontWeight: "600",
+      fontSize: 15,
+    },
   });
 }

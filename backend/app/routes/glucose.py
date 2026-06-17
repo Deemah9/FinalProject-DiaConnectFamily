@@ -188,7 +188,29 @@ async def import_glucose_csv(
     user_id = current_user["sub"]
     cutoff = datetime.now(timezone.utc) - timedelta(days=90)
 
-    raw = await file.read()
+    # ── File validation ───────────────────────────────────────────
+    filename = (file.filename or "").lower()
+    if not filename.endswith(".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only CSV files are accepted.",
+        )
+
+    allowed_types = {"text/csv", "application/vnd.ms-excel", "text/plain", "application/octet-stream"}
+    if file.content_type and file.content_type.split(";")[0].strip() not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Please upload a CSV file.",
+        )
+
+    MAX_CSV_BYTES = 5 * 1024 * 1024  # 5 MB
+    raw = await file.read(MAX_CSV_BYTES + 1)
+    if len(raw) > MAX_CSV_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large. Maximum allowed size is 5 MB.",
+        )
+
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:

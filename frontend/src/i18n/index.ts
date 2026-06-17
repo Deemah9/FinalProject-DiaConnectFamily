@@ -396,6 +396,8 @@ const resources = {
       importAlreadyTitle: "File Already Imported",
       importAlreadyMessage: "All readings in this file already exist in your records.",
       importFailed: "Import failed. Please try again.",
+      importInvalidFile: "Invalid file format. Please upload a FreeStyle LibreLink CSV file (.csv).",
+      importFileTooLarge: "File is too large. Maximum allowed size is 5 MB.",
       importNoFile: "No file selected",
 
       // Estimated A1C
@@ -1023,6 +1025,8 @@ const resources = {
       importAlreadyTitle: "تم إضافة الملف مسبقاً",
       importAlreadyMessage: "جميع القراءات في هذا الملف موجودة بالفعل في سجلاتك.",
       importFailed: "فشل الاستيراد. حاول مجدداً.",
+      importInvalidFile: "صيغة الملف غير صحيحة. يرجى رفع ملف CSV من تطبيق FreeStyle LibreLink (.csv).",
+      importFileTooLarge: "الملف كبير جداً. الحد الأقصى المسموح به هو 5 ميغابايت.",
       importNoFile: "لم يتم اختيار ملف",
 
       // Estimated A1C
@@ -1650,6 +1654,8 @@ const resources = {
       importAlreadyTitle: "הקובץ כבר יובא",
       importAlreadyMessage: "כל הקריאות בקובץ זה כבר קיימות ברשומות שלך.",
       importFailed: "הייבוא נכשל. נסה שוב.",
+      importInvalidFile: "פורמט קובץ לא חוקי. אנא העלה קובץ CSV מ-FreeStyle LibreLink (.csv).",
+      importFileTooLarge: "הקובץ גדול מדי. הגודל המרבי המותר הוא 5 MB.",
       importNoFile: "לא נבחר קובץ",
 
       // Estimated A1C
