@@ -517,8 +517,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       width: 58, height: 58, borderRadius: 29,
       backgroundColor: "#1A6FA8",
       alignItems: "center", justifyContent: "center",
-      shadowColor: "#1A6FA8", shadowOpacity: 0.4,
-      shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+      boxShadow: "0px 4px 12px rgba(26,111,168,0.4)",
     },
 
     errorBox: {
@@ -532,8 +531,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.bgCard, borderRadius: 24,
       borderWidth: 1, borderColor: theme.bgSoft,
       padding: 20, marginBottom: 18,
-      shadowColor: theme.shadow, shadowOpacity: 0.05,
-      shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+      boxShadow: "0px 3px 8px rgba(0,0,0,0.05)",
     },
     cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
     cardTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
@@ -557,7 +555,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     calBox: {
       backgroundColor: theme.bgCard, borderRadius: 20,
       padding: 16, width: SCREEN_WIDTH - 48,
-      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+      boxShadow: "0px 0px 12px rgba(0,0,0,0.15)",
     },
     calCloseBtn: {
       marginTop: 12, alignItems: "center",
@@ -608,7 +606,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.bgCard, borderRadius: 20,
       paddingVertical: 32, paddingHorizontal: 48,
       alignItems: "center", gap: 16,
-      shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 16, elevation: 12,
+      boxShadow: "0px 0px 16px rgba(0,0,0,0.2)",
     },
     uploadText: {
       color: theme.text, fontSize: 15, fontWeight: "600",
@@ -620,7 +618,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     modalBox: {
       backgroundColor: theme.bgCard, borderRadius: 24,
       padding: 24, width: "100%", alignItems: "center",
-      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+      boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
     },
     modalIconWrap: {
       width: 56, height: 56, borderRadius: 28,
@@ -654,7 +652,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     addModalSheet: {
       backgroundColor: theme.bgCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
       paddingHorizontal: 20, paddingBottom: 28, paddingTop: 10,
-      shadowColor: theme.shadow, shadowOpacity: 0.18, shadowRadius: 24, elevation: 12,
+      boxShadow: "0px 0px 24px rgba(0,0,0,0.18)",
     },
     addModalHandle: {
       width: 44, height: 5, borderRadius: 3,

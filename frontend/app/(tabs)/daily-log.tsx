@@ -380,8 +380,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       flex: 1, marginLeft: 12, marginBottom: 16,
       backgroundColor: theme.bgCard, borderRadius: 16,
       borderLeftWidth: 3, padding: 14,
-      shadowColor: theme.shadow, shadowOpacity: 0.04,
-      shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+      boxShadow: "0px 2px 6px rgba(0,0,0,0.04)",
     },
     timelineCardTop: {
       flexDirection: "row", alignItems: "center",
@@ -397,8 +396,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       width: 58, height: 58, borderRadius: 29,
       backgroundColor: "#1A6FA8",
       alignItems: "center", justifyContent: "center",
-      shadowColor: "#1A6FA8", shadowOpacity: 0.4,
-      shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+      boxShadow: "0px 4px 12px rgba(26,111,168,0.4)",
     },
 
     fabBackdrop: {
@@ -429,7 +427,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     modalBox: {
       backgroundColor: theme.bgCard, borderRadius: 24,
       padding: 24, width: "100%", alignItems: "center",
-      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+      boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
     },
     modalIconWrap: {
       width: 56, height: 56, borderRadius: 28,

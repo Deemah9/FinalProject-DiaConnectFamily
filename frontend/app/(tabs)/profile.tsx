@@ -680,11 +680,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       paddingVertical: 16,
       paddingHorizontal: 20,
       marginBottom: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
+      boxShadow: "0px 3px 8px rgba(0,0,0,0.04)",
     },
 
     avatarWrap: {
@@ -753,11 +749,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       borderColor: theme.border,
       padding: 20,
       marginBottom: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
+      boxShadow: "0px 3px 8px rgba(0,0,0,0.04)",
     },
 
     cardHeader: {
@@ -921,11 +913,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: PRIMARY,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
+      boxShadow: "0px 2px 6px rgba(0,0,0,0.05)",
     },
 
     saveBtnText: {
@@ -985,10 +973,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       padding: 28,
       width: "100%",
       alignItems: "center",
-      shadowColor: "#000",
-      shadowOpacity: 0.2,
-      shadowRadius: 24,
-      elevation: 12,
+      boxShadow: "0px 0px 24px rgba(0,0,0,0.2)",
     },
     deleteModalIcon: {
       width: 68,

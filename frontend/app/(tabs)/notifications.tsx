@@ -402,11 +402,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.bgCard,
       borderRadius: 18,
       overflow: "hidden",
-      elevation: 2,
-      shadowColor: theme.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
+      boxShadow: "0px 2px 6px rgba(0,0,0,0.06)",
     },
     cardBar: { width: 4 },
     iconWrap: {

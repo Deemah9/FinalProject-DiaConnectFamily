@@ -115,7 +115,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       position: "absolute", top: 96, right: 20,
       backgroundColor: theme.bgCard,
       borderRadius: 14, borderWidth: 1, borderColor: theme.bgSoft,
-      shadowColor: theme.shadow, shadowOpacity: 0.12, shadowRadius: 12, elevation: 8,
+      boxShadow: "0px 0px 12px rgba(0,0,0,0.12)",
       minWidth: 150, overflow: "hidden",
     },
     langOption: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
