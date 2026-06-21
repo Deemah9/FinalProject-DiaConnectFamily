@@ -8,6 +8,11 @@ import {
   getProfile,
 } from "../services/api";
 import { setAppLanguage } from "../src/i18n";
+import {
+  refreshPreferencesFromFirebase,
+  resetPreferencesToDefaults,
+  clearPreferencesFromStorage,
+} from "../services/preferencesSync";
 
 // ==========================================
 // Types
@@ -96,6 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // if profile fetch fails, send to onboarding to be safe
     }
 
+    // Load this user's saved preferences from Firestore
+    refreshPreferencesFromFirebase().catch(() => {});
+
     if (role === "family_member") {
       router.replace("/family-home" as any);
     } else {
@@ -112,6 +120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiLogout();
     } finally {
+      // Reset all UI preferences to defaults and clear local storage
+      resetPreferencesToDefaults();
+      await clearPreferencesFromStorage();
       setUser(null);
       router.replace("/welcome");
     }

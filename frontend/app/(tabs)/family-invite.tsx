@@ -230,10 +230,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     marginTop: 24,
     padding: 24,
     alignItems: "center",
-    shadowColor: theme.shadow,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    boxShadow: "0px 0px 8px rgba(0,0,0,0.06)",
   },
   cardTitle: { fontSize: 16, fontWeight: "600", color: theme.textSecondary, marginBottom: 20 },
   codeRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
@@ -278,7 +275,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     backgroundColor: theme.bgCard,
     borderRadius: 20,
     padding: 20,
-    shadowColor: theme.shadow, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    boxShadow: "0px 0px 8px rgba(0,0,0,0.06)",
   },
   membersSectionHeader: {
     flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16,
@@ -315,7 +312,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   modalBox: {
     backgroundColor: theme.bgCard, borderRadius: 24,
     padding: 24, width: "100%", alignItems: "center",
-    shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
   },
   modalIconWrap: {
     width: 56, height: 56, borderRadius: 28,

@@ -187,10 +187,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    shadowColor: theme.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    boxShadow: "0px 0px 6px rgba(0,0,0,0.05)",
   },
   avatar: {
     width: 48,
@@ -229,7 +226,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   modalBox: {
     backgroundColor: theme.bgCard, borderRadius: 24,
     padding: 24, width: "100%", alignItems: "center",
-    shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+    boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
   },
   modalIconWrap: {
     width: 56, height: 56, borderRadius: 28,

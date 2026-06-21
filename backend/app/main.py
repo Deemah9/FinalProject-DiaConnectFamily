@@ -18,6 +18,68 @@ from app.services.reminder_service import (
     REMINDER_INTERVAL_HOURS,
 )
 
+AUTO_PREDICTION_INTERVAL_MINUTES = 30
+
+
+def run_auto_predictions():
+    """
+    Background job: run glucose prediction for every patient who has
+    recent readings (<6 h old). Sends push + saves notification if the
+    predicted or current value is out of range (high/low/patch_error).
+    Rate-limiting inside PredictionService prevents notification spam.
+    """
+    import threading
+    from app.config.firebase import db as _db
+    from app.services.prediction_service import prediction_service
+    from datetime import datetime, timezone, timedelta
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=6)
+
+    try:
+        users = _db.collection("users").where("role", "==", "patient").stream()
+    except Exception as exc:
+        print(f"[AutoPredict] Failed to fetch users: {exc}")
+        return
+
+    for user_doc in users:
+        user_id = user_doc.id
+        data = user_doc.to_dict()
+
+        # Check for a recent reading before launching a heavy LSTM job
+        try:
+            recent = (
+                _db.collection("glucose_readings")
+                .where("userId", "==", user_id)
+                .order_by("measuredAt", direction="DESCENDING")
+                .limit(1)
+                .stream()
+            )
+            latest = next((d.to_dict() for d in recent), None)
+            if not latest:
+                continue
+            ts = latest.get("measuredAt")
+            if ts and hasattr(ts, "tzinfo"):
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if ts < cutoff:
+                    continue   # data too stale — skip to avoid pattern-only runs
+        except Exception:
+            continue
+
+        first = data.get("firstName", "")
+        last = data.get("lastName", "")
+        patient_name = f"{first} {last}".strip() or "Patient"
+        lang = data.get("language", "ar")
+
+        def _predict(uid=user_id, name=patient_name, lng=lang):
+            try:
+                prediction_service.predict(user_id=uid, patient_name=name, hours=1, lang=lng)
+                print(f"[AutoPredict] ✅ {uid}")
+            except Exception as e:
+                print(f"[AutoPredict] ⚠️ {uid}: {e}")
+
+        threading.Thread(target=_predict, daemon=True).start()
+
 # ==========================================
 # Scheduler
 # ==========================================
@@ -34,10 +96,21 @@ async def lifespan(app: FastAPI):
         id="glucose_reminder",
         replace_existing=True,
     )
+    _scheduler.add_job(
+        run_auto_predictions,
+        "interval",
+        minutes=AUTO_PREDICTION_INTERVAL_MINUTES,
+        id="auto_prediction",
+        replace_existing=True,
+    )
     _scheduler.start()
     print(
         f"[Scheduler] Glucose reminder job started "
         f"(every {REMINDER_INTERVAL_HOURS}h)"
+    )
+    print(
+        f"[Scheduler] Auto-prediction job started "
+        f"(every {AUTO_PREDICTION_INTERVAL_MINUTES} min)"
     )
     yield
     _scheduler.shutdown(wait=False)

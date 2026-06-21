@@ -177,11 +177,7 @@ borderRadius: 24,
 borderWidth: 1,
 borderColor: theme.bgSoft,
 padding: 24,
-shadowColor: theme.shadow,
-shadowOpacity: 0.05,
-shadowRadius: 8,
-shadowOffset: { width: 0, height: 3 },
-elevation: 2,
+boxShadow: "0px 3px 8px rgba(0,0,0,0.05)",
 },
 
 formGroup: {

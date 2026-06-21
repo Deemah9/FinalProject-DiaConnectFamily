@@ -310,11 +310,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       justifyContent: "center",
       backgroundColor: theme.bgCard,
       marginBottom: 18,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.07,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
+      boxShadow: "0px 4px 10px rgba(0,0,0,0.07)",
     },
 
     a1cValue: {

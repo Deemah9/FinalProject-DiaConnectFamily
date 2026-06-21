@@ -332,10 +332,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>, isRTL: boolean) {
       padding: 32,
       alignItems: "center",
       gap: 12,
-      elevation: 2,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
+      boxShadow: "0px 0px 8px rgba(0,0,0,0.06)",
     },
     emptyIcon: {
       width: 80, height: 80, borderRadius: 40,
@@ -361,10 +358,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>, isRTL: boolean) {
       flexDirection: "row",
       alignItems: "center",
       gap: 14,
-      elevation: 2,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
+      boxShadow: "0px 0px 8px rgba(0,0,0,0.06)",
     },
     contactAvatar: {
       width: 48, height: 48, borderRadius: 24,
@@ -458,7 +452,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>, isRTL: boolean) {
     modalBox: {
       backgroundColor: theme.bgCard, borderRadius: 24,
       padding: 24, width: "100%", alignItems: "center",
-      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+      boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
     },
     modalIconWrap: {
       width: 56, height: 56, borderRadius: 28,

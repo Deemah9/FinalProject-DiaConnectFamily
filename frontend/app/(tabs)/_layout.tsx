@@ -64,6 +64,7 @@ export default function TabLayout() {
   return (
     <>
       <Tabs
+        initialRouteName="index"
         screenOptions={{
           tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.inactive,
@@ -222,11 +223,7 @@ const tabStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 2,
-    shadowColor: "#E53E3E",
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    boxShadow: "0px 4px 10px rgba(229,62,62,0.45)",
   },
   sosLabel: {
     color: "#E53E3E",
@@ -247,10 +244,7 @@ const tabStyles = StyleSheet.create({
     maxWidth: 360,
     borderRadius: 24,
     paddingTop: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
   },
   sheetHeader: {
     flexDirection: "row",

@@ -459,74 +459,164 @@ def send_prediction_alert(
     family_advice: str | None = None,
 ) -> None:
     """
-    Send push notification to all linked family members when the prediction
-    detects an upcoming low, high, or patch error alert.
-    family_advice: if provided (from Groq), used as the notification body
-                   instead of the default template.
+    Send push notification + save to Firestore for the patient themselves
+    and all linked family members when the prediction detects an upcoming
+    low, high, or patch error alert.
     """
+    alert_data = {
+        "patient_id": patient_id,
+        "alert_type": alert_type,
+        "current": current,
+        "predicted": predicted,
+        "type": "prediction_alert",
+    }
+
+    def _patient_text(lang: str) -> tuple[str, str]:
+        if alert_type == "high":
+            if lang == "en":
+                return (
+                    "⬆️ High Glucose Prediction",
+                    f"Your glucose is currently {current:.0f} mg/dL and may rise to "
+                    f"{predicted:.0f} mg/dL within {hours}h.",
+                )
+            if lang == "he":
+                return (
+                    "⬆️ תחזית סוכר גבוה",
+                    f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                )
+            return (
+                "⬆️ توقع ارتفاع السكر",
+                f"سكرك الحالي {current:.0f} mg/dL ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
+            )
+        if alert_type == "low":
+            if lang == "en":
+                return (
+                    "⬇️ Low Glucose Prediction",
+                    f"Your glucose is currently {current:.0f} mg/dL and may drop to "
+                    f"{predicted:.0f} mg/dL within {hours}h.",
+                )
+            if lang == "he":
+                return (
+                    "⬇️ תחזית סוכר נמוך",
+                    f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                )
+            return (
+                "⬇️ توقع انخفاض السكر",
+                f"سكرك الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
+            )
+        # patch_error
+        if lang == "en":
+            return ("⚠️ Sensor Reading Warning", "A suspicious glucose reading was detected. Please check your sensor.")
+        if lang == "he":
+            return ("⚠️ אזהרת חיישן", "זוהתה קריאת גלוקוז חשודה. אנא בדוק את החיישן שלך.")
+        return ("⚠️ تحذير قراءة المستشعر", "تم رصد قراءة سكر مشبوهة. يرجى التحقق من المستشعر.")
+
+    def _family_text(lang: str) -> tuple[str, str]:
+        if alert_type == "high":
+            if lang == "en":
+                return (
+                    "⬆️ High Glucose Alert",
+                    f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL "
+                    f"in {hours}h (now {current:.0f}).",
+                )
+            if lang == "he":
+                return (
+                    "⬆️ התראת סוכר גבוה",
+                    f"הסוכר של {patient_name} עשוי לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש' (כעת {current:.0f}).",
+                )
+            return (
+                "⬆️ توقع ارتفاع سكر المريض",
+                f"سكر {patient_name} الحالي {current:.0f} mg/dL ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
+            )
+        if alert_type == "low":
+            if lang == "en":
+                return (
+                    "⬇️ Low Glucose Alert",
+                    f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL "
+                    f"in {hours}h (now {current:.0f}).",
+                )
+            if lang == "he":
+                return (
+                    "⬇️ התראת סוכר נמוך",
+                    f"הסוכר של {patient_name} עשוי לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש' (כעת {current:.0f}).",
+                )
+            return (
+                "⬇️ توقع انخفاض سكر المريض",
+                f"سكر {patient_name} الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
+            )
+        if lang == "en":
+            return ("⚠️ Sensor Error", f"A suspicious reading was detected for {patient_name}.")
+        if lang == "he":
+            return ("⚠️ שגיאת חיישן", f"זוהתה קריאה חשודה עבור {patient_name}.")
+        return ("⚠️ خطأ في المستشعر", f"تم رصد قراءة مشبوهة للمريض {patient_name}.")
+
+    # notifKey suffix per alert_type for frontend i18n
+    _key_suffix = {
+        "high": "high",
+        "low": "low",
+    }.get(alert_type, "sensor")
+    _patient_params = {"current": int(current), "predicted": int(predicted), "hours": hours}
+    _family_params  = {"name": patient_name, "current": int(current), "predicted": int(predicted), "hours": hours}
+
+    # ── 1. Notify the patient themselves ──────────────────────────────────────
+    patient_doc = db.collection(USERS_COLLECTION).document(patient_id).get()
+    if patient_doc.exists:
+        pdata = patient_doc.to_dict()
+        lang = pdata.get("language", "ar")
+        ptitle, pbody = _patient_text(lang)
+        pt = pdata.get("pushToken", "")
+        if pt and pt.startswith("ExponentPushToken["):
+            _send_expo_push([{
+                "to": pt,
+                "title": ptitle,
+                "body": pbody,
+                "data": alert_data,
+                "sound": "default",
+                "priority": "high",
+            }], f"Prediction push → patient {patient_id}")
+        save_notification(
+            patient_id, "prediction_alert", ptitle, pbody, int(current),
+            notif_key=f"prediction_{_key_suffix}_patient",
+            notif_params=_patient_params,
+        )
+
+    # ── 2. Notify all linked family members ───────────────────────────────────
     links = db.collection(FAMILY_LINKS_COLLECTION)\
         .where("patient_id", "==", patient_id)\
         .stream()
 
-    family_ids = [
-        doc.to_dict().get("family_member_id")
-        for doc in links
-        if doc.to_dict().get("family_member_id")
-    ]
-    if not family_ids:
-        return
+    family_messages = []
+    for doc in links:
+        fid = doc.to_dict().get("family_member_id")
+        if not fid:
+            continue
+        fdoc = db.collection(USERS_COLLECTION).document(fid).get()
+        if not fdoc.exists:
+            continue
+        fdata = fdoc.to_dict()
+        lang = fdata.get("language", "ar")
+        ftitle, fbody = _family_text(lang)
+        if family_advice:
+            fbody = f"{patient_name}: {family_advice}"
+        token = fdata.get("pushToken", "")
+        if token and token.startswith("ExponentPushToken["):
+            family_messages.append({
+                "to": token,
+                "title": ftitle,
+                "body": fbody,
+                "data": alert_data,
+                "sound": "default",
+                "priority": "high",
+            })
+        save_notification(
+            fid, "prediction_alert", ftitle, fbody, int(current),
+            patient_name=patient_name,
+            notif_key=f"prediction_{_key_suffix}_family",
+            notif_params=_family_params,
+        )
 
-    alert_labels = {
-        "low": (
-            "⬇️ Low Glucose Alert",
-            f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL "
-            f"in {hours}h (now {current:.0f}). Please check on them.",
-        ),
-        "high": (
-            "⬆️ High Glucose Alert",
-            f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL "
-            f"in {hours}h (now {current:.0f}). Please check on them.",
-        ),
-        "patch_error": (
-            "⚠️ Sensor Error",
-            f"A suspicious reading was detected for {patient_name}. "
-            "The sensor may need checking.",
-        ),
-    }
-    default_title, default_body = alert_labels.get(alert_type, ("⚠️ Glucose Alert", f"Check {patient_name}'s glucose levels."))
-    title = default_title
-    body  = f"⚠️ {patient_name}: {family_advice}" if family_advice else default_body
-
-    tokens = []
-    for fid in family_ids:
-        doc = db.collection(USERS_COLLECTION).document(fid).get()
-        if doc.exists:
-            token = doc.to_dict().get("pushToken", "")
-            if token and token.startswith("ExponentPushToken["):
-                tokens.append(token)
-
-    if not tokens:
-        return
-
-    messages = [
-        {
-            "to": token,
-            "title": title,
-            "body": body,
-            "data": {
-                "patient_id": patient_id,
-                "alert_type": alert_type,
-                "current": current,
-                "predicted": predicted,
-                "type": "prediction_alert",
-            },
-            "sound": "default",
-            "priority": "high",
-        }
-        for token in tokens
-    ]
-
-    _send_expo_push(messages, f"Prediction alert for {patient_name}: {alert_type}")
+    if family_messages:
+        _send_expo_push(family_messages, f"Prediction alert for {patient_name}: {alert_type}")
 
 
 # ==========================================

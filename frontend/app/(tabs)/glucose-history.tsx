@@ -20,8 +20,9 @@ import { useTranslation } from "react-i18next";
 import { Calendar } from "react-native-calendars";
 
 import AppHeader from "@/src/components/AppHeader";
-import { getGlucoseReadings, deleteGlucose, importGlucoseCSV } from "@/services/api";
+import { getGlucoseReadings, updateGlucoseReading, importGlucoseCSV } from "@/services/api";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import { TextInput } from "react-native";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -47,8 +48,9 @@ export default function GlucoseHistoryScreen() {
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -163,20 +165,30 @@ export default function GlucoseHistoryScreen() {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const handleDelete = (id: string) => setConfirmId(id);
+  const openEdit = (item: any) => {
+    setEditingItem(item);
+    setEditValue(String(item.value));
+  };
 
-  const confirmDelete = async () => {
-    if (!confirmId) return;
+  const confirmEdit = async () => {
+    if (!editingItem) return;
+    const num = parseInt(editValue, 10);
+    if (isNaN(num) || num <= 0 || num > 600) {
+      setErrorMsg(t("invalidGlucoseValue", "Invalid value (1–600)"));
+      return;
+    }
     try {
-      setDeletingId(confirmId);
-      setConfirmId(null);
-      await deleteGlucose(confirmId);
+      setSaving(true);
+      await updateGlucoseReading(editingItem.id, num);
       markPredictionStale();
-      setReadings((prev) => prev.filter((r) => r.id !== confirmId));
+      setReadings((prev) =>
+        prev.map((r) => r.id === editingItem.id ? { ...r, value: num } : r)
+      );
+      setEditingItem(null);
     } catch (e: any) {
-      setErrorMsg(e?.message || "Failed to delete reading");
+      setErrorMsg(e?.message || "Failed to update reading");
     } finally {
-      setDeletingId(null);
+      setSaving(false);
     }
   };
 
@@ -232,21 +244,29 @@ export default function GlucoseHistoryScreen() {
         </View>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal visible={!!confirmId} transparent animationType="fade" onRequestClose={() => setConfirmId(null)}>
+      {/* Edit Reading Modal */}
+      <Modal visible={!!editingItem} transparent animationType="fade" onRequestClose={() => setEditingItem(null)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
             <View style={styles.modalIconWrap}>
-              <Ionicons name="trash-outline" size={28} color="#D32F2F" />
+              <Ionicons name="create-outline" size={28} color="#1A6FA8" />
             </View>
-            <Text style={styles.modalTitle}>{t("deleteReading")}</Text>
-            <Text style={styles.modalMsg}>{t("deleteReadingConfirm")}</Text>
+            <Text style={styles.modalTitle}>{t("editReading", "Edit Reading")}</Text>
+            <Text style={styles.modalMsg}>{t("editReadingHint", "Enter the correct glucose value (mg/dL)")}</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editValue}
+              onChangeText={setEditValue}
+              keyboardType="numeric"
+              maxLength={3}
+              selectTextOnFocus
+            />
             <View style={styles.modalBtns}>
-              <Pressable style={styles.modalCancelBtn} onPress={() => setConfirmId(null)}>
+              <Pressable style={styles.modalCancelBtn} onPress={() => setEditingItem(null)}>
                 <Text style={styles.modalCancelText}>{t("cancel")}</Text>
               </Pressable>
-              <Pressable style={styles.modalDeleteBtn} onPress={confirmDelete}>
-                <Text style={styles.modalDeleteText}>{t("delete")}</Text>
+              <Pressable style={[styles.modalSaveBtn, saving && { opacity: 0.6 }]} onPress={confirmEdit} disabled={saving}>
+                <Text style={styles.modalSaveText}>{saving ? "..." : t("save", "Save")}</Text>
               </Pressable>
             </View>
           </View>
@@ -368,6 +388,7 @@ export default function GlucoseHistoryScreen() {
                     const color = getStatusColor(value);
                     const bg    = getStatusBg(value);
                     const raw   = item?.measuredAt || item?.timestamp || item?.createdAt || "";
+                    const isManual = item?.source === "manual";
                     return (
                       <View key={item?.id || idx} style={styles.readingRow}>
                         <View style={[styles.readingIndicator, { backgroundColor: color }]} />
@@ -380,18 +401,17 @@ export default function GlucoseHistoryScreen() {
                         <View style={[styles.statusBadge, { backgroundColor: bg }]}>
                           <Text style={[styles.statusText, { color }]}>{getStatus(value)}</Text>
                         </View>
-                        <Pressable
-                          onPress={() => handleDelete(item?.id)}
-                          disabled={deletingId === item?.id}
-                          style={styles.deleteBtn}
-                          hitSlop={8}
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={16}
-                            color={deletingId === item?.id ? theme.border : theme.inactive}
-                          />
-                        </Pressable>
+                        {isManual ? (
+                          <Pressable
+                            onPress={() => openEdit(item)}
+                            style={styles.editBtn}
+                            hitSlop={8}
+                          >
+                            <Ionicons name="create-outline" size={16} color="#1A6FA8" />
+                          </Pressable>
+                        ) : (
+                          <View style={styles.editBtn} />
+                        )}
                       </View>
                     );
                   })}
@@ -497,8 +517,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       width: 58, height: 58, borderRadius: 29,
       backgroundColor: "#1A6FA8",
       alignItems: "center", justifyContent: "center",
-      shadowColor: "#1A6FA8", shadowOpacity: 0.4,
-      shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+      boxShadow: "0px 4px 12px rgba(26,111,168,0.4)",
     },
 
     errorBox: {
@@ -512,8 +531,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.bgCard, borderRadius: 24,
       borderWidth: 1, borderColor: theme.bgSoft,
       padding: 20, marginBottom: 18,
-      shadowColor: theme.shadow, shadowOpacity: 0.05,
-      shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+      boxShadow: "0px 3px 8px rgba(0,0,0,0.05)",
     },
     cardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
     cardTitle: { fontSize: 16, fontWeight: "700", color: theme.text },
@@ -537,7 +555,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     calBox: {
       backgroundColor: theme.bgCard, borderRadius: 20,
       padding: 16, width: SCREEN_WIDTH - 48,
-      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+      boxShadow: "0px 0px 12px rgba(0,0,0,0.15)",
     },
     calCloseBtn: {
       marginTop: 12, alignItems: "center",
@@ -571,7 +589,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
 
     statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
     statusText: { fontSize: 12, fontWeight: "700" },
-    deleteBtn: { marginLeft: 4, padding: 4, alignItems: "center", justifyContent: "center" },
+    editBtn: { width: 28, marginLeft: 4, padding: 4, alignItems: "center", justifyContent: "center" },
 
     showMoreBtn: {
       flexDirection: "row", alignItems: "center",
@@ -588,7 +606,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.bgCard, borderRadius: 20,
       paddingVertical: 32, paddingHorizontal: 48,
       alignItems: "center", gap: 16,
-      shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 16, elevation: 12,
+      boxShadow: "0px 0px 16px rgba(0,0,0,0.2)",
     },
     uploadText: {
       color: theme.text, fontSize: 15, fontWeight: "600",
@@ -600,7 +618,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     modalBox: {
       backgroundColor: theme.bgCard, borderRadius: 24,
       padding: 24, width: "100%", alignItems: "center",
-      shadowColor: theme.shadow, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+      boxShadow: "0px 0px 20px rgba(0,0,0,0.15)",
     },
     modalIconWrap: {
       width: 56, height: 56, borderRadius: 28,
@@ -610,24 +628,31 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     modalTitle: { fontSize: 17, fontWeight: "700", color: theme.text, marginBottom: 8 },
     modalMsg: { fontSize: 14, color: theme.textMuted, textAlign: "center", marginBottom: 24, lineHeight: 20 },
     modalBtns: { flexDirection: "row", gap: 12, width: "100%" },
+    editInput: {
+      width: "100%", height: 52, borderRadius: 14,
+      borderWidth: 1.5, borderColor: "#1A6FA8",
+      textAlign: "center", fontSize: 24, fontWeight: "700",
+      color: theme.text, backgroundColor: theme.bgAlt,
+      marginBottom: 20,
+    },
     modalCancelBtn: {
       flex: 1, height: 48, borderRadius: 14,
       borderWidth: 1, borderColor: theme.border,
       alignItems: "center", justifyContent: "center",
     },
     modalCancelText: { fontSize: 15, fontWeight: "600", color: theme.textMuted },
-    modalDeleteBtn: {
+    modalSaveBtn: {
       flex: 1, height: 48, borderRadius: 14,
-      backgroundColor: "#D32F2F",
+      backgroundColor: "#1A6FA8",
       alignItems: "center", justifyContent: "center",
     },
-    modalDeleteText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    modalSaveText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 
     addModalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
     addModalSheet: {
       backgroundColor: theme.bgCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
       paddingHorizontal: 20, paddingBottom: 28, paddingTop: 10,
-      shadowColor: theme.shadow, shadowOpacity: 0.18, shadowRadius: 24, elevation: 12,
+      boxShadow: "0px 0px 24px rgba(0,0,0,0.18)",
     },
     addModalHandle: {
       width: 44, height: 5, borderRadius: 3,

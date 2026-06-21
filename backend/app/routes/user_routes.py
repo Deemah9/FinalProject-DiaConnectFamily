@@ -125,6 +125,42 @@ async def update_lifestyle_info(
 
 
 # ==========================================
+# GET /users/me/preferences
+# ==========================================
+
+@router.get("/me/preferences")
+async def get_preferences(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["sub"]
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
+        return {}
+    return doc.to_dict().get("preferences", {})
+
+
+# ==========================================
+# PUT /users/me/preferences
+# ==========================================
+
+@router.put("/me/preferences")
+async def update_preferences(
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = current_user["sub"]
+    allowed = {"theme", "fontScale", "highContrast", "hapticEnabled"}
+    prefs = {k: v for k, v in request.items() if k in allowed}
+    if not prefs:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid preference fields provided"
+        )
+    update_data = {f"preferences.{k}": v for k, v in prefs.items()}
+    update_data["updatedAt"] = firestore.SERVER_TIMESTAMP
+    db.collection("users").document(user_id).update(update_data)
+    return prefs
+
+
+# ==========================================
 # GET /users/me/reminders
 # ==========================================
 
@@ -132,21 +168,17 @@ async def update_lifestyle_info(
 async def get_reminder_settings(
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Returns the reminder settings for the current user.
-    Stored under 'reminderSettings' in the user document.
-    """
     user_id = current_user["sub"]
     doc = db.collection("users").document(user_id).get()
     if not doc.exists:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+        return {"enabled": True, "reminders": []}
     data = doc.to_dict()
-    settings = data.get(
-        "reminderSettings", {"enabled": True, "times": []}
-    )
+    settings = data.get("reminderSettings", {})
+    # Backward compat: old format used "times" array, new format uses "reminders"
+    if "times" in settings and "reminders" not in settings:
+        settings["reminders"] = [{"name": "", "time": t} for t in settings["times"]]
+    settings.setdefault("enabled", True)
+    settings.setdefault("reminders", [])
     return settings
 
 
@@ -161,12 +193,12 @@ async def update_reminder_settings(
 ):
     """
     Saves reminder settings for the current user.
-    Expects: { "enabled": bool, "times": ["HH:MM", ...] }
+    Expects: { "enabled": bool, "reminders": [{"name": str, "time": "HH:MM"}, ...] }
     """
     user_id = current_user["sub"]
     settings = {
         "enabled": request.get("enabled", True),
-        "times": request.get("times", []),
+        "reminders": request.get("reminders", []),
     }
     db.collection("users").document(user_id).update({
         "reminderSettings": settings,

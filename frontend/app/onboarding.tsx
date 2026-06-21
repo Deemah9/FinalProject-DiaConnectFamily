@@ -485,11 +485,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       borderColor: theme.bgSoft,
       padding: 20,
       marginBottom: 16,
-      shadowColor: theme.shadow,
-      shadowOpacity: 0.04,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
+      boxShadow: "0px 2px 6px rgba(0,0,0,0.04)",
     },
 
     cardHeader: {

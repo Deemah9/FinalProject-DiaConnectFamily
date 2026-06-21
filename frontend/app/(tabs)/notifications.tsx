@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type NotifType = "emergency_alert" | "glucose_reminder";
+type NotifType = "emergency_alert" | "glucose_reminder" | "prediction_alert" | "custom_reminder";
 
 interface Notification {
   id: string;
@@ -62,8 +62,10 @@ function relativeTime(iso: string, lang: string): string {
 }
 
 const TYPE_CONFIG = {
-  emergency_alert: { color: "#E53E3E", icon: "warning" as const, bg: "#FFF5F5", light: "#FFF0F0" },
-  glucose_reminder: { color: "#1A6FA8", icon: "time" as const, bg: "#EBF8FF", light: "#EBF3FA" },
+  emergency_alert:  { color: "#E53E3E", icon: "warning"       as const, bg: "#FFF5F5", light: "#FFF0F0" },
+  prediction_alert: { color: "#D69E2E", icon: "trending-up"   as const, bg: "#FFFFF0", light: "#FEFCE8" },
+  glucose_reminder: { color: "#1A6FA8", icon: "time"          as const, bg: "#EBF8FF", light: "#EBF3FA" },
+  custom_reminder:  { color: "#6B46C1", icon: "alarm"         as const, bg: "#FAF5FF", light: "#FAF5FF" },
 };
 
 // ─── Notification Card ────────────────────────────────────────────────────────
@@ -216,7 +218,17 @@ export default function NotificationsScreen() {
     }
   }, []);
 
+  // Load on mount
   useEffect(() => { load(); }, [load]);
+
+  // Refresh when screen comes into focus
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Poll every 30 seconds while on screen
+  useEffect(() => {
+    const id = setInterval(() => { load(); }, 30_000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
@@ -232,13 +244,19 @@ export default function NotificationsScreen() {
     } catch {}
   };
 
-  const unread          = notifications.filter(n => !n.isRead).length;
-  const alertCount      = notifications.filter(n => n.type === "emergency_alert").length;
-  const unreadAlerts    = notifications.filter(n => n.type === "emergency_alert" && !n.isRead).length;
-  const reminderCount   = notifications.filter(n => n.type === "glucose_reminder").length;
-  const unreadReminders = notifications.filter(n => n.type === "glucose_reminder" && !n.isRead).length;
+  const isAlertType    = (type: string) => type === "emergency_alert" || type === "prediction_alert";
+  const isReminderType = (type: string) => type === "glucose_reminder" || type === "custom_reminder";
 
-  const filtered = notifications.filter(n => n.type === filter);
+  const unread          = notifications.filter(n => !n.isRead).length;
+  const alertCount      = notifications.filter(n => isAlertType(n.type)).length;
+  const unreadAlerts    = notifications.filter(n => isAlertType(n.type) && !n.isRead).length;
+  const reminderCount   = notifications.filter(n => isReminderType(n.type)).length;
+  const unreadReminders = notifications.filter(n => isReminderType(n.type) && !n.isRead).length;
+
+  // "emergency_alert" tab shows both emergency + prediction; "glucose_reminder" tab shows both reminder types
+  const filtered = notifications.filter(n =>
+    filter === "emergency_alert" ? isAlertType(n.type) : isReminderType(n.type)
+  );
 
   const tabs = [
     {
@@ -384,11 +402,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       backgroundColor: theme.bgCard,
       borderRadius: 18,
       overflow: "hidden",
-      elevation: 2,
-      shadowColor: theme.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
+      boxShadow: "0px 2px 6px rgba(0,0,0,0.06)",
     },
     cardBar: { width: 4 },
     iconWrap: {

@@ -7,10 +7,12 @@ import React, {
   useState,
 } from "react";
 import { StyleSheet } from "react-native";
+import { registerPrefsApplicator } from "../services/preferencesSync";
+import { savePreferences } from "../services/api";
 
 const STORAGE_KEY = "app_font_scale";
-export const MIN_SCALE    = 0.85;
-export const MAX_SCALE    = 1.55;
+export const MIN_SCALE     = 0.85;
+export const MAX_SCALE     = 1.55;
 export const DEFAULT_SCALE = 1.0;
 
 // ── Global scale tracker (module-level so StyleSheet.create can read it) ──
@@ -51,6 +53,7 @@ const FontSizeContext = createContext<FontSizeContextValue>({
 export function FontSizeProvider({ children }: { children: React.ReactNode }) {
   const [fontScale, setScaleState] = useState(DEFAULT_SCALE);
 
+  // Fast local load on mount
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((val) => {
       const parsed = parseFloat(val ?? "");
@@ -61,11 +64,30 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Sync with backend on login/logout
+  useEffect(() => {
+    const unregister = registerPrefsApplicator((prefs) => {
+      if (prefs === null) {
+        _fontScale = DEFAULT_SCALE;
+        setScaleState(DEFAULT_SCALE);
+        AsyncStorage.removeItem(STORAGE_KEY);
+      } else {
+        const scale = prefs.fontScale ?? DEFAULT_SCALE;
+        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+        _fontScale = clamped;
+        setScaleState(clamped);
+        AsyncStorage.setItem(STORAGE_KEY, String(clamped));
+      }
+    });
+    return unregister;
+  }, []);
+
   const setFontScale = useCallback((v: number) => {
     const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, v));
-    _fontScale = clamped; // update global tracker immediately
+    _fontScale = clamped;
     setScaleState(clamped);
     AsyncStorage.setItem(STORAGE_KEY, String(clamped));
+    savePreferences({ fontScale: clamped }).catch(() => {});
   }, []);
 
   return (

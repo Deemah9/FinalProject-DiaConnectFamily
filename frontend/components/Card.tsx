@@ -40,14 +40,7 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: 16,
 
-    // Shadow (iOS/Web)
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-
-    // Elevation (Android)
-    elevation: 3,
+    boxShadow: "0px 6px 10px rgba(0,0,0,0.12)",
   },
 
   padded: {
@@ -69,7 +62,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background ?? Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowOpacity: 0.06,
-    elevation: 1,
+    boxShadow: "0px 1px 4px rgba(0,0,0,0.06)",
   },
 });

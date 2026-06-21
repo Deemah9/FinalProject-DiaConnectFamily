@@ -243,27 +243,31 @@ class GlucoseService:
         return readings[0] if readings else None
 
     # ==========================================
-    # Delete Reading
+    # Update Reading (manual only)
     # ==========================================
 
-    def delete_reading(self, user_id: str, reading_id: str) -> bool:
+    def update_reading(self, user_id: str, reading_id: str, new_value: int) -> dict | None:
         """
-        Delete a glucose reading by ID.
-        Returns True if deleted, False if not found or not owned by user.
-        Ownership is verified before deletion to prevent cross-user access.
+        Update the value of a manual glucose reading.
+        Only readings with source == 'manual' can be edited.
+        Returns the updated reading dict, or None if not found / not authorized.
         """
         doc_ref = self.db.collection(self.collection).document(reading_id)
         doc = doc_ref.get()
 
         if not doc.exists:
-            return False
+            return None
 
         data = doc.to_dict()
         if data.get("userId") != user_id:
-            return False
+            return None
+        if data.get("source") != "manual":
+            return None
 
-        doc_ref.delete()
-        return True
+        doc_ref.update({"value": new_value})
+        data["value"] = new_value
+        data["id"] = reading_id
+        return data
 
     # ==========================================
     # Calculate Statistics
