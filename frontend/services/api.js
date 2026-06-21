@@ -132,7 +132,8 @@ export const getGlucoseReadings = () => request("GET", "/glucose/?limit=500");
 
 export const getLatestGlucose = () => request("GET", "/glucose/latest");
 
-export const deleteGlucose = (id) => request("DELETE", `/glucose/${id}`);
+export const updateGlucoseReading = (id, value) =>
+  request("PATCH", `/glucose/${id}`, { value });
 
 export const getGlucoseStats = (days = 7) =>
   request("GET", `/glucose/stats?days=${days}`);

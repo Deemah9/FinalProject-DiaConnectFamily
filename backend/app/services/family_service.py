@@ -564,8 +564,6 @@ def send_prediction_alert(
         pdata = patient_doc.to_dict()
         lang = pdata.get("language", "ar")
         ptitle, pbody = _patient_text(lang)
-        if family_advice:
-            pbody = family_advice
         pt = pdata.get("pushToken", "")
         if pt and pt.startswith("ExponentPushToken["):
             _send_expo_push([{

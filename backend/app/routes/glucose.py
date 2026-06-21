@@ -152,34 +152,52 @@ def get_estimated_a1c(
 
 
 # ==========================================
-# DELETE /glucose/{id}
+# PATCH /glucose/{id}  — manual readings only
 # ==========================================
 
-@router.delete("/{reading_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_glucose_reading(
+@router.patch("/{reading_id}", response_model=GlucoseResponse)
+def update_glucose_reading(
     reading_id: str,
-    current_user: dict = Depends(require_role("patient"))
+    payload: dict,
+    current_user: dict = Depends(require_role("patient")),
 ):
     """
-    Delete a glucose reading by ID.
-    Restricted to patients only — a patient can only delete their own readings.
-    Returns 404 if the reading does not exist or belongs to a different user.
+    Update the value of a manually entered glucose reading.
+    CSV and CGM readings cannot be edited.
     """
-    deleted = glucose_service.delete_reading(
-        user_id=current_user["sub"],
-        reading_id=reading_id
-    )
-
-    if not deleted:
+    new_value = payload.get("value")
+    if not isinstance(new_value, (int, float)) or new_value <= 0:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reading not found or access denied"
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="value must be a positive number",
         )
+    updated = glucose_service.update_reading(
+        user_id=current_user["sub"],
+        reading_id=reading_id,
+        new_value=int(new_value),
+    )
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reading not found, not owned by you, or not editable",
+        )
+    return updated
 
-    # Remove any alerts that were triggered by this reading
-    alert_service.delete_by_reading_id(reading_id=reading_id)
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+# ==========================================
+# DELETE /glucose/{id}  — DISABLED
+# ==========================================
+
+@router.delete("/{reading_id}", status_code=status.HTTP_403_FORBIDDEN)
+def delete_glucose_reading(
+    reading_id: str,
+    current_user: dict = Depends(require_role("patient")),
+):
+    """Deletion of glucose readings is not permitted."""
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Glucose readings cannot be deleted",
+    )
 
 
 # ==========================================
