@@ -68,6 +68,14 @@ def send_glucose_reminders() -> None:
 
         user_id = user_doc.id
 
+        # Skip default reminder if user has custom reminders enabled
+        reminder_settings = udata.get("reminderSettings", {})
+        custom_reminders = reminder_settings.get("reminders", [])
+        reminders_enabled = reminder_settings.get("enabled", False)
+        if reminders_enabled and custom_reminders:
+            print(f"[Reminder] Skipping {user_id} — has {len(custom_reminders)} custom reminder(s)")
+            continue
+
         # Check if the user has any reading in the last REMINDER_INTERVAL_HOURS hours
         recent = (
             db.collection(GLUCOSE_COLLECTION)
