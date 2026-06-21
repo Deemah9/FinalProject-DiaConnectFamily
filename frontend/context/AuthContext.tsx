@@ -63,8 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser({ token, role, email });
         if (role === "family_member") {
           router.replace("/family-home" as any);
-        } else {
-          router.replace("/(tabs)/index" as any);
         }
       }
       setLoading(false);
@@ -109,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (role === "family_member") {
       router.replace("/family-home" as any);
     } else {
-      router.replace(profileComplete ? "/(tabs)/index" : "/onboarding");
+      router.replace(profileComplete ? "/(tabs)" : "/onboarding");
     }
   };
 

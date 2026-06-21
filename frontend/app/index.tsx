@@ -13,8 +13,5 @@ export default function Index() {
     );
   }
 
-  if (user) {
-    return <Redirect href={user.role === "family_member" ? "/family-home" : "/(tabs)/index"} />;
-  }
-  return <Redirect href="/welcome" />;
+  return <Redirect href={user ? "/(tabs)" : "/welcome"} />;
 }
