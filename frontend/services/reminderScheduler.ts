@@ -22,6 +22,11 @@ export async function getRemindersEnabled(): Promise<boolean> {
   return val !== "false";
 }
 
+export async function getReminderTimes(): Promise<string[]> {
+  const reminders = await getReminders();
+  return reminders.map((r) => r.time);
+}
+
 /** Fetch from backend, write to AsyncStorage, fall back to local on error */
 export async function loadReminderSettings(): Promise<{ reminders: Reminder[]; enabled: boolean }> {
   try {
