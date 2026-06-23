@@ -634,11 +634,14 @@ def send_prediction_alert(
             f"تم رصد قراءة مشبوهة للمريض {patient_name}.",
         )
 
-    # notifKey suffix per alert_type for frontend i18n
-    _key_suffix = {
-        "high": "high",
-        "low": "low",
-    }.get(alert_type, "sensor")
+    # notifKey suffix includes direction so frontend picks the correct translation
+    _is_rising = predicted > current
+    if alert_type == "high":
+        _key_suffix = "high_rising" if _is_rising else "high_falling"
+    elif alert_type == "low":
+        _key_suffix = "low_rising" if _is_rising else "low_falling"
+    else:
+        _key_suffix = "sensor"
     _patient_params = {"current": int(current), "predicted": int(predicted), "hours": hours}
     _family_params  = {"name": patient_name, "current": int(current), "predicted": int(predicted), "hours": hours}
 

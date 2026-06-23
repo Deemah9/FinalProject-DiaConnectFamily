@@ -3,6 +3,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { updateProfile } from "@/services/api";
 import { applyRtlIfNeeded } from "@/src/i18n/rtl";
+import { applyReminderSchedule, loadReminderSettings } from "@/services/reminderScheduler";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -138,6 +139,14 @@ export function DrawerProvider({ children }: { children: React.ReactNode }) {
                     await i18n.changeLanguage(code);
                     await applyRtlIfNeeded(code);
                     updateProfile({ language: code }).catch(() => {});
+                    loadReminderSettings().then(({ reminders, enabled }) =>
+                      applyReminderSchedule(
+                        reminders,
+                        enabled,
+                        i18n.t("reminderNotifTitle"),
+                        i18n.t("reminderNotifBody")
+                      )
+                    ).catch(() => {});
                   }}
                 >
                   <Text
