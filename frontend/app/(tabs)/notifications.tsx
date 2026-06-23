@@ -75,17 +75,29 @@ function NotifCard({
   item: Notification; lang: string; t: any; onPress: (id: string) => void;
   styles: ReturnType<typeof createStyles>;
 }) {
-  const cfg = TYPE_CONFIG[item.type as NotifType] ?? {
+  const isFalling = item.notifKey?.includes("falling") || item.notifKey?.includes("low_falling");
+  const baseCfg = TYPE_CONFIG[item.type as NotifType] ?? {
     color: "#718096", icon: "notifications" as const, bg: "#F7FAFC", light: "#F7FAFC",
   };
+  const cfg = item.type === "prediction_alert"
+    ? { ...baseCfg, icon: (isFalling ? "trending-down" : "trending-up") as const }
+    : baseCfg;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const displayTitle = item.notifKey
-    ? t(`notif_${item.notifKey}_title`, item.notifParams ?? {}, item.title)
-    : item.title;
-  const displayBody = item.notifKey
-    ? t(`notif_${item.notifKey}_body`, item.notifParams ?? {}, item.body)
-    : item.body;
+  const isCustomReminder = item.type === "custom_reminder";
+  // Default reminder titles across all languages — if stored title matches any, re-translate it
+  const DEFAULT_REMINDER_TITLES = ["Glucose Reminder", "تذكير قياس السكر", "תזכורת גלוקוז", "תזכורת סוכר"];
+  const isDefaultTitle = !item.title || DEFAULT_REMINDER_TITLES.includes(item.title);
+  const displayTitle = isCustomReminder
+    ? (isDefaultTitle ? t("reminderNotifTitle") : item.title)
+    : item.notifKey
+      ? t(`notif_${item.notifKey}_title`, item.notifParams ?? {}, item.title)
+      : item.title;
+  const displayBody = isCustomReminder
+    ? t("reminderNotifBody")
+    : item.notifKey
+      ? t(`notif_${item.notifKey}_body`, item.notifParams ?? {}, item.body)
+      : item.body;
 
   useEffect(() => {
     if (!item.isRead) {
