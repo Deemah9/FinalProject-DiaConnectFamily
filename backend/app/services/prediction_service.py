@@ -1255,6 +1255,33 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             except Exception as exc:
                 print(f"Prediction alert notification failed: {exc}")
 
+        # Save prediction for accuracy tracking (rate-limited: once per 20 min per user)
+        try:
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=20)
+            recent = (
+                self.db.collection("predictions")
+                .where("userId", "==", user_id)
+                .where("createdAt", ">=", cutoff)
+                .limit(1)
+                .stream()
+            )
+            if not any(True for _ in recent):
+                self.db.collection("predictions").add({
+                    "userId":         user_id,
+                    "predictedValue": round(float(predicted), 1),
+                    "currentValue":   round(float(current), 1),
+                    "hours":          hours,
+                    "trend":          trend,
+                    "alertType":      alert_type,
+                    "predictionMode": prediction_mode,
+                    "actualValue":    None,
+                    "createdAt":      datetime.now(timezone.utc),
+                })
+            else:
+                print(f"[Prediction] Skipped save — prediction already exists within 20 min for {user_id}")
+        except Exception as exc:
+            print(f"[Prediction] Save to Firestore failed: {exc}")
+
         return {
             "predicted_value":          predicted,
             "hours":                    hours,

@@ -48,6 +48,15 @@ class GlucoseService:
         result = document.dict()
         result["id"] = doc_ref.id
 
+        # Fill actualValue for any prediction that targeted this reading's time
+        try:
+            measured = data.measuredAt
+            if hasattr(measured, "tzinfo") and measured.tzinfo is None:
+                measured = measured.replace(tzinfo=timezone.utc)
+            self._fill_prediction_actuals(user_id, float(data.value), measured)
+        except Exception as e:
+            print(f"⚠️ Prediction fill error: {e}")
+
         # Send emergency notifications for dangerous glucose values
         if data.value < self.DANGEROUS_LOW or data.value > self.DANGEROUS_HIGH:
             try:
@@ -198,6 +207,42 @@ class GlucoseService:
             batch.commit()
 
         return imported, skipped
+
+    # ==========================================
+    # Fill Prediction Actuals
+    # ==========================================
+
+    def _fill_prediction_actuals(
+        self, user_id: str, reading_value: float, reading_time: datetime
+    ) -> None:
+        """
+        After a new reading arrives, find predictions whose target time
+        (createdAt + hours) falls within ±30 min of this reading
+        and fill their actualValue for accuracy tracking.
+        """
+        tolerance = timedelta(minutes=30)
+        since = reading_time - timedelta(hours=25)
+
+        docs = (
+            self.db.collection("predictions")
+            .where("userId", "==", user_id)
+            .where("createdAt", ">=", since)
+            .stream()
+        )
+
+        for doc in docs:
+            pred = doc.to_dict()
+            if pred.get("actualValue") is not None:
+                continue
+            created_at = pred.get("createdAt")
+            if created_at is None:
+                continue
+            if hasattr(created_at, "tzinfo") and created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            target_time = created_at + timedelta(hours=pred.get("hours", 1))
+            if abs(reading_time - target_time) <= tolerance:
+                doc.reference.update({"actualValue": reading_value})
+                print(f"[Prediction] actualValue={reading_value} filled for {doc.id}")
 
     # ==========================================
     # Get All Readings

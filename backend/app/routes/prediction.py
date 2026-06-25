@@ -99,3 +99,51 @@ def predict_glucose_for_family(
         lang=lang,
     )
     return PredictionResponse(**result)
+
+
+# ==========================================
+# GET /glucose/predict/accuracy  (patient)
+# ==========================================
+
+@router.get("/predict/accuracy")
+def get_prediction_accuracy(
+    current_user: dict = Depends(require_role("patient")),
+):
+    """
+    Calculate prediction accuracy for the current patient.
+    Uses saved predictions where actualValue has been filled.
+    Returns MAE and percentage of predictions within ±20 mg/dL.
+    """
+    user_id = current_user["sub"]
+
+    docs = (
+        db.collection("predictions")
+        .where("userId", "==", user_id)
+        .stream()
+    )
+
+    errors = []
+    for doc in docs:
+        pred = doc.to_dict()
+        predicted = pred.get("predictedValue")
+        actual = pred.get("actualValue")
+        if predicted is not None and actual is not None:
+            errors.append(abs(predicted - actual))
+
+    if not errors:
+        return {
+            "evaluated_predictions": 0,
+            "mae_mg_dl": None,
+            "within_20_mg_dl_pct": None,
+            "message": "No evaluated predictions yet.",
+        }
+
+    mae = round(sum(errors) / len(errors), 1)
+    within_20 = round(sum(1 for e in errors if e <= 20) / len(errors) * 100, 1)
+
+    return {
+        "evaluated_predictions": len(errors),
+        "mae_mg_dl": mae,
+        "within_20_mg_dl_pct": within_20,
+        "message": f"Based on {len(errors)} evaluated prediction(s).",
+    }
