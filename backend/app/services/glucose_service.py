@@ -24,7 +24,7 @@ class GlucoseService:
     # ==========================================
 
     DANGEROUS_LOW = 70
-    DANGEROUS_HIGH = 300
+    DANGEROUS_HIGH = 180
 
     def create_reading(self, user_id: str, data: GlucoseCreate) -> dict:
         """
