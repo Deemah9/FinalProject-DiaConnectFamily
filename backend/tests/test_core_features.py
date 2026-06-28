@@ -282,20 +282,25 @@ class TestReminderSettings:
 
     @patch("app.routes.user_routes.db")
     def test_set_reminder_with_times(self, mock_db, client):
-        """TC05: Patient saves reminder settings with specific times."""
+        """TC05: Patient saves reminder settings with specific reminders."""
         mock_db.collection.return_value.document.return_value.update.return_value = None
 
+        reminders = [
+            {"name": "Breakfast", "time": "08:00"},
+            {"name": "Lunch",     "time": "14:00"},
+            {"name": "Dinner",    "time": "20:00"},
+        ]
         res = client.put(
             "/users/me/reminders",
-            json={"enabled": True, "times": ["08:00", "14:00", "20:00"]},
+            json={"enabled": True, "reminders": reminders},
             headers=auth_headers(PATIENT_ID, "patient"),
         )
 
         assert res.status_code == 200
         data = res.json()
         assert data["enabled"] is True
-        assert "08:00" in data["times"]
-        assert len(data["times"]) == 3
+        assert len(data["reminders"]) == 3
+        assert data["reminders"][0]["time"] == "08:00"
 
     @patch("app.routes.user_routes.db")
     def test_disable_reminders(self, mock_db, client):
@@ -304,7 +309,7 @@ class TestReminderSettings:
 
         res = client.put(
             "/users/me/reminders",
-            json={"enabled": False, "times": []},
+            json={"enabled": False, "reminders": []},
             headers=auth_headers(PATIENT_ID, "patient"),
         )
 

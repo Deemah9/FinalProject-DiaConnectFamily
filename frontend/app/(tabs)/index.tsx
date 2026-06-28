@@ -83,6 +83,14 @@ export default function HomeScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
 
 
+  // Load prediction once authUser is ready (fixes race condition on first open)
+  useEffect(() => {
+    if (authUser && isFirstFocus.current) {
+      loadPrediction();
+      isFirstFocus.current = false;
+    }
+  }, [authUser]);
+
   // Register push token for patient notifications
   useEffect(() => {
     const registerPush = async () => {
@@ -134,7 +142,8 @@ export default function HomeScreen() {
       getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
 
       // Run on first open OR when new data was saved from another screen
-      if (isFirstFocus.current || checkAndClearPredictionStale()) {
+      // Wait for authUser to be ready before fetching prediction
+      if (authUser && (isFirstFocus.current || checkAndClearPredictionStale())) {
         loadPrediction();
         isFirstFocus.current = false;
       }

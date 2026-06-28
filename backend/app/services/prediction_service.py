@@ -1,18 +1,25 @@
 """
-Glucose Prediction Service — v3 (dual prediction: LSTM + historical pattern)
+Glucose Prediction Service — v4
 
 Prediction modes
 ----------------
-real_time  : fresh data (<6 h)  → LSTM only
-hybrid     : data 6–24 h old    → LSTM + staleness warning
-pattern    : data >24 h old     → historical pattern only (LSTM disabled)
-none       : <MIN_READINGS      → no prediction possible
+real_time  : data < 24 h old    → LSTM prediction
+pattern    : data > 24 h old    → Historical Pattern Analysis + LSTM prediction
+none       : < MIN_READINGS     → no prediction possible
 
-Pattern analysis
-----------------
+Historical Pattern Analysis
+---------------------------
 Groups the last 30 days of readings into a ±1.5-hour circular window
 around the current time, applies recency weighting (1/(days_ago+1)),
-and computes a weighted average + IQR (p25/p75) on raw values.
+and computes a weighted average (typical_avg) + IQR (p25/p75) on raw values.
+
+Historical Pattern Analysis + LSTM (pattern mode)
+--------------------------------------------------
+Stage 1 — Historical Pattern Analysis:
+    typical_avg becomes the best estimate of current glucose.
+Stage 2 — LSTM:
+    typical_avg is injected as a synthetic seed row, and the LSTM
+    predicts future glucose forward from that estimated value.
 """
 
 import os
@@ -24,7 +31,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from firebase_admin import firestore
-from app.services.family_service import send_prediction_alert, send_stale_pattern_alert
+from app.services.family_service import send_prediction_alert
 from app.services.health_service import health_service
 
 load_dotenv()
@@ -817,7 +824,6 @@ Lifestyle context (last 2 hours / baseline):
             pattern_ctx = f"""
 Prediction context:
 - Prediction mode: {prediction_mode}
-- Data stale: {prediction_mode in ('hybrid',)}
 - Historical pattern risk at this hour: {pattern_risk_level or 'unknown'}
 - Today's prediction vs historical pattern: {comparison_to_pattern or 'unknown'}"""
 
@@ -891,6 +897,7 @@ Reply in JSON format only:
     # ==========================================
     # AI Advice for Pattern Mode
     # ==========================================
+    # Kept for reference — pattern mode now uses _get_ai_advice with seed-based LSTM
 
     def _get_pattern_advice(
         self,
@@ -958,10 +965,9 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
         Decision logic
         ──────────────
-        1. <MIN_READINGS readings          → mode = none
-        2. hours_elapsed > MAX_STALE_HOURS → mode = pattern (LSTM skipped)
-        3. hours_elapsed >= 6              → mode = hybrid  (LSTM + stale warning)
-        4. hours_elapsed < 6               → mode = real_time
+        1. < MIN_READINGS readings         → mode = none
+        2. hours_elapsed > MAX_STALE_HOURS → mode = pattern (LSTM seeded with pattern estimate)
+        3. otherwise                       → mode = real_time
         """
         raw_readings = self._fetch_readings(user_id)
         cleaned_readings = self._remove_outliers(raw_readings)
@@ -1000,8 +1006,6 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         # ── Determine prediction mode ─────────────────────────────────────
         if hours_elapsed > MAX_STALE_HOURS:
             prediction_mode = "pattern"
-        elif hours_elapsed >= 6.0:
-            prediction_mode = "hybrid"
         else:
             prediction_mode = "real_time"
 
@@ -1009,7 +1013,15 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             f"[Prediction] mode={prediction_mode}, elapsed={hours_elapsed:.1f}h")
 
         # ══════════════════════════════════════════════════════════════════
-        # MODE: PATTERN — data too old, show historical analysis only
+        # MODE: PATTERN — Historical Pattern Analysis + LSTM
+        #
+        # Two-stage pipeline when data is stale (> MAX_STALE_HOURS):
+        #   Stage 1 — Historical Pattern Analysis:
+        #             scan last 30 days ±1.5 h window, compute typical_avg
+        #             as the best estimate of current glucose.
+        #   Stage 2 — LSTM:
+        #             inject typical_avg as a synthetic "now" seed row,
+        #             then predict forward from that estimated value.
         # ══════════════════════════════════════════════════════════════════
         if prediction_mode == "pattern":
             pattern = self.calculate_pattern_prediction(
@@ -1018,79 +1030,136 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
             stale_msg = {
                 "ar": (
-                    f"آخر قراءة منذ {e}. لا يتوفر تنبؤ لحظي — "
-                    "يعرض التطبيق تحليلاً بناءً على نمطك التاريخي."
+                    f"آخر قراءة منذ {e}. "
+                    "التنبؤ يستند إلى نمطك التاريخي كتقدير للقيمة الحالية."
                 ),
                 "en": (
-                    f"Last reading was {e} ago. No real-time prediction available — "
-                    "showing analysis based on your historical pattern."
+                    f"Last reading was {e} ago. "
+                    "Prediction is based on your historical pattern as an estimated current value."
                 ),
                 "he": (
-                    f"הקריאה האחרונה לפני {e}. אין תחזית בזמן אמת — "
-                    "מוצג ניתוח על סמך הדפוס ההיסטורי שלך."
-                ),
-            }
-            family_stale_msg = {
-                "ar": (
-                    f"لم تُسجَّل أي قراءة لـ {patient_name} منذ {e}. "
-                    "لا يتوفر تنبؤ لحظي — يعرض التطبيق تحليلاً بناءً على نمطه التاريخي."
-                ),
-                "en": (
-                    f"No reading from {patient_name} in {e}. No real-time prediction available — "
-                    "showing analysis based on their historical pattern."
-                ),
-                "he": (
-                    f"לא נרשמה קריאה מ-{patient_name} מזה {e}. אין תחזית בזמן אמת — "
-                    "מוצג ניתוח על סמך הדפוס ההיסטורי שלו."
+                    f"הקריאה האחרונה לפני {e}. "
+                    "התחזית מבוססת על הדפוס ההיסטורי שלך כהערכת ערך נוכחי."
                 ),
             }
 
-            # Groq personalised advice for pattern mode
-            pattern_advice = None
-            if pattern.get("available"):
-                _now = datetime.now(timezone.utc)
-                h_now = _now.hour
-                h_end = (h_now + 1) % 24
-                hl = {"ar": f"{h_now}:00 - {h_end}:00", "en": f"{h_now}:00–{h_end}:00",
-                      "he": f"{h_now}:00–{h_end}:00"}.get(lang, f"{h_now}:00–{h_end}:00")
-                pattern_advice = self._get_pattern_advice(
-                    patient_name=patient_name,
-                    typical_avg=pattern.get("typical_avg", 0),
-                    typical_min=pattern.get("typical_min", 0),
-                    typical_max=pattern.get("typical_max", 0),
-                    risk_level=pattern.get("risk_level", "normal"),
-                    hour_label=hl,
-                    sample_count=pattern.get("sample_count", 0),
-                    confidence=pattern.get("confidence", "low"),
-                    lang=lang,
+            # ── No history available → cannot estimate or predict ─────────
+            if not pattern.get("available"):
+                return {
+                    "predicted_value":          None,
+                    "hours":                    hours,
+                    "trend":                    None,
+                    "alert_type":               None,
+                    "probability":              None,
+                    "prob_up":                  None,
+                    "prob_down":                None,
+                    "advice":                   None,
+                    "readings_used":            len(cleaned_readings),
+                    "prediction_mode":          "pattern",
+                    "pattern_prediction":       pattern,
+                    "comparison_to_pattern":    None,
+                    "data_stale":               True,
+                    "hours_since_last_reading": round(hours_elapsed, 1),
+                    "message":                  stale_msg.get(lang, stale_msg["en"]),
+                }
+
+            # ── Step 1: Estimate current glucose from historical pattern ───
+            estimated_current = float(pattern["typical_avg"])
+            print(f"[Pattern+LSTM] estimated_current={estimated_current} mg/dL "
+                  f"from {pattern['sample_count']} historical samples")
+
+            # ── Step 2: Build feature matrix from all historical readings ──
+            profile  = self._fetch_lifestyle_profile(user_id)
+            log_ctx  = self._fetch_daily_log_context(user_id)
+            sleep_bl = profile["sleep_hours_baseline"]
+
+            rows = []
+            for r in cleaned_readings:
+                hour, c30, c2h, activity, sleep = self._context_for_reading(
+                    r, log_ctx, sleep_bl)
+                rows.append([r["value"], hour, c30, c2h, activity, sleep])
+            feature_matrix = np.array(rows, dtype=np.float32)
+
+            # ── Step 3: Inject synthetic "now" row using pattern estimate ──
+            # No recent carbs/activity since data is stale — use zeros
+            now_dt   = datetime.now(timezone.utc)
+            now_hour = float(now_dt.hour) + float(now_dt.minute) / 60.0
+            virtual_row = np.array(
+                [[estimated_current, now_hour, 0.0, 0.0, 0.0, sleep_bl]],
+                dtype=np.float32,
+            )
+            seed_matrix = np.vstack([feature_matrix, virtual_row])
+
+            # ── Step 4: Run LSTM seeded with pattern estimate ─────────────
+            try:
+                predicted, sigma = self._predict_lstm(
+                    feature_matrix, user_id=user_id,
+                    hours=hours, seed_override=seed_matrix,
                 )
+            except Exception as exc:
+                print(f"[Pattern+LSTM] LSTM failed: {exc} — using pattern avg")
+                predicted = estimated_current
+                sigma = 20.0
 
-            # Send family alert if pattern shows risk (rate-limited)
-            if pattern.get("available") and pattern.get("risk_level") in ("high", "low", "variable"):
-                risk = pattern["risk_level"]
-                ak = f"pattern_{risk}"
-                if self._can_send_alert(user_id, ak):
-                    try:
-                        send_stale_pattern_alert(
-                            patient_id=user_id,
-                            patient_name=patient_name,
-                            risk_level=risk,
-                            hours_elapsed=hours_elapsed,
-                            typical_avg=pattern.get("typical_avg"),
-                        )
-                        self._mark_alert_sent(user_id, ak)
-                    except Exception as exc:
-                        print(f"Pattern alert failed: {exc}")
+            predicted = float(np.clip(predicted, GLUCOSE_MIN, GLUCOSE_MAX))
+
+            # ── Step 5: Risk, trend, probability ─────────────────────────
+            trend = self._calculate_trend(estimated_current, predicted)
+            prob_up, prob_down = self._calculate_probability(
+                estimated_current, predicted, sigma)
+            probability = (
+                prob_up   if trend == "rising"  else
+                prob_down if trend == "falling" else
+                max(prob_up, prob_down)
+            )
+            alert_type = self._get_alert_type(estimated_current, predicted, False)
+
+            # ── Step 6: AI advice (with comorbidity-aware rules) ──────────
+            health_info = health_service.get_health_info(user_id)
+            health_ctx = {
+                "conditions":    health_info.conditions,
+                "basal_insulin": health_info.basal_insulin.model_dump()
+                                 if health_info.basal_insulin else None,
+                "insulin_effect": 0,
+            }
+            advice = self._get_ai_advice(
+                patient_name=patient_name,
+                current=estimated_current,
+                predicted=predicted,
+                trend=trend,
+                alert_type=alert_type,
+                hours=hours,
+                lang=lang,
+                prediction_mode="pattern",
+                pattern_risk_level=pattern.get("risk_level"),
+                health_ctx=health_ctx,
+            )
+
+            # ── Step 7: Family alert if risk detected (rate-limited) ──────
+            if alert_type and self._can_send_alert(user_id, alert_type):
+                try:
+                    send_prediction_alert(
+                        patient_id=user_id,
+                        patient_name=patient_name,
+                        alert_type=alert_type,
+                        current=estimated_current,
+                        predicted=predicted,
+                        hours=hours,
+                        family_advice=advice.get("family") if advice else None,
+                    )
+                    self._mark_alert_sent(user_id, alert_type)
+                except Exception as exc:
+                    print(f"[Pattern+LSTM] Alert failed: {exc}")
 
             return {
-                "predicted_value":          None,
+                "predicted_value":          round(predicted, 1),
                 "hours":                    hours,
-                "trend":                    None,
-                "alert_type":               None,
-                "probability":              None,
-                "prob_up":                  None,
-                "prob_down":                None,
-                "advice":                   pattern_advice,
+                "trend":                    trend,
+                "alert_type":               alert_type,
+                "probability":              probability,
+                "prob_up":                  prob_up,
+                "prob_down":                prob_down,
+                "advice":                   advice,
                 "readings_used":            len(cleaned_readings),
                 "prediction_mode":          "pattern",
                 "pattern_prediction":       pattern,
@@ -1098,7 +1167,6 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                 "data_stale":               True,
                 "hours_since_last_reading": round(hours_elapsed, 1),
                 "message":                  stale_msg.get(lang, stale_msg["en"]),
-                "family_message":           family_stale_msg.get(lang, family_stale_msg["en"]),
             }
 
         # ══════════════════════════════════════════════════════════════════
@@ -1119,15 +1187,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         last_was_outlier = raw_last is not None and raw_last != cleaned_readings[-1]["value"]
         current = raw_last if raw_last is not None else feature_matrix[-1, 0]
 
-        # Stale note for hybrid mode
         stale_note = None
-        if prediction_mode == "hybrid":
-            e = self._elapsed_str(hours_elapsed, lang)
-            stale_note = {
-                "ar": f"آخر قراءة منذ {e} — أضف قراءة جديدة للحصول على تنبؤ محدّث.",
-                "en": f"Last reading was {e} ago — add a new reading for a fresher prediction.",
-                "he": f"הקריאה האחרונה לפני {e} — הוסף קריאה חדשה לתחזית מעודכנת.",
-            }
 
         # Virtual "now" seed row when lifestyle context changed
         now = datetime.now(timezone.utc)
@@ -1295,7 +1355,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             "prediction_mode":          prediction_mode,
             "pattern_prediction":       None,   # card only shown in pattern mode
             "comparison_to_pattern":    comparison,
-            "data_stale":               prediction_mode == "hybrid",
+            "data_stale":               False,
             "hours_since_last_reading": round(hours_elapsed, 1),
             "message":                  stale_note.get(lang, stale_note["en"]) if stale_note else None,
         }
