@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   I18nManager,
@@ -14,8 +14,7 @@ import { useTranslation } from "react-i18next";
 
 import { Typography } from "@/constants/Typography";
 import { useAppTheme } from "@/hooks/useAppTheme";
-import { register as apiRegister, login as apiLoginDirect, updateProfile, updateHealthInfo, updateLifestyle } from "@/services/api";
-import { useAuth } from "@/context/AuthContext";
+import { updateProfile, updateHealthInfo, updateLifestyle } from "@/services/api";
 import { formatDob, isValidDob, isValidIsraeliPhone } from "@/utils/validation";
 
 const PRIMARY = "#1A6FA8";
@@ -38,23 +37,6 @@ export default function OnboardingScreen() {
   const { t } = useTranslation();
   const theme = useAppTheme();
   const styles = createStyles(theme);
-  const { login: authContextLogin } = useAuth();
-
-  const {
-    email: emailParam = "",
-    password: passwordParam = "",
-    firstName: firstNameParam = "",
-    lastName: lastNameParam = "",
-    role: roleParam = "patient",
-  } = useLocalSearchParams<{
-    email?: string;
-    password?: string;
-    firstName?: string;
-    lastName?: string;
-    role?: string;
-  }>();
-
-  const isNewUser = !!(emailParam && passwordParam);
 
   const [step, setStep]       = useState(1);
   const [saving, setSaving]   = useState(false);
@@ -128,16 +110,6 @@ export default function OnboardingScreen() {
       }
       try {
         setSaving(true);
-        if (isNewUser) {
-          await apiRegister({
-            email: emailParam,
-            password: passwordParam,
-            first_name: firstNameParam,
-            last_name: lastNameParam,
-            role: (roleParam as "patient" | "family_member") || "patient",
-          });
-          await apiLoginDirect(emailParam, passwordParam);
-        }
         await updateProfile({ phone, dateOfBirth });
         await updateHealthInfo({
           conditions: conditions.filter((c) => c !== "condition_none"),
@@ -148,11 +120,7 @@ export default function OnboardingScreen() {
           sleep_hours: hours,
           activity_level: activityLevel,
         });
-        if (isNewUser) {
-          await authContextLogin(emailParam, passwordParam);
-        } else {
-          router.replace("/(tabs)");
-        }
+        router.replace("/(tabs)");
       } catch (e: any) {
         setErrorMsg(e?.message || t("saveFailed"));
       } finally {

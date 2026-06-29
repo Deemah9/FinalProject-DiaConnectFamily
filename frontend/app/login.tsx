@@ -62,6 +62,13 @@ export default function Login() {
       setLoading(true);
       await login(email.trim(), password);
     } catch (e: any) {
+      if (e.message === "EMAIL_NOT_VERIFIED") {
+        router.push({
+          pathname: "/verify-email" as any,
+          params: { email: email.trim() },
+        });
+        return;
+      }
       setGeneralError(e.message || t("errors.loginFailed"));
     } finally {
       setLoading(false);

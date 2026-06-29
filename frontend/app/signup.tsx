@@ -72,32 +72,19 @@ export default function SignUp() {
     setTouched({ firstName: true, lastName: true, email: true, password: true, confirmPassword: true });
     if (!canSubmit) return;
 
-    if (isFamilyMember) {
-      try {
-        setLoading(true);
-        await register({
-          email: email.trim(),
-          password,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          role: "family_member",
-        });
-      } catch (e: any) {
-        setGeneralError(e.message || t("errors.signupFailed"));
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      router.push({
-        pathname: "/onboarding",
-        params: {
-          email: email.trim(),
-          password,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          role: "patient",
-        },
-      } as any);
+    try {
+      setLoading(true);
+      await register({
+        email: email.trim(),
+        password,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        role: isFamilyMember ? "family_member" : "patient",
+      });
+    } catch (e: any) {
+      setGeneralError(e.message || t("errors.signupFailed"));
+    } finally {
+      setLoading(false);
     }
   }
 

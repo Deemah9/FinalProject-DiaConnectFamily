@@ -113,7 +113,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (userData: RegisterPayload) => {
     await apiRegister(userData);
-    await login(userData.email, userData.password);
+    router.replace({
+      pathname: "/verify-email" as any,
+      params: { email: userData.email, password: userData.password },
+    });
   };
 
   const logout = async () => {

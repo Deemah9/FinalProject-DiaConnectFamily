@@ -96,6 +96,12 @@ export const logout = async () => {
 
 export const deleteAccount = (password) => request("DELETE", "/auth/account", { password });
 
+export const resendVerification = (email) =>
+  request("POST", "/auth/resend-verification", { email });
+
+export const checkVerification = (email) =>
+  request("GET", `/auth/check-verification?email=${encodeURIComponent(email)}`);
+
 export const forgotPassword = (email) =>
   request("POST", "/auth/forgot-password", { email });
 

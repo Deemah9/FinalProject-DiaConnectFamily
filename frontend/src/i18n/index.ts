@@ -634,6 +634,18 @@ const resources = {
       selectTime: "Select Time",
       reminderPermission: "Allow notifications to use custom reminders",
 
+      // Email Verification
+      verifyEmail: {
+        title: "Verify Your Email",
+        subtitle: "We sent a verification link to:",
+        instructions: "Click the link in the email to activate your account. Check your spam folder if you don't see it.",
+        resend: "Resend Verification Email",
+        resending: "Sending...",
+        resent: "Email sent! Check your inbox.",
+        backToLogin: "Back to Login",
+        waiting: "Waiting for verification...",
+      },
+
       // Errors
       errors: {
         emailRequired: "Email is required",
@@ -1285,6 +1297,18 @@ const resources = {
       selectTime: "اختر الوقت",
       reminderPermission: "السماح بالإشعارات لاستخدام التذكيرات المخصصة",
 
+      // Email Verification
+      verifyEmail: {
+        title: "تحقق من بريدك الإلكتروني",
+        subtitle: "أرسلنا رابط التحقق إلى:",
+        instructions: "انقر على الرابط في البريد الإلكتروني لتفعيل حسابك. تحقق من مجلد الرسائل غير المرغوب فيها إذا لم تجده.",
+        resend: "إعادة إرسال بريد التحقق",
+        resending: "جاري الإرسال...",
+        resent: "تم الإرسال! تحقق من صندوق الوارد.",
+        backToLogin: "العودة لتسجيل الدخول",
+        waiting: "بانتظار التحقق...",
+      },
+
       // Errors
       errors: {
         emailRequired: "البريد الإلكتروني مطلوب",
@@ -1935,6 +1959,18 @@ const resources = {
       reminderNotifBody: "הגיע הזמן למדוד את רמת הסוכר בדם 🩸",
       selectTime: "בחר זמן",
       reminderPermission: "אפשר התראות לשימוש בתזכורות מותאמות",
+
+      // Email Verification
+      verifyEmail: {
+        title: "אמת את האימייל שלך",
+        subtitle: "שלחנו קישור אימות אל:",
+        instructions: "לחץ על הקישור באימייל כדי להפעיל את חשבונך. בדוק את תיקיית הספאם אם אינך רואה אותו.",
+        resend: "שלח מחדש אימייל אימות",
+        resending: "שולח...",
+        resent: "האימייל נשלח! בדוק את תיבת הדואר שלך.",
+        backToLogin: "חזרה להתחברות",
+        waiting: "ממתין לאימות...",
+      },
 
       // Errors
       errors: {
