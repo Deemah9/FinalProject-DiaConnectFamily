@@ -472,38 +472,73 @@ def send_prediction_alert(
     }
 
     def _patient_text(lang: str) -> tuple[str, str]:
+        is_rising = predicted > current
         if alert_type == "high":
-            if lang == "en":
+            if is_rising:
+                if lang == "en":
+                    return (
+                        "⬆️ High Glucose Rising",
+                        f"Your glucose is currently {current:.0f} mg/dL and may rise to "
+                        f"{predicted:.0f} mg/dL within {hours}h.",
+                    )
+                if lang == "he":
+                    return (
+                        "⬆️ סוכר גבוה עולה",
+                        f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    )
                 return (
-                    "⬆️ High Glucose Prediction",
-                    f"Your glucose is currently {current:.0f} mg/dL and may rise to "
-                    f"{predicted:.0f} mg/dL within {hours}h.",
+                    "⬆️ ارتفاع السكر - صاعد",
+                    f"سكرك الحالي {current:.0f} mg/dL ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            if lang == "he":
+            else:
+                if lang == "en":
+                    return (
+                        "⬇️ High Glucose Falling",
+                        f"Your glucose is currently {current:.0f} mg/dL and may fall to "
+                        f"{predicted:.0f} mg/dL within {hours}h.",
+                    )
+                if lang == "he":
+                    return (
+                        "⬇️ סוכר גבוה יורד",
+                        f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    )
                 return (
-                    "⬆️ תחזית סוכר גבוה",
-                    f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    "⬇️ ارتفاع السكر - هابط",
+                    f"سكرك الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            return (
-                "⬆️ توقع ارتفاع السكر",
-                f"سكرك الحالي {current:.0f} mg/dL ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
-            )
         if alert_type == "low":
-            if lang == "en":
+            if not is_rising:
+                if lang == "en":
+                    return (
+                        "⬇️ Low Glucose Falling",
+                        f"Your glucose is currently {current:.0f} mg/dL and may drop to "
+                        f"{predicted:.0f} mg/dL within {hours}h.",
+                    )
+                if lang == "he":
+                    return (
+                        "⬇️ סוכר נמוך יורד",
+                        f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    )
                 return (
-                    "⬇️ Low Glucose Prediction",
-                    f"Your glucose is currently {current:.0f} mg/dL and may drop to "
-                    f"{predicted:.0f} mg/dL within {hours}h.",
+                    "⬇️ انخفاض السكر - هابط",
+                    f"سكرك الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            if lang == "he":
+            else:
+                if lang == "en":
+                    return (
+                        "⬆️ Glucose Rising from Low",
+                        f"Your glucose is currently {current:.0f} mg/dL and may rise to "
+                        f"{predicted:.0f} mg/dL within {hours}h.",
+                    )
+                if lang == "he":
+                    return (
+                        "⬆️ גלוקוז עולה מרמה נמוכה",
+                        f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    )
                 return (
-                    "⬇️ תחזית סוכר נמוך",
-                    f"רמת הסוכר שלך כעת {current:.0f} mg/dL ועשויה לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    "⬆️ السكر يرتفع من مستوى منخفض",
+                    f"سكرك الحالي {current:.0f} mg/dL ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            return (
-                "⬇️ توقع انخفاض السكر",
-                f"سكرك الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
-            )
         # patch_error
         if lang == "en":
             return ("⚠️ Sensor Reading Warning", "A suspicious glucose reading was detected. Please check your sensor.")
@@ -512,49 +547,101 @@ def send_prediction_alert(
         return ("⚠️ تحذير قراءة المستشعر", "تم رصد قراءة سكر مشبوهة. يرجى التحقق من المستشعر.")
 
     def _family_text(lang: str) -> tuple[str, str]:
+        is_rising = predicted > current
         if alert_type == "high":
-            if lang == "en":
+            if is_rising:
+                if lang == "en":
+                    return (
+                        "⬆️ High Glucose Rising",
+                        f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL "
+                        f"in {hours}h (now {current:.0f}).",
+                    )
+                if lang == "he":
+                    return (
+                        "⬆️ סוכר גבוה עולה",
+                        f"הסוכר של {patient_name} עשוי לעלות ל‑{predicted:.0f}"
+                        f" mg/dL תוך {hours}ש' (כעת {current:.0f}).",
+                    )
                 return (
-                    "⬆️ High Glucose Alert",
-                    f"{patient_name}'s glucose may rise to {predicted:.0f} mg/dL "
-                    f"in {hours}h (now {current:.0f}).",
+                    "⬆️ ارتفاع سكر المريض - صاعد",
+                    f"سكر {patient_name} الحالي {current:.0f} mg/dL"
+                    f" ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            if lang == "he":
+            else:
+                if lang == "en":
+                    return (
+                        "⬇️ High Glucose Falling",
+                        f"{patient_name}'s glucose is {current:.0f} mg/dL "
+                        f"and may fall to {predicted:.0f} mg/dL in {hours}h.",
+                    )
+                if lang == "he":
+                    return (
+                        "⬇️ סוכר גבוה יורד",
+                        f"הסוכר של {patient_name} הוא {current:.0f} mg/dL"
+                        f" ועשוי לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    )
                 return (
-                    "⬆️ התראת סוכר גבוה",
-                    f"הסוכר של {patient_name} עשוי לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש' (כעת {current:.0f}).",
+                    "⬇️ سكر المريض المرتفع في انخفاض",
+                    f"سكر {patient_name} الحالي {current:.0f} mg/dL"
+                    f" ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            return (
-                "⬆️ توقع ارتفاع سكر المريض",
-                f"سكر {patient_name} الحالي {current:.0f} mg/dL ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
-            )
         if alert_type == "low":
-            if lang == "en":
+            if not is_rising:
+                if lang == "en":
+                    return (
+                        "⬇️ Low Glucose Alert",
+                        f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL "
+                        f"in {hours}h (now {current:.0f}).",
+                    )
+                if lang == "he":
+                    return (
+                        "⬇️ התראת סוכר נמוך",
+                        f"הסוכר של {patient_name} עשוי לרדת ל‑{predicted:.0f}"
+                        f" mg/dL תוך {hours}ש' (כעת {current:.0f}).",
+                    )
                 return (
-                    "⬇️ Low Glucose Alert",
-                    f"{patient_name}'s glucose may drop to {predicted:.0f} mg/dL "
-                    f"in {hours}h (now {current:.0f}).",
+                    "⬇️ تحذير انخفاض سكر المريض",
+                    f"سكر {patient_name} الحالي {current:.0f} mg/dL"
+                    f" ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            if lang == "he":
+            else:
+                if lang == "en":
+                    return (
+                        "⬆️ Glucose Rising from Low",
+                        f"{patient_name}'s glucose is {current:.0f} mg/dL "
+                        f"and may rise to {predicted:.0f} mg/dL in {hours}h.",
+                    )
+                if lang == "he":
+                    return (
+                        "⬆️ גלוקוז עולה מרמה נמוכה",
+                        f"הסוכר של {patient_name} הוא {current:.0f} mg/dL"
+                        f" ועשוי לעלות ל‑{predicted:.0f} mg/dL תוך {hours}ש'.",
+                    )
                 return (
-                    "⬇️ התראת סוכר נמוך",
-                    f"הסוכר של {patient_name} עשוי לרדת ל‑{predicted:.0f} mg/dL תוך {hours}ש' (כעת {current:.0f}).",
+                    "⬆️ سكر المريض يرتفع من مستوى منخفض",
+                    f"سكر {patient_name} الحالي {current:.0f} mg/dL"
+                    f" ومتوقع يرتفع ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
-            return (
-                "⬇️ توقع انخفاض سكر المريض",
-                f"سكر {patient_name} الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
-            )
         if lang == "en":
-            return ("⚠️ Sensor Error", f"A suspicious reading was detected for {patient_name}.")
+            return (
+                "⚠️ Sensor Error",
+                f"A suspicious reading was detected for {patient_name}.",
+            )
         if lang == "he":
             return ("⚠️ שגיאת חיישן", f"זוהתה קריאה חשודה עבור {patient_name}.")
-        return ("⚠️ خطأ في المستشعر", f"تم رصد قراءة مشبوهة للمريض {patient_name}.")
+        return (
+            "⚠️ خطأ في المستشعر",
+            f"تم رصد قراءة مشبوهة للمريض {patient_name}.",
+        )
 
-    # notifKey suffix per alert_type for frontend i18n
-    _key_suffix = {
-        "high": "high",
-        "low": "low",
-    }.get(alert_type, "sensor")
+    # notifKey suffix includes direction so frontend picks the correct translation
+    _is_rising = predicted > current
+    if alert_type == "high":
+        _key_suffix = "high_rising" if _is_rising else "high_falling"
+    elif alert_type == "low":
+        _key_suffix = "low_rising" if _is_rising else "low_falling"
+    else:
+        _key_suffix = "sensor"
     _patient_params = {"current": int(current), "predicted": int(predicted), "hours": hours}
     _family_params  = {"name": patient_name, "current": int(current), "predicted": int(predicted), "hours": hours}
 

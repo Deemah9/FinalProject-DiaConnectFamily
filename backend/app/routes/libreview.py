@@ -4,6 +4,8 @@ from app.models.libreview import SyncRequest, SyncResponse
 from app.services import libreview_service
 from app.services.glucose_service import glucose_service
 from app.services.alert_service import alert_service
+from app.services.family_service import send_emergency_notification
+from app.config.firebase import db as _db
 
 
 router = APIRouter(prefix="/libreview", tags=["LibreView Sync"])
@@ -67,6 +69,8 @@ def sync_libreview(
     imported = 0
     skipped = 0
 
+    patient_name = None
+
     for r in readings:
         saved = glucose_service.create_reading_from_import(
             user_id=user_id,
@@ -76,11 +80,31 @@ def sync_libreview(
         if saved:
             imported += 1
             # ── Step 6: alert evaluation ──────────────────────────
-            alert_service.evaluate_and_store(
+            alert = alert_service.evaluate_and_store(
                 user_id=user_id,
                 reading_id=saved["id"],
                 value=saved["value"],
             )
+            # ── Step 7: push notification if alert was created ───
+            if alert:
+                try:
+                    if patient_name is None:
+                        pdoc = _db.collection("users").document(user_id).get()
+                        if pdoc.exists:
+                            pdata = pdoc.to_dict()
+                            patient_name = (
+                                f"{pdata.get('firstName', '')} {pdata.get('lastName', '')}".strip()
+                                or pdata.get("email", "Patient")
+                            )
+                        else:
+                            patient_name = "Patient"
+                    send_emergency_notification(
+                        patient_id=user_id,
+                        patient_name=patient_name,
+                        glucose_value=saved["value"],
+                    )
+                except Exception as e:
+                    print(f"⚠️ LibreView notification error: {e}")
         else:
             skipped += 1
 

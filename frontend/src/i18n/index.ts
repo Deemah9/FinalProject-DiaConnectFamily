@@ -533,17 +533,25 @@ const resources = {
       notif_glucose_reminder_title: "Glucose Reminder",
       notif_glucose_reminder_body: "Hi {{name}}, you haven't logged a glucose reading in over {{hours}} hours. Please check now.",
       // Prediction alerts — patient
-      notif_prediction_high_patient_title: "⬆️ High Glucose Prediction",
-      notif_prediction_high_patient_body: "Your glucose is currently {{current}} mg/dL and may rise to {{predicted}} mg/dL within {{hours}}h.",
-      notif_prediction_low_patient_title: "⬇️ Low Glucose Prediction",
-      notif_prediction_low_patient_body: "Your glucose is currently {{current}} mg/dL and may drop to {{predicted}} mg/dL within {{hours}}h.",
+      notif_prediction_high_rising_patient_title: "⬆️ High Glucose Rising",
+      notif_prediction_high_rising_patient_body: "Your glucose is currently {{current}} mg/dL and may rise to {{predicted}} mg/dL within {{hours}}h.",
+      notif_prediction_high_falling_patient_title: "⬇️ High Glucose Falling",
+      notif_prediction_high_falling_patient_body: "Your glucose is currently {{current}} mg/dL and may fall to {{predicted}} mg/dL within {{hours}}h.",
+      notif_prediction_low_falling_patient_title: "⬇️ Low Glucose Falling",
+      notif_prediction_low_falling_patient_body: "Your glucose is currently {{current}} mg/dL and may drop to {{predicted}} mg/dL within {{hours}}h.",
+      notif_prediction_low_rising_patient_title: "⬆️ Glucose Rising from Low",
+      notif_prediction_low_rising_patient_body: "Your glucose is currently {{current}} mg/dL and may rise to {{predicted}} mg/dL within {{hours}}h.",
       notif_prediction_sensor_patient_title: "⚠️ Sensor Reading Warning",
       notif_prediction_sensor_patient_body: "A suspicious glucose reading was detected. Please check your sensor.",
       // Prediction alerts — family
-      notif_prediction_high_family_title: "⬆️ High Glucose Alert",
-      notif_prediction_high_family_body: "{{name}}'s glucose may rise to {{predicted}} mg/dL in {{hours}}h (now {{current}}).",
-      notif_prediction_low_family_title: "⬇️ Low Glucose Alert",
-      notif_prediction_low_family_body: "{{name}}'s glucose may drop to {{predicted}} mg/dL in {{hours}}h (now {{current}}).",
+      notif_prediction_high_rising_family_title: "⬆️ High Glucose Rising",
+      notif_prediction_high_rising_family_body: "{{name}}'s glucose may rise to {{predicted}} mg/dL in {{hours}}h (now {{current}}).",
+      notif_prediction_high_falling_family_title: "⬇️ High Glucose Falling",
+      notif_prediction_high_falling_family_body: "{{name}}'s glucose is {{current}} mg/dL and may fall to {{predicted}} mg/dL in {{hours}}h.",
+      notif_prediction_low_falling_family_title: "⬇️ Low Glucose Alert",
+      notif_prediction_low_falling_family_body: "{{name}}'s glucose may drop to {{predicted}} mg/dL in {{hours}}h (now {{current}}).",
+      notif_prediction_low_rising_family_title: "⬆️ Glucose Rising from Low",
+      notif_prediction_low_rising_family_body: "{{name}}'s glucose is {{current}} mg/dL and may rise to {{predicted}} mg/dL in {{hours}}h.",
       notif_prediction_sensor_family_title: "⚠️ Sensor Error",
       notif_prediction_sensor_family_body: "A suspicious reading was detected for {{name}}.",
 
@@ -629,6 +637,18 @@ const resources = {
       reminderNotifBody: "Time to measure your blood glucose 🩸",
       selectTime: "Select Time",
       reminderPermission: "Allow notifications to use custom reminders",
+
+      // Email Verification
+      verifyEmail: {
+        title: "Verify Your Email",
+        subtitle: "We sent a verification link to:",
+        instructions: "Click the link in the email to activate your account. Check your spam folder if you don't see it.",
+        resend: "Resend Verification Email",
+        resending: "Sending...",
+        resent: "Email sent! Check your inbox.",
+        backToLogin: "Back to Login",
+        waiting: "Waiting for verification...",
+      },
 
       // Errors
       errors: {
@@ -1180,17 +1200,25 @@ const resources = {
       notif_glucose_reminder_title: "تذكير قياس السكر",
       notif_glucose_reminder_body: "مرحباً {{name}}، لم تقم بتسجيل قراءة سكر منذ أكثر من {{hours}} ساعات. يرجى القياس الآن.",
       // Prediction alerts — patient
-      notif_prediction_high_patient_title: "⬆️ توقع ارتفاع السكر",
-      notif_prediction_high_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
-      notif_prediction_low_patient_title: "⬇️ توقع انخفاض السكر",
-      notif_prediction_low_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_high_rising_patient_title: "⬆️ ارتفاع السكر - صاعد",
+      notif_prediction_high_rising_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_high_falling_patient_title: "⬇️ ارتفاع السكر - هابط",
+      notif_prediction_high_falling_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_low_falling_patient_title: "⬇️ انخفاض السكر - هابط",
+      notif_prediction_low_falling_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_low_rising_patient_title: "⬆️ السكر يرتفع من مستوى منخفض",
+      notif_prediction_low_rising_patient_body: "سكرك الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
       notif_prediction_sensor_patient_title: "⚠️ تحذير قراءة المستشعر",
       notif_prediction_sensor_patient_body: "تم رصد قراءة سكر مشبوهة. يرجى التحقق من المستشعر.",
       // Prediction alerts — family
-      notif_prediction_high_family_title: "⬆️ توقع ارتفاع سكر المريض",
-      notif_prediction_high_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
-      notif_prediction_low_family_title: "⬇️ توقع انخفاض سكر المريض",
-      notif_prediction_low_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_high_rising_family_title: "⬆️ ارتفاع سكر المريض - صاعد",
+      notif_prediction_high_rising_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_high_falling_family_title: "⬇️ سكر المريض المرتفع في انخفاض",
+      notif_prediction_high_falling_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_low_falling_family_title: "⬇️ تحذير انخفاض سكر المريض",
+      notif_prediction_low_falling_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع ينخفض ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
+      notif_prediction_low_rising_family_title: "⬆️ سكر المريض يرتفع من مستوى منخفض",
+      notif_prediction_low_rising_family_body: "سكر {{name}} الحالي {{current}} mg/dL ومتوقع يرتفع ل {{predicted}} mg/dL خلال {{hours}} ساعة.",
       notif_prediction_sensor_family_title: "⚠️ خطأ في المستشعر",
       notif_prediction_sensor_family_body: "تم رصد قراءة مشبوهة للمريض {{name}}.",
 
@@ -1276,6 +1304,18 @@ const resources = {
       reminderNotifBody: "حان وقت قياس مستوى السكر في الدم 🩸",
       selectTime: "اختر الوقت",
       reminderPermission: "السماح بالإشعارات لاستخدام التذكيرات المخصصة",
+
+      // Email Verification
+      verifyEmail: {
+        title: "تحقق من بريدك الإلكتروني",
+        subtitle: "أرسلنا رابط التحقق إلى:",
+        instructions: "انقر على الرابط في البريد الإلكتروني لتفعيل حسابك. تحقق من مجلد الرسائل غير المرغوب فيها إذا لم تجده.",
+        resend: "إعادة إرسال بريد التحقق",
+        resending: "جاري الإرسال...",
+        resent: "تم الإرسال! تحقق من صندوق الوارد.",
+        backToLogin: "العودة لتسجيل الدخول",
+        waiting: "بانتظار التحقق...",
+      },
 
       // Errors
       errors: {
@@ -1827,17 +1867,25 @@ const resources = {
       notif_glucose_reminder_title: "תזכורת סוכר",
       notif_glucose_reminder_body: "שלום {{name}}, לא רשמת קריאת סוכר מזה יותר מ-{{hours}} שעות. אנא בדוק עכשיו.",
       // Prediction alerts — patient
-      notif_prediction_high_patient_title: "⬆️ תחזית סוכר גבוה",
-      notif_prediction_high_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
-      notif_prediction_low_patient_title: "⬇️ תחזית סוכר נמוך",
-      notif_prediction_low_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_high_rising_patient_title: "⬆️ סוכר גבוה עולה",
+      notif_prediction_high_rising_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_high_falling_patient_title: "⬇️ סוכר גבוה יורד",
+      notif_prediction_high_falling_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_low_falling_patient_title: "⬇️ סוכר נמוך יורד",
+      notif_prediction_low_falling_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_low_rising_patient_title: "⬆️ גלוקוז עולה מרמה נמוכה",
+      notif_prediction_low_rising_patient_body: "רמת הסוכר שלך כעת {{current}} mg/dL ועשויה לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
       notif_prediction_sensor_patient_title: "⚠️ אזהרת חיישן",
       notif_prediction_sensor_patient_body: "זוהתה קריאת גלוקוז חשודה. אנא בדוק את החיישן שלך.",
       // Prediction alerts — family
-      notif_prediction_high_family_title: "⬆️ התראת סוכר גבוה",
-      notif_prediction_high_family_body: "הסוכר של {{name}} עשוי לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש' (כעת {{current}}).",
-      notif_prediction_low_family_title: "⬇️ התראת סוכר נמוך",
-      notif_prediction_low_family_body: "הסוכר של {{name}} עשוי לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש' (כעת {{current}}).",
+      notif_prediction_high_rising_family_title: "⬆️ סוכר גבוה עולה",
+      notif_prediction_high_rising_family_body: "הסוכר של {{name}} עשוי לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש' (כעת {{current}}).",
+      notif_prediction_high_falling_family_title: "⬇️ סוכר גבוה יורד",
+      notif_prediction_high_falling_family_body: "הסוכר של {{name}} הוא {{current}} mg/dL ועשוי לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
+      notif_prediction_low_falling_family_title: "⬇️ התראת סוכר נמוך",
+      notif_prediction_low_falling_family_body: "הסוכר של {{name}} עשוי לרדת ל‑{{predicted}} mg/dL תוך {{hours}}ש' (כעת {{current}}).",
+      notif_prediction_low_rising_family_title: "⬆️ גלוקוז עולה מרמה נמוכה",
+      notif_prediction_low_rising_family_body: "הסוכר של {{name}} הוא {{current}} mg/dL ועשוי לעלות ל‑{{predicted}} mg/dL תוך {{hours}}ש'.",
       notif_prediction_sensor_family_title: "⚠️ שגיאת חיישן",
       notif_prediction_sensor_family_body: "זוהתה קריאה חשודה עבור {{name}}.",
 
@@ -1923,6 +1971,18 @@ const resources = {
       reminderNotifBody: "הגיע הזמן למדוד את רמת הסוכר בדם 🩸",
       selectTime: "בחר זמן",
       reminderPermission: "אפשר התראות לשימוש בתזכורות מותאמות",
+
+      // Email Verification
+      verifyEmail: {
+        title: "אמת את האימייל שלך",
+        subtitle: "שלחנו קישור אימות אל:",
+        instructions: "לחץ על הקישור באימייל כדי להפעיל את חשבונך. בדוק את תיקיית הספאם אם אינך רואה אותו.",
+        resend: "שלח מחדש אימייל אימות",
+        resending: "שולח...",
+        resent: "האימייל נשלח! בדוק את תיבת הדואר שלך.",
+        backToLogin: "חזרה להתחברות",
+        waiting: "ממתין לאימות...",
+      },
 
       // Errors
       errors: {

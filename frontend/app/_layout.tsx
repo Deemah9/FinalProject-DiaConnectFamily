@@ -22,7 +22,7 @@ import { FontSizeProvider } from "../context/FontSizeContext";
 import { HighContrastProvider } from "../context/HighContrastContext";
 import { HapticProvider, useHaptic } from "../context/HapticContext";
 import { logReminderFired } from "../services/api";
-import { getReminders, getRemindersEnabled } from "../services/reminderScheduler";
+import { applyReminderSchedule, getReminders, getRemindersEnabled } from "../services/reminderScheduler";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -41,7 +41,18 @@ function AppShell() {
 
   useEffect(() => {
     Promise.all([setupI18n(), Font.loadAsync(Ionicons.font)])
-      .then(() => setReady(true))
+      .then(() => {
+        setReady(true);
+        // Reschedule reminders in the correct language now that i18n is ready
+        Promise.all([getReminders(), getRemindersEnabled()]).then(([reminders, enabled]) =>
+          applyReminderSchedule(
+            reminders,
+            enabled,
+            i18n.t("reminderNotifTitle"),
+            i18n.t("reminderNotifBody")
+          )
+        ).catch(() => {});
+      })
       .catch(() => setReady(true));
   }, []);
 

@@ -13,6 +13,51 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 _FALLBACK_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
+def send_verification_email(
+    to_email: str, token: str, base_url: str = None
+) -> None:
+    origin = (base_url or _FALLBACK_URL).rstrip("/")
+    verify_link = f"{origin}/auth/verify-email?token={token}"
+
+    btn_style = (
+        "display:inline-block;margin-top:20px;padding:14px 28px;"
+        "background-color:#1A6FA8;color:#ffffff;text-decoration:none;"
+        "border-radius:8px;font-size:15px;font-weight:600;"
+    )
+    body_style = (
+        "font-family:Arial,sans-serif;"
+        "background:#f5f5f5;padding:40px;"
+    )
+    card_style = (
+        "max-width:480px;margin:auto;background:#ffffff;"
+        "border-radius:12px;padding:32px;"
+    )
+    html_body = (
+        f'<html><body style="{body_style}">'
+        f'<div style="{card_style}">'
+        f'<h2 style="color:#1A6FA8;margin-bottom:8px;">DiaConnect Family</h2>'
+        f'<p style="color:#333;font-size:15px;">'
+        f"Thank you for registering! Please verify your email address "
+        f"by clicking the button below. This link expires in <strong>24 hours</strong>.</p>"
+        f'<a href="{verify_link}" style="{btn_style}">Verify Email</a>'
+        f'<p style="margin-top:24px;color:#888;font-size:12px;">'
+        f"If you didn't create an account, you can safely ignore this email.</p>"
+        f"</div></body></html>"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Verify your DiaConnect Family email"
+    msg["From"] = SMTP_USER
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.ehlo()
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, to_email, msg.as_string())
+
+
 def send_password_reset_email(
     to_email: str, token: str, base_url: str = None
 ) -> None:

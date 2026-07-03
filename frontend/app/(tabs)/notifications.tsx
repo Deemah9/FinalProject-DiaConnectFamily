@@ -75,17 +75,29 @@ function NotifCard({
   item: Notification; lang: string; t: any; onPress: (id: string) => void;
   styles: ReturnType<typeof createStyles>;
 }) {
-  const cfg = TYPE_CONFIG[item.type as NotifType] ?? {
+  const isFalling = item.notifKey?.includes("falling") || item.notifKey?.includes("low_falling");
+  const baseCfg = TYPE_CONFIG[item.type as NotifType] ?? {
     color: "#718096", icon: "notifications" as const, bg: "#F7FAFC", light: "#F7FAFC",
   };
+  const cfg = item.type === "prediction_alert"
+    ? { ...baseCfg, icon: (isFalling ? "trending-down" : "trending-up") as const }
+    : baseCfg;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const displayTitle = item.notifKey
-    ? t(`notif_${item.notifKey}_title`, item.notifParams ?? {}, item.title)
-    : item.title;
-  const displayBody = item.notifKey
-    ? t(`notif_${item.notifKey}_body`, item.notifParams ?? {}, item.body)
-    : item.body;
+  const isCustomReminder = item.type === "custom_reminder";
+  // Default reminder titles across all languages — if stored title matches any, re-translate it
+  const DEFAULT_REMINDER_TITLES = ["Glucose Reminder", "تذكير قياس السكر", "תזכורת גלוקוז", "תזכורת סוכר"];
+  const isDefaultTitle = !item.title || DEFAULT_REMINDER_TITLES.includes(item.title);
+  const displayTitle = isCustomReminder
+    ? (isDefaultTitle ? t("reminderNotifTitle") : item.title)
+    : item.notifKey
+      ? t(`notif_${item.notifKey}_title`, item.notifParams ?? {}, item.title)
+      : item.title;
+  const displayBody = isCustomReminder
+    ? t("reminderNotifBody")
+    : item.notifKey
+      ? t(`notif_${item.notifKey}_body`, item.notifParams ?? {}, item.body)
+      : item.body;
 
   useEffect(() => {
     if (!item.isRead) {
@@ -391,7 +403,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     tabBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
 
     // List
-    listContent: { padding: 14, gap: 10 },
+    listContent: { padding: 12, gap: 7 },
     emptyContainer: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingBottom: 120 },
     loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
     loadingText: { color: theme.textLight, fontSize: 14 },
@@ -400,20 +412,20 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     card: {
       flexDirection: "row",
       backgroundColor: theme.bgCard,
-      borderRadius: 18,
+      borderRadius: 14,
       overflow: "hidden",
-      boxShadow: "0px 2px 6px rgba(0,0,0,0.06)",
+      boxShadow: "0px 1px 4px rgba(0,0,0,0.06)",
     },
-    cardBar: { width: 4 },
+    cardBar: { width: 3 },
     iconWrap: {
-      width: 54, alignItems: "center",
+      width: 46, alignItems: "center",
       justifyContent: "center", position: "relative",
     },
     pulseDot: {
-      position: "absolute", top: 10, right: 8,
-      width: 8, height: 8, borderRadius: 4,
+      position: "absolute", top: 8, right: 6,
+      width: 7, height: 7, borderRadius: 4,
     },
-    cardContent: { flex: 1, padding: 12, gap: 5 },
+    cardContent: { flex: 1, paddingHorizontal: 10, paddingVertical: 9, gap: 3 },
     cardTop: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -421,7 +433,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     },
     cardTitle: { fontSize: 13, fontWeight: "700", flex: 1, marginEnd: 6 },
     cardTime: { fontSize: 11, color: theme.placeholder },
-    cardBody: { fontSize: 12, color: theme.textMuted, lineHeight: 17 },
+    cardBody: { fontSize: 12, color: theme.textMuted, lineHeight: 16 },
 
     patientBadge: {
       flexDirection: "row", alignItems: "center", gap: 4,
@@ -432,8 +444,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
 
     glucosePill: {
       flexDirection: "row", alignItems: "center", gap: 4,
-      alignSelf: "flex-start", borderRadius: 8,
-      paddingHorizontal: 8, paddingVertical: 3,
+      alignSelf: "flex-start", borderRadius: 7,
+      paddingHorizontal: 7, paddingVertical: 2,
     },
     glucoseText: { color: "#fff", fontSize: 11, fontWeight: "700" },
 
