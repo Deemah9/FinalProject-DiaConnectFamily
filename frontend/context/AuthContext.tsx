@@ -6,6 +6,7 @@ import {
   logout as apiLogout,
   register as apiRegister,
   getProfile,
+  setUnauthorizedHandler,
 } from "../services/api";
 import { setAppLanguage } from "../src/i18n";
 import {
@@ -68,6 +69,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
     checkToken();
+  }, []);
+
+  useEffect(() => {
+    // A 401 from any authenticated request means the token is invalid/expired —
+    // reset auth state and send the user back to the welcome/login screen instead
+    // of letting the raw "Invalid or expired token" message render as if it were data.
+    setUnauthorizedHandler(() => {
+      setUser(null);
+      router.replace("/welcome");
+    });
   }, []);
 
   const login = async (email: string, password: string) => {
