@@ -280,6 +280,7 @@ These are worth resolving in code or explicitly deciding to leave as-is — list
 3. `family_patient_links.family_member_name` — read with a fallback, never written.
 4. Alert thresholds (70/180 in `alerts`) vs. emergency-push thresholds (70/300 in `glucose_service`) are two separate, unsynchronized systems.
 5. Prediction alert rate-limiting (`prediction_service._last_alert_sent`) is in-process memory, not Firestore-backed — resets on every backend restart/deploy.
+6. Same caveat applies to the per-user fine-tuned LSTM cache (`prediction_service._model_cache`, including `training_in_progress` state) — in-process memory only, lost on restart, and not shared across worker processes if the backend is ever deployed with multiple uvicorn workers.
 
 ---
 

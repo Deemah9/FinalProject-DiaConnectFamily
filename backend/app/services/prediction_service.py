@@ -24,6 +24,7 @@ Stage 2 — LSTM:
 
 import os
 import json
+import threading
 import urllib.request
 import urllib.error
 import numpy as np
@@ -55,6 +56,7 @@ MANUAL_MAX_CHANGE = 80
 AUGMENT_COPIES = 3
 FINETUNE_EPOCHS = 15
 FINETUNE_LR = 5e-4
+RETRAIN_AFTER_NEW_READINGS = 10  # new readings since last training before a background retrain fires
 MAX_STALE_HOURS = 24
 PATTERN_DAYS = 30
 PATTERN_HOUR_WINDOW = 1.5   # ±1.5 h circular window
@@ -82,12 +84,13 @@ BASE_MODEL_PATH = Path(__file__).parent.parent.parent / \
 
 class PredictionService:
 
-    _model_cache:     dict = {}   # user_id → {model, n_readings, sigma}
+    _model_cache:     dict = {}   # user_id → {model, sigma, trained_n_readings, training_in_progress}
     _base_weights = None
     _last_alert_sent: dict = {}   # "{user_id}:{alert_type}" → datetime
 
     def __init__(self):
         self.db = firestore.client()
+        self._cache_lock = threading.Lock()
 
     # ==========================================
     # Rate Limiting
@@ -319,16 +322,15 @@ class PredictionService:
         return model
 
     # ==========================================
-    # LSTM Prediction
+    # Model Training (fresh fine-tune from base weights)
     # ==========================================
 
-    def _predict_lstm(
-        self,
-        feature_matrix: np.ndarray,
-        user_id: str,
-        hours: int = 1,
-        seed_override: np.ndarray | None = None,
-    ) -> tuple[float, float]:
+    def _train_model(self, feature_matrix: np.ndarray):
+        """Fine-tune a fresh model from the base weights and compute validation sigma.
+
+        Never touches `_model_cache` — callers (sync first-time training or
+        `_background_retrain`) own writing the result into the cache.
+        """
         import tensorflow as tf
         tf.random.set_seed(42)
         np.random.seed(42)
@@ -356,42 +358,97 @@ class PredictionService:
         X_train = np.concatenate(X_aug)
         y_train = np.concatenate(y_aug)
 
-        cache = PredictionService._model_cache.get(user_id)
-        if cache and cache["n_readings"] == n:
-            model = cache["model"]
-            sigma = cache["sigma"]
+        model = self._get_base_model()
+        model.layers[0].trainable = False
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
+            loss="mse",
+        )
+        raw_w = np.exp(np.linspace(0, 3, len(X_raw_train))
+                       ).astype(np.float32)
+        aug_w = np.concatenate([raw_w] * AUGMENT_COPIES)
+        aug_w = aug_w / aug_w.mean()
+
+        model.fit(X_train, y_train, sample_weight=aug_w,
+                  epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
+
+        if len(X_val) > 0:
+            y_pred_val = model.predict(X_val, verbose=0).flatten()
+            y_true_mg = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            y_pred_mg = np.clip(y_pred_val, 0.0, 1.0) * \
+                (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
         else:
-            model = self._get_base_model()
-            model.layers[0].trainable = False
-            model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
-                loss="mse",
-            )
-            raw_w = np.exp(np.linspace(0, 3, len(X_raw_train))
-                           ).astype(np.float32)
-            aug_w = np.concatenate([raw_w] * AUGMENT_COPIES)
-            aug_w = aug_w / aug_w.mean()
+            y_pred_tr = model.predict(X_raw_train, verbose=0).flatten()
+            y_true_mg = y_raw_train * \
+                (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            y_pred_mg = np.clip(y_pred_tr, 0.0, 1.0) * \
+                (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
+        sigma = max(1.0, sigma)
+        print(f"[Prediction] σ (val RMSE) = {sigma:.1f} mg/dL")
+        return model, sigma
 
-            model.fit(X_train, y_train, sample_weight=aug_w,
-                      epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
+    # ==========================================
+    # Background Retrain
+    # ==========================================
 
-            if len(X_val) > 0:
-                y_pred_val = model.predict(X_val, verbose=0).flatten()
-                y_true_mg = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                y_pred_mg = np.clip(y_pred_val, 0.0, 1.0) * \
-                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
-            else:
-                y_pred_tr = model.predict(X_raw_train, verbose=0).flatten()
-                y_true_mg = y_raw_train * \
-                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                y_pred_mg = np.clip(y_pred_tr, 0.0, 1.0) * \
-                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
-            sigma = max(1.0, sigma)
-            print(f"[Prediction] σ (val RMSE) = {sigma:.1f} mg/dL")
-            PredictionService._model_cache[user_id] = {
-                "model": model, "n_readings": n, "sigma": sigma}
+    def _background_retrain(self, user_id: str, feature_matrix: np.ndarray, n: int) -> None:
+        try:
+            model, sigma = self._train_model(feature_matrix)
+            with self._cache_lock:
+                PredictionService._model_cache[user_id] = {
+                    "model": model, "sigma": sigma,
+                    "trained_n_readings": n, "training_in_progress": False,
+                }
+            print(f"[Prediction] Background retrain complete for {user_id} ({n} readings)")
+        except Exception as exc:
+            print(f"[Prediction] Background retrain failed for {user_id}: {exc}")
+            with self._cache_lock:
+                stale = PredictionService._model_cache.get(user_id)
+                if stale is not None:
+                    stale["training_in_progress"] = False
+
+    # ==========================================
+    # LSTM Prediction
+    # ==========================================
+
+    def _predict_lstm(
+        self,
+        feature_matrix: np.ndarray,
+        user_id: str,
+        hours: int = 1,
+        seed_override: np.ndarray | None = None,
+    ) -> tuple[float, float]:
+        n = feature_matrix.shape[0]
+        scaled = self._normalise(feature_matrix)
+
+        cache = PredictionService._model_cache.get(user_id)
+
+        if cache is None:
+            # First-ever prediction for this user — nothing to fall back to,
+            # train synchronously.
+            model, sigma = self._train_model(feature_matrix)
+            with self._cache_lock:
+                PredictionService._model_cache[user_id] = {
+                    "model": model, "sigma": sigma,
+                    "trained_n_readings": n, "training_in_progress": False,
+                }
+        else:
+            model, sigma = cache["model"], cache["sigma"]
+            new_readings = n - cache["trained_n_readings"]
+            if new_readings >= RETRAIN_AFTER_NEW_READINGS:
+                with self._cache_lock:
+                    entry = PredictionService._model_cache.get(user_id)
+                    if entry is not None and not entry.get("training_in_progress"):
+                        entry["training_in_progress"] = True
+                        threading.Thread(
+                            target=self._background_retrain,
+                            args=(user_id, feature_matrix, n),
+                            daemon=True,
+                        ).start()
+                        print(f"[Prediction] Started background retrain for {user_id} "
+                              f"({new_readings} new readings)")
 
         if seed_override is not None:
             seed_scaled = self._normalise(seed_override)
