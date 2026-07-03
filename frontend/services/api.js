@@ -13,6 +13,26 @@ const getToken = async () => {
 };
 
 // ==========================================
+// Global 401 handler (session expired/invalid)
+// ==========================================
+
+// Endpoints where a 401 means "wrong credentials", not "your session expired" —
+// these must NOT force a logout/redirect, just surface an inline error as before.
+const NO_FORCE_LOGOUT_ON_401 = new Set([
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+]);
+
+let unauthorizedHandler = null;
+
+// Called once by AuthContext on mount to receive session-expiry notifications.
+export const setUnauthorizedHandler = (fn) => {
+  unauthorizedHandler = fn;
+};
+
+// ==========================================
 // Helper — base request
 // ==========================================
 
@@ -66,6 +86,13 @@ const request = async (method, endpoint, body = null) => {
       detail = JSON.stringify(detail);
     }
     const msg = detail || raw || `HTTP ${response.status}`;
+
+    const path = endpoint.split("?")[0];
+    if (response.status === 401 && !NO_FORCE_LOGOUT_ON_401.has(path)) {
+      await AsyncStorage.multiRemove(["token", "role"]);
+      unauthorizedHandler?.();
+    }
+
     throw new Error(msg);
   }
 
@@ -169,6 +196,10 @@ export const importGlucoseCSV = async (filePayload, fileName, mimeType) => {
 
   if (!response.ok) {
     const msg = (data && (data.detail || data.message)) || raw || `HTTP ${response.status}`;
+    if (response.status === 401) {
+      await AsyncStorage.multiRemove(["token", "role"]);
+      unauthorizedHandler?.();
+    }
     throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   }
   return data;
