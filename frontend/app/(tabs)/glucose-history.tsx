@@ -118,8 +118,8 @@ export default function GlucoseHistoryScreen() {
   }, [allDates, selectedDateStr]);
 
   useEffect(() => {
-    if (allDates.length > 0 && !selectedDateStr) {
-      setSelectedDateStr(allDates[0]);
+    if (!selectedDateStr) {
+      setSelectedDateStr(toLocalDateStr(new Date()));
     }
   }, [allDates]);
 
@@ -173,8 +173,8 @@ export default function GlucoseHistoryScreen() {
   const confirmEdit = async () => {
     if (!editingItem) return;
     const num = parseInt(editValue, 10);
-    if (isNaN(num) || num <= 0 || num > 600) {
-      setErrorMsg(t("invalidGlucoseValue", "Invalid value (1–600)"));
+    if (isNaN(num) || num < 40 || num > 600) {
+      setErrorMsg(t("invalidGlucoseValue", "Invalid value"));
       return;
     }
     try {

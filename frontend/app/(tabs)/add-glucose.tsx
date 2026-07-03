@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { markPredictionStale } from "@/services/predictionFlag";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   Pressable,
   ScrollView,
@@ -29,6 +30,12 @@ export default function AddGlucoseScreen() {
   const [timeState, setTime] = useState(initTime);
   const { hours, minutes, isPM } = timeState;
 
+  useFocusEffect(useCallback(() => {
+    setValue("");
+    setErrorMsg("");
+    setTime(initTime);
+  }, []));
+
   const onSave = async () => {
     try {
       setErrorMsg("");
@@ -50,6 +57,7 @@ export default function AddGlucoseScreen() {
       await addGlucose(numericValue, buildTimestamp(hours, minutes, isPM));
 
       markPredictionStale();
+      setValue("");
       router.back();
     } catch (error: any) {
       setErrorMsg(error?.message || "Failed to add glucose reading");

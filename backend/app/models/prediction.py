@@ -47,9 +47,8 @@ class PredictionResponse(BaseModel):
     Response shape for GET /glucose/predict.
 
     prediction_mode:
-        'real_time'  — fresh data (<6 h), LSTM prediction shown.
-        'hybrid'     — data 6–24 h old, LSTM shown with staleness warning.
-        'pattern'    — data >24 h old, pattern card shown instead of LSTM.
+        'real_time'  — last reading < 24 h old, LSTM prediction shown.
+        'pattern'    — last reading > 24 h old, pattern card shown instead of LSTM.
         'none'       — insufficient readings for any prediction.
 
     pattern_prediction:
@@ -58,7 +57,7 @@ class PredictionResponse(BaseModel):
     comparison_to_pattern:
         How today's LSTM prediction compares to the historical average.
         'above_normal' / 'below_normal' / 'within_normal'.
-        Included in real_time / hybrid modes (used by Groq for richer advice).
+        Included in real_time mode (used by Groq for richer advice).
     """
     predicted_value:           Optional[float] = None
     hours:                     int             = 1
@@ -70,6 +69,7 @@ class PredictionResponse(BaseModel):
     advice:                    Optional[PredictionAdvice] = None
     readings_used:             int             = 0
     message:                   Optional[str]   = None
+    family_message:            Optional[str]   = None
     data_stale:                bool            = False
     hours_since_last_reading:  Optional[float] = None
     prediction_mode:           str             = "none"

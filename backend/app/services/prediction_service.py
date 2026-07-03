@@ -1030,16 +1030,30 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
             stale_msg = {
                 "ar": (
-                    f"آخر قراءة منذ {e}. "
-                    "التنبؤ يستند إلى نمطك التاريخي كتقدير للقيمة الحالية."
+                    f"لم تُسجَّل قراءات منذ {e}. "
+                    "التنبؤ مبني على نمطك المعتاد."
                 ),
                 "en": (
-                    f"Last reading was {e} ago. "
-                    "Prediction is based on your historical pattern as an estimated current value."
+                    f"No readings recorded for {e}. "
+                    "Prediction is based on your usual pattern."
                 ),
                 "he": (
-                    f"הקריאה האחרונה לפני {e}. "
-                    "התחזית מבוססת על הדפוס ההיסטורי שלך כהערכת ערך נוכחי."
+                    f"לא נרשמו קריאות במשך {e}. "
+                    "התחזית מבוססת על הדפוס הרגיל שלך."
+                ),
+            }
+            stale_msg_family = {
+                "ar": (
+                    f"لم يُسجَّل قراءات منذ {e}. "
+                    "التنبؤ مبني على نمطه المعتاد."
+                ),
+                "en": (
+                    f"No readings recorded for {e}. "
+                    "Prediction is based on their usual pattern."
+                ),
+                "he": (
+                    f"לא נרשמו קריאות במשך {e}. "
+                    "התחזית מבוססת על הדפוס הרגיל שלו."
                 ),
             }
 
@@ -1061,6 +1075,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                     "data_stale":               True,
                     "hours_since_last_reading": round(hours_elapsed, 1),
                     "message":                  stale_msg.get(lang, stale_msg["en"]),
+                    "family_message":           stale_msg_family.get(lang, stale_msg_family["en"]),
                 }
 
             # ── Step 1: Estimate current glucose from historical pattern ───
@@ -1167,6 +1182,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                 "data_stale":               True,
                 "hours_since_last_reading": round(hours_elapsed, 1),
                 "message":                  stale_msg.get(lang, stale_msg["en"]),
+                "family_message":           stale_msg_family.get(lang, stale_msg_family["en"]),
             }
 
         # ══════════════════════════════════════════════════════════════════

@@ -4,7 +4,8 @@ import { getEmergencyContacts, saveEmergencyContacts } from "@/services/api";
 import AppHeader from "@/src/components/AppHeader";
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -54,11 +55,11 @@ export default function EmergencyScreen() {
   const [nameInput, setNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     getEmergencyContacts()
       .then((res: any) => setContacts(res?.contacts ?? []))
       .catch(() => {});
-  }, []);
+  }, []));
 
   const persist = async (updated: EmergencyContact[]) => {
     setContacts(updated);
