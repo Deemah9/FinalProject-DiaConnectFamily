@@ -438,7 +438,7 @@ export default function HomeScreen() {
       } else {
         setImportDialog({
           title: t("importSuccessTitle"),
-          message: `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          message: "",
           isSuccess: true,
         });
       }
@@ -718,7 +718,7 @@ export default function HomeScreen() {
               </>
             ) : (
               <Text style={styles.predictionInsufficient}>
-                {t("predictionUnavailable")}
+                {prediction?.message || t("predictionUnavailable")}
               </Text>
             )}
           </View>

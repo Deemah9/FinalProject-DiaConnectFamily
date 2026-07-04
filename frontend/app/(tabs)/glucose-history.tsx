@@ -215,10 +215,7 @@ export default function GlucoseHistoryScreen() {
       if (data.imported_count === 0 && data.skipped_count > 0) {
         Alert.alert(t("importAlreadyTitle"), t("importAlreadyMessage"));
       } else {
-        Alert.alert(
-          t("importSuccessTitle"),
-          `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
-        );
+        Alert.alert(t("importSuccessTitle"));
       }
     } catch (e: any) {
       Alert.alert(t("importCSV"), e.message || t("importFailed"));
