@@ -17,6 +17,7 @@ import pytest
 from app.services.prediction_service import (
     prediction_service,
     RETRAIN_AFTER_NEW_READINGS,
+    TRAINING_WINDOW_READINGS,
 )
 
 USER_ID = "cache_test_patient"
@@ -116,3 +117,34 @@ class TestBackgroundRetrain:
         assert entry["sigma"] == new_sigma
         assert entry["trained_n_readings"] == 110
         assert entry["training_in_progress"] is False
+
+
+class TestTrainingWindowCap:
+    def test_training_uses_capped_window_not_full_history(self):
+        """
+        A user with far more readings than TRAINING_WINDOW_READINGS should
+        only have the most recent window fed into training — training cost
+        must not keep growing forever with lifetime history size.
+        """
+        huge_n = TRAINING_WINDOW_READINGS + 500
+        fm = _feature_matrix(huge_n)
+
+        with patch.object(prediction_service, "_train_model") as mock_train:
+            mock_train.return_value = (MagicMock(), 10.0)
+            prediction_service._predict_lstm(fm, USER_ID, hours=1)
+
+        mock_train.assert_called_once()
+        passed_matrix = mock_train.call_args[0][0]
+        assert passed_matrix.shape[0] == TRAINING_WINDOW_READINGS
+
+    def test_full_history_still_used_for_retrain_threshold_bookkeeping(self):
+        """`trained_n_readings` must reflect the TOTAL reading count, not the
+        windowed training size, so the 10-new-readings threshold logic in
+        _predict_lstm still works correctly."""
+        huge_n = TRAINING_WINDOW_READINGS + 500
+        fm = _feature_matrix(huge_n)
+
+        with patch.object(prediction_service, "_train_model", return_value=(MagicMock(), 10.0)):
+            prediction_service._predict_lstm(fm, USER_ID, hours=1)
+
+        assert prediction_service._model_cache[USER_ID]["trained_n_readings"] == huge_n
