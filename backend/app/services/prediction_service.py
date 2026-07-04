@@ -58,6 +58,8 @@ AUGMENT_COPIES = 3
 FINETUNE_EPOCHS = 15
 FINETUNE_LR = 5e-4
 RETRAIN_AFTER_NEW_READINGS = 10  # new readings since last training before a background retrain fires
+TRAINING_WINDOW_READINGS = 300   # cap training data to the most recent N readings, so training time
+                                 # has a fixed ceiling instead of growing forever with lifetime history
 MAX_STALE_HOURS = 24
 PATTERN_DAYS = 30
 PATTERN_HOUR_WINDOW = 1.5   # ±1.5 h circular window
@@ -436,13 +438,19 @@ class PredictionService:
     ) -> tuple[float, float]:
         n = feature_matrix.shape[0]
         scaled = self._normalise(feature_matrix)
+        # Cap what actually gets trained on to the most recent window, so
+        # training cost stays bounded instead of growing forever with a
+        # user's lifetime reading count. `n`/`feature_matrix` (full history)
+        # still drive the retrain-threshold bookkeeping and the forecast
+        # seed below — only the training input itself is windowed.
+        training_matrix = feature_matrix[-TRAINING_WINDOW_READINGS:]
 
         cache = PredictionService._model_cache.get(user_id)
 
         if cache is None:
             # First-ever prediction for this user — nothing to fall back to,
             # train synchronously.
-            model, sigma = self._train_model(feature_matrix)
+            model, sigma = self._train_model(training_matrix)
             with self._cache_lock:
                 PredictionService._model_cache[user_id] = {
                     "model": model, "sigma": sigma,
@@ -458,7 +466,7 @@ class PredictionService:
                         entry["training_in_progress"] = True
                         threading.Thread(
                             target=self._background_retrain,
-                            args=(user_id, feature_matrix, n),
+                            args=(user_id, training_matrix, n),
                             daemon=True,
                         ).start()
                         print(f"[Prediction] Started background retrain for {user_id} "
