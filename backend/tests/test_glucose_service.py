@@ -169,6 +169,47 @@ class TestGetEstimatedA1C:
         assert tir["high"]      == 20.0
         assert tir["very_high"] == 20.0
 
+    def test_a1c_uses_daily_average_not_flat_average(self):
+        """
+        A single day with many dense CGM readings must not outweigh sparse
+        manual-logging days — the average feeding eA1C should be day-weighted
+        (avg of daily avgs), not reading-weighted (flat avg over all rows).
+        """
+        from app.services.glucose_service import glucose_service
+
+        now = datetime.now(timezone.utc)
+        docs = []
+
+        # 14 sparse days, 1 manual reading/day at 100 mg/dL
+        for i in range(1, 15):
+            docs.append(make_doc(100, hours_ago=i * 24))
+
+        # 1 dense CGM day, 96 readings at 300 mg/dL, all within the same day
+        dense_day_start = (now - timedelta(days=20)).replace(
+            hour=0, minute=0, second=0, microsecond=0)
+        for i in range(96):
+            doc = MagicMock()
+            doc.id = f"cgm_{i}"
+            measured = dense_day_start + timedelta(minutes=15 * i)
+            doc.to_dict.return_value = {
+                "userId": PATIENT_ID, "value": 300, "unit": "mg/dL",
+                "measuredAt": measured, "createdAt": measured, "source": "csv_cgm",
+            }
+            docs.append(doc)
+
+        with patch.object(glucose_service, "db") as mock_db:
+            mock_db.collection.return_value.where.return_value.stream.return_value = iter(docs)
+            result = glucose_service.get_estimated_a1c(PATIENT_ID)
+
+        # Day-weighted: (14 days * 100 + 1 day * 300) / 15 days ≈ 113.3
+        # Flat/reading-weighted (old, wrong behavior) would be ≈ 274 instead.
+        assert result["readings_count"] == 14 + 96
+        assert result["average_glucose"] is not None
+        assert result["average_glucose"] < 150, (
+            f"average_glucose={result['average_glucose']} suggests the dense CGM "
+            f"day dominated the average (flat per-reading averaging), not day-weighted"
+        )
+
 
 # ==========================================
 # get_readings / get_latest

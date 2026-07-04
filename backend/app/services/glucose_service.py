@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from firebase_admin import firestore
 from app.models.glucose_reading import GlucoseCreate, GlucoseDocument
 
@@ -376,6 +376,13 @@ class GlucoseService:
         Formula: eA1C = (avg_mg_dL + 46.7) / 28.7  (Nathan et al., 2008)
         Requires >= 14 days of data to be considered reliable.
         Also returns Time in Range breakdown per ADA targets.
+
+        The average feeding the formula is a daily average first, then an
+        average of those daily averages — not a flat average over every
+        reading. A flat average over-weights days with dense CGM sampling
+        (e.g. 96 readings/day) against days with only one manual reading,
+        so importing a CGM CSV could swing the estimate hard purely from
+        sampling density, not an actual change in control.
         """
         since = datetime.now(timezone.utc) - timedelta(days=90)
 
@@ -407,7 +414,13 @@ class GlucoseService:
 
         values = [v for _, v in entries]
         timestamps = [ts for ts, _ in entries]
-        avg = sum(values) / len(values)
+
+        daily_values: dict[date, list[int]] = {}
+        for ts, v in entries:
+            daily_values.setdefault(ts.date(), []).append(v)
+        daily_averages = [sum(vals) / len(vals) for vals in daily_values.values()]
+        avg = sum(daily_averages) / len(daily_averages)
+
         e_a1c = round((avg + 46.7) / 28.7, 1)
 
         days_covered = max(1, (max(timestamps) - min(timestamps)).days + 1)
