@@ -91,12 +91,12 @@ function NotifCard({
   const displayTitle = isCustomReminder
     ? (isDefaultTitle ? t("reminderNotifTitle") : item.title)
     : item.notifKey
-      ? t(`notif_${item.notifKey}_title`, item.notifParams ?? {}, item.title)
+      ? t(`notif_${item.notifKey}_title`, { ...(item.notifParams ?? {}), defaultValue: item.title })
       : item.title;
   const displayBody = isCustomReminder
     ? t("reminderNotifBody")
     : item.notifKey
-      ? t(`notif_${item.notifKey}_body`, item.notifParams ?? {}, item.body)
+      ? t(`notif_${item.notifKey}_body`, { ...(item.notifParams ?? {}), defaultValue: item.body })
       : item.body;
 
   useEffect(() => {
