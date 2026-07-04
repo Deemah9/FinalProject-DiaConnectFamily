@@ -18,7 +18,7 @@ import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
+import { getFamilyPatientA1C, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -65,6 +65,7 @@ export default function FamilyPatientGlucoseScreen() {
   const [error, setError] = useState("");
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [a1cData, setA1cData] = useState<any>(null);
   const [showStaleBanner, setShowStaleBanner] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -110,13 +111,19 @@ export default function FamilyPatientGlucoseScreen() {
         .sort((a, b) => parseDate(b) - parseDate(a));
       setReadings(sorted);
 
-      // Daily logs only available for authenticated (linked) family members
+      // Daily logs + A1C only available for authenticated (linked) family members
       if (!familyCode && patientId) {
         try {
           const logs = await getPatientDailyLogs(patientId);
           setDailyLogs(logs);
         } catch {
           setDailyLogs({ meals: [], activities: [], sleep: [] });
+        }
+        try {
+          const a1c = await getFamilyPatientA1C(patientId);
+          setA1cData(a1c);
+        } catch {
+          setA1cData(null);
         }
         loadPrediction();
       }
@@ -759,30 +766,34 @@ export default function FamilyPatientGlucoseScreen() {
           )}
 
           {/* ── A1C TAB ── */}
+          {/* Sourced from GET /family/patient/{id}/a1c — same calculation as the
+              patient's own /glucose/a1c, so both sides always see the same number. */}
           {activeTab === "a1c" && !familyCode && (() => {
-            const vals = readings.map((r) => Number(r?.value || 0)).filter(Boolean);
-            if (vals.length === 0) return (
+            if (a1cData?.estimated_a1c == null) return (
               <View style={styles.card}>
                 <View style={styles.emptyState}>
                   <Ionicons name="analytics-outline" size={30} color={theme.inactive} />
-                  <Text style={styles.emptyTitle}>{t("noReadings")}</Text>
+                  <Text style={styles.emptyTitle}>{t("a1cNoData")}</Text>
                 </View>
               </View>
             );
-            const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
-            const a1c = ((avg + 46.7) / 28.7).toFixed(1);
-            const a1cNum = parseFloat(a1c);
+            const a1cNum = a1cData.estimated_a1c;
             const a1cColor = a1cNum >= 8 ? "#D32F2F" : a1cNum >= 6.5 ? "#E07B00" : "#0D9E6E";
             const a1cBg    = a1cNum >= 8 ? "#FDEDED"  : a1cNum >= 6.5 ? "#FEF3E2"  : "#E6F7F2";
             const a1cLabel = a1cNum >= 8 ? t("diabetes") : a1cNum >= 5.7 ? t("preDiabetes") : t("normal");
-            const inRange = vals.filter((v) => v >= 70 && v <= 180).length;
-            const tir = Math.round((inRange / vals.length) * 100);
+            const tir = a1cData.time_in_range?.in_range ?? 0;
             return (
               <View>
+                {!a1cData.is_reliable && (
+                  <View style={styles.warningBox}>
+                    <Ionicons name="warning-outline" size={16} color="#92400E" />
+                    <Text style={styles.warningText}>{t("a1cUnreliable")}</Text>
+                  </View>
+                )}
                 <View style={[styles.card, { backgroundColor: a1cBg, alignItems: "center", paddingVertical: 28 }]}>
                   <Text style={styles.cardTitle}>{t("yourEstimatedA1C")}</Text>
                   <View style={[styles.a1cCircle, { borderColor: a1cColor }]}>
-                    <Text style={[styles.a1cValue, { color: a1cColor }]}>{a1c}%</Text>
+                    <Text style={[styles.a1cValue, { color: a1cColor }]}>{a1cNum.toFixed(1)}%</Text>
                   </View>
                   <View style={[styles.a1cBadge, { backgroundColor: a1cColor }]}>
                     <Text style={styles.a1cBadgeText}>{a1cLabel}</Text>
@@ -791,16 +802,15 @@ export default function FamilyPatientGlucoseScreen() {
                 <View style={styles.statsGrid}>
                   <View style={[styles.statBox, { backgroundColor: "#DBEAFE", borderWidth: 1, borderColor: "#BFDBFE" }]}>
                     <Text style={styles.statLabel}>{t("average")}</Text>
-                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{Math.round(avg)}</Text>
+                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{Math.round(a1cData.average_glucose)}</Text>
                     <Text style={styles.statUnit}>{t("mgdL")}</Text>
                   </View>
                   <View style={[styles.statBox, { backgroundColor: "#E6F7F2", borderWidth: 1, borderColor: "#A7F3D0" }]}>
                     <Text style={styles.statLabel}>{t("timeInRange")}</Text>
                     <Text style={[styles.statValue, { color: "#0D9E6E" }]}>{tir}%</Text>
-                    <Text style={styles.statUnit}>{inRange}/{vals.length}</Text>
                   </View>
                 </View>
-                <Text style={styles.statFooter}>{t("basedOnReadings", { count: vals.length })}</Text>
+                <Text style={styles.statFooter}>{t("basedOnReadings", { count: a1cData.readings_count })}</Text>
               </View>
             );
           })()}
@@ -1149,6 +1159,19 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   statValue: { fontSize: 26, fontWeight: "800", lineHeight: 30 },
   statUnit:  { fontSize: 11, color: theme.textLight, marginTop: 2 },
   statFooter: { fontSize: 12, color: theme.inactive, textAlign: "center", marginTop: 12 },
+
+  warningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+  },
+  warningText: { color: "#92400E", fontSize: 12, flex: 1 },
 
   a1cCircle: {
     width: 140, height: 140, borderRadius: 70,

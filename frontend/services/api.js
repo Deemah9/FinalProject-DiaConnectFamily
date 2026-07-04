@@ -279,6 +279,9 @@ export const getPatientGlucose = (patientId, limit = 50) =>
 export const getPatientDailyLogs = (patientId, days = 7) =>
   request("GET", `/family/patient/${patientId}/daily-logs?days=${days}`);
 
+export const getFamilyPatientA1C = (patientId) =>
+  request("GET", `/family/patient/${patientId}/a1c`);
+
 export const registerPushToken = (token) =>
   request("PUT", "/users/me/push-token", { token });
 

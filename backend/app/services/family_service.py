@@ -4,6 +4,7 @@ import string
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from app.services.notification_service import save_notification
+from app.services.glucose_service import glucose_service
 from app.config.firebase import db
 
 
@@ -809,3 +810,20 @@ def get_patient_glucose(family_member_id: str, patient_id: str, limit: int = 50)
         })
 
     return result
+
+
+def get_patient_a1c(family_member_id: str, patient_id: str) -> dict | None:
+    """
+    Return estimated A1C for a patient, only if the family member is linked
+    to them. Reuses the exact same calculation as the patient's own
+    GET /glucose/a1c, so both sides always see the same number.
+    """
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("family_member_id", "==", family_member_id)\
+        .where("patient_id", "==", patient_id)\
+        .limit(1).stream()
+
+    if not any(True for _ in links):
+        return None  # Not authorized
+
+    return glucose_service.get_estimated_a1c(user_id=patient_id)
