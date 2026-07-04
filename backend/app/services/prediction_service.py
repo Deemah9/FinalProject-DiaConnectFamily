@@ -45,7 +45,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # Constants
 # ==========================================
 
-MIN_READINGS = 10
+MIN_READINGS = 15  # must stay > SEQUENCE_LENGTH so the LSTM training window is never empty
 SEQUENCE_LENGTH = 12
 N_FEATURES = 6
 GLUCOSE_MIN = 40.0
@@ -1043,10 +1043,11 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                 "comparison_to_pattern":    None,
                 "data_stale":               False,
                 "hours_since_last_reading": None,
-                "message": (
-                    f"بيانات غير كافية — يلزم {MIN_READINGS} قراءة على الأقل، "
-                    f"لديك {len(cleaned_readings)} فقط."
-                ),
+                "message": {
+                    "ar": f"لا توجد بيانات كافية للتنبؤ. يلزم إدخال {MIN_READINGS} قراءة على الأقل.",
+                    "en": f"Not enough data for prediction. At least {MIN_READINGS} readings are required.",
+                    "he": f"אין מספיק נתונים לחיזוי. נדרשות לפחות {MIN_READINGS} קריאות.",
+                }.get(lang, f"Not enough data for prediction. At least {MIN_READINGS} readings are required."),
             }
 
         # ── Calculate hours elapsed since last reading ────────────────────
