@@ -51,7 +51,8 @@ N_FEATURES = 6
 GLUCOSE_MIN = 40.0
 GLUCOSE_MAX = 600.0
 PATCH_ERROR_THRESHOLD = 40
-CGM_MAX_CHANGE = 50
+CGM_RAPID_CHANGE = 50    # plausible fast physiological swing (post-meal, post-hypo rebound) — not an error
+CGM_OUTLIER_CHANGE = 80  # actual implausible jump for CGM — treated as a sensor/patch error
 MANUAL_MAX_CHANGE = 80
 AUGMENT_COPIES = 3
 FINETUNE_EPOCHS = 15
@@ -222,16 +223,25 @@ class PredictionService:
     # ==========================================
 
     def _remove_outliers(self, readings: list[dict]) -> list[dict]:
+        """
+        Patch implausible single-reading jumps. Compares each reading against
+        both the previous CLEANED value and the previous RAW value — using
+        only the cleaned value would let one patched reading "freeze" the
+        baseline, making every subsequent *real* reading look like a false
+        cascade of outliers even when they form a perfectly plausible trend
+        (e.g. post-meal or post-hypo rebound).
+        """
         if not readings:
             return readings
         cleaned = [readings[0]]
         for i in range(1, len(readings)):
             current = readings[i]
-            prev = cleaned[-1]
+            prev_cleaned = cleaned[-1]
+            prev_raw = readings[i - 1]
             is_cgm = current.get("source") in ("libreview", "csv_cgm")
-            base_max = CGM_MAX_CHANGE if is_cgm else MANUAL_MAX_CHANGE
+            base_max = CGM_OUTLIER_CHANGE if is_cgm else MANUAL_MAX_CHANGE
 
-            prev_ts = prev.get("measuredAt")
+            prev_ts = prev_cleaned.get("measuredAt")
             curr_ts = current.get("measuredAt")
             if prev_ts and curr_ts:
                 if hasattr(prev_ts, "tzinfo") and prev_ts.tzinfo is None:
@@ -243,12 +253,15 @@ class PredictionService:
             else:
                 max_change = base_max
 
-            if abs(current["value"] - prev["value"]) > max_change:
-                fixed = dict(current)
-                fixed["value"] = prev["value"]
-                cleaned.append(fixed)
-            else:
+            delta_from_cleaned = abs(current["value"] - prev_cleaned["value"])
+            delta_from_raw = abs(current["value"] - prev_raw["value"])
+
+            if delta_from_cleaned <= max_change or delta_from_raw <= max_change:
                 cleaned.append(current)
+            else:
+                fixed = dict(current)
+                fixed["value"] = prev_cleaned["value"]
+                cleaned.append(fixed)
         return cleaned
 
     # ==========================================
