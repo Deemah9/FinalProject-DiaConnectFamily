@@ -75,6 +75,7 @@ ALERT_RATE_LIMIT: dict[str, int] = {
 ACTIVITY_LEVEL_MAP = {"low": 0.2, "moderate": 0.5, "high": 0.8}
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_TIMEOUT = 5  # seconds — advice is a nice-to-have, must not stall the prediction
 BASE_MODEL_PATH = Path(__file__).parent.parent.parent / \
     "models" / "base_model.keras"
 
@@ -836,7 +837,7 @@ class PredictionService:
                     "User-Agent":    "DiaConnectFamily/1.0",
                 },
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=GROQ_TIMEOUT) as resp:
                 text = json.loads(resp.read().decode())[
                     "choices"][0]["message"]["content"].strip()
                 if text.startswith("```"):
@@ -1024,6 +1025,63 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         if parsed:
             print(f"[Groq pattern advice] {parsed}")
         return parsed
+
+    # ==========================================
+    # Local Fallback Advice (Groq unavailable/slow)
+    # ==========================================
+
+    @staticmethod
+    def _fallback_advice(alert_type: str | None, lang: str = "ar") -> dict:
+        """
+        Non-AI advice used whenever Groq fails or times out, so the prediction
+        card always has patient/family guidance instead of going blank.
+        """
+        messages = {
+            "high": {
+                "ar": {
+                    "patient": "مستوى السكر متوقع أن يبقى مرتفعًا. يُنصح بشرب الماء، تجنّب الكربوهيدرات والسكريات، والالتزام بخطة العلاج.",
+                    "family": "ساعدوا المريض على الالتزام بخطة العلاج وتجنّب الأطعمة السكرية حتى يعود السكر لمعدله الطبيعي.",
+                },
+                "en": {
+                    "patient": "Glucose is expected to remain high. Drink water, avoid carbs and sugary food, and follow your care plan.",
+                    "family": "Help the patient stick to their care plan and avoid sugary foods until glucose returns to a safe range.",
+                },
+                "he": {
+                    "patient": "רמת הסוכר צפויה להישאר גבוהה. יש לשתות מים, להימנע מפחמימות וממתקים, ולפעול לפי תוכנית הטיפול.",
+                    "family": "עזרו למטופל להיצמד לתוכנית הטיפול ולהימנע ממאכלים מתוקים עד שהסוכר יחזור לטווח בטוח.",
+                },
+            },
+            "low": {
+                "ar": {
+                    "patient": "قد ينخفض مستوى السكر. يُنصح بإعادة القياس والانتباه لأعراض الهبوط، وتناول كربوهيدرات سريعة عند الحاجة.",
+                    "family": "راقبوا المريض لأعراض انخفاض السكر وجهّزوا مصدر كربوهيدرات سريع (عصير أو حلوى) إذا لزم الأمر.",
+                },
+                "en": {
+                    "patient": "Glucose may drop. Recheck your level, watch for hypoglycemia symptoms, and have fast-acting carbs ready if needed.",
+                    "family": "Watch for signs of hypoglycemia and keep fast-acting carbs (juice or glucose tablets) on hand just in case.",
+                },
+                "he": {
+                    "patient": "רמת הסוכר עשויה לרדת. יש למדוד שוב, לשים לב לתסמיני היפוגליקמיה, ולהכין פחמימות מהירות במידת הצורך.",
+                    "family": "שימו לב לתסמיני היפוגליקמיה והכינו פחמימות מהירות (מיץ או סוכריות) למקרה הצורך.",
+                },
+            },
+            "default": {
+                "ar": {
+                    "patient": "مستوى السكر يبدو ضمن النطاق المتوقع. استمر بالمتابعة والمحافظة على روتينك اليومي.",
+                    "family": "استمروا بدعم المريض في متابعة قراءاته والالتزام بروتينه اليومي.",
+                },
+                "en": {
+                    "patient": "Glucose appears within the expected range. Keep monitoring and maintaining your routine.",
+                    "family": "Keep supporting the patient in tracking their readings and sticking to their daily routine.",
+                },
+                "he": {
+                    "patient": "רמת הסוכר נראית בטווח הצפוי. יש להמשיך לעקוב ולשמור על השגרה היומית.",
+                    "family": "המשיכו לתמוך במטופל במעקב אחר הרמות ובשמירה על השגרה היומית.",
+                },
+            },
+        }
+        bucket = messages.get(alert_type or "default", messages["default"])
+        return bucket.get(lang, bucket["en"])
 
     # ==========================================
     # Main Predict Method
@@ -1219,7 +1277,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                 prediction_mode="pattern",
                 pattern_risk_level=pattern.get("risk_level"),
                 health_ctx=health_ctx,
-            )
+            ) or self._fallback_advice(alert_type, lang)
 
             # ── Step 7: Family alert if risk detected (rate-limited) ──────
             if alert_type and self._can_send_alert(user_id, alert_type):
@@ -1384,7 +1442,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             pattern_risk_level=pattern_risk_level,
             meal_ctx=meal_ctx,
             health_ctx=health_ctx,
-        )
+        ) or self._fallback_advice(alert_type, lang)
 
         # Family notification (rate-limited)
         if alert_type and self._can_send_alert(user_id, alert_type):
