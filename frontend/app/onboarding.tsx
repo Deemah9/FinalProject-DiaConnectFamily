@@ -34,7 +34,7 @@ const ACTIVITY_OPTIONS = ["low", "moderate", "high"] as const;
 const DIET_OPTIONS = ["balanced", "low_carb", "keto", "vegetarian", "vegan", "other"] as const;
 
 export default function OnboardingScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const theme = useAppTheme();
   const styles = createStyles(theme);
 
@@ -136,12 +136,24 @@ export default function OnboardingScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Brand */}
-        <View style={[styles.logoWrap, { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" }]}>
-          <Ionicons name="heart-outline" size={36} color={theme.gold} />
-          <View style={{ marginLeft: 10 }}>
-            <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
-            <Text style={styles.logoSub}>{t("family")}</Text>
-          </View>
+        <View style={styles.logoWrap}>
+          {i18n.dir() === "rtl" ? (
+            <>
+              <View style={{ marginRight: 6 }}>
+                <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+                <Text style={styles.logoSub}>{t("family")}</Text>
+              </View>
+              <Ionicons name="heart-outline" size={36} color={theme.gold} />
+            </>
+          ) : (
+            <>
+              <Ionicons name="heart-outline" size={36} color={theme.gold} />
+              <View style={{ marginLeft: 6 }}>
+                <Text style={styles.logoTitle}>{t("diaConnect")}</Text>
+                <Text style={styles.logoSub}>{t("family")}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Progress dots */}
@@ -370,7 +382,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     },
 
     logoWrap: {
+      flexDirection: "row",
       alignItems: "center",
+      alignSelf: "center",
       marginBottom: 28,
     },
 

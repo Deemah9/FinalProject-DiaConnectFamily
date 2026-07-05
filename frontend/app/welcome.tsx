@@ -56,12 +56,24 @@ export default function WelcomeScreen() {
       </Modal>
 
       {/* Brand */}
-      <View style={[styles.brand, { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" }]} pointerEvents="none">
-        <Ionicons name="heart-outline" size={46} color={Colors.gold} />
-        <View style={{ marginLeft: Spacing.md }}>
-          <Text style={styles.title}>{t("appName1")}</Text>
-          <Text style={styles.subtitle}>{t("appName2")}</Text>
-        </View>
+      <View style={styles.brand} pointerEvents="none">
+        {i18n.dir() === "rtl" ? (
+          <>
+            <View style={{ marginRight: Spacing.sm }}>
+              <Text style={styles.title}>{t("appName1")}</Text>
+              <Text style={styles.subtitle}>{t("appName2")}</Text>
+            </View>
+            <Ionicons name="heart-outline" size={46} color={Colors.gold} />
+          </>
+        ) : (
+          <>
+            <Ionicons name="heart-outline" size={46} color={Colors.gold} />
+            <View style={{ marginLeft: Spacing.sm }}>
+              <Text style={styles.title}>{t("appName1")}</Text>
+              <Text style={styles.subtitle}>{t("appName2")}</Text>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Actions */}
@@ -126,7 +138,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
 
     brand: {
       marginTop: 30,
+      flexDirection: "row",
       alignItems: "center",
+      alignSelf: "center",
     },
     title: { color: Colors.white, ...Typography.title, lineHeight: 26 },
     subtitle: { color: Colors.white, ...Typography.subtitle, lineHeight: 26 },
