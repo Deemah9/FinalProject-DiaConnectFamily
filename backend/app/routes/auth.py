@@ -98,22 +98,11 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    """
-    Response model for authentication endpoints.
-
-    Fields:
-        message: Success message
-        userId: User ID
-        email: User email
-        role: User role
-        accessToken: JWT access token
-        emailVerified: Whether the email has been verified
-    """
     message: str
-    userId: str
+    userId: Optional[str] = None
     email: str
     role: str
-    accessToken: str
+    accessToken: Optional[str] = None
     emailVerified: bool = True
 
 
@@ -183,7 +172,7 @@ async def register(request: RegisterRequest, http_request: Request):
             detail="Role must be either 'patient' or 'family_member'"
         )
 
-    # Check if user already exists
+    # Reject if already a verified user
     existing_user = get_user_by_email(request.email)
     if existing_user:
         raise HTTPException(
@@ -191,34 +180,29 @@ async def register(request: RegisterRequest, http_request: Request):
             detail="Email already registered"
         )
 
-    # Hash password
+    # Remove any stale pending registration for this email
+    stale = db.collection("pending_registrations").where(
+        "email", "==", request.email
+    ).limit(1).get()
+    if stale:
+        db.collection("pending_registrations").document(stale[0].id).delete()
+
+    # Hash password and generate verification token
     hashed_password = hash_password(request.password)
-
-    # Create user object
-    user = User(
-        email=request.email,
-        password=hashed_password,
-        first_name=request.first_name,
-        last_name=request.last_name,
-        role=request.role,
-        phone=request.phone
-    )
-
-    user_dict = user.to_dict()
-    user_dict["emailVerified"] = False
-    user_dict["accountStatus"] = "pending"
-
-    # Save to Firestore
-    users_ref = db.collection('users')
-    doc_ref = users_ref.add(user_dict)
-    user_id = doc_ref[1].id
-
-    # Generate email verification token (24 h expiry)
     verification_token = secrets.token_urlsafe(32)
     expiry = datetime.now(timezone.utc) + timedelta(hours=24)
-    db.collection("users").document(user_id).update({
+
+    # Save to pending_registrations — NOT to users yet
+    db.collection("pending_registrations").add({
+        "email": request.email,
+        "hashedPassword": hashed_password,
+        "firstName": request.first_name,
+        "lastName": request.last_name,
+        "role": request.role,
+        "phone": request.phone,
         "verificationToken": verification_token,
         "verificationTokenExpiry": expiry,
+        "createdAt": datetime.now(timezone.utc),
     })
 
     # Send verification email (non-blocking failure)
@@ -232,17 +216,10 @@ async def register(request: RegisterRequest, http_request: Request):
     except Exception as e:
         print(f"[email error] Could not send verification email: {e}")
 
-    # Generate JWT token (for profile setup during onboarding)
-    access_token = create_access_token(
-        data={"sub": user_id, "role": user.role})
-
-    # Return response
     return AuthResponse(
         message="Registration successful. Please check your email to verify your account.",
-        userId=user_id,
-        email=user.email,
-        role=user.role,
-        accessToken=access_token,
+        email=request.email,
+        role=request.role,
         emailVerified=False,
     )
 
@@ -290,7 +267,8 @@ async def login(request: LoginRequest):
     # Generate JWT token
     access_token = create_access_token(data={
         "sub": user_data['userId'],
-        "role": user_data['role']
+        "role": user_data['role'],
+        "emailVerified": True,
     })
 
     # Return response
@@ -616,8 +594,8 @@ async def verify_email(token: str):
 </body>
 </html>"""
 
-    # Find user by verification token
-    query = db.collection("users").where(
+    # Find in pending_registrations by token
+    query = db.collection("pending_registrations").where(
         "verificationToken", "==", token
     ).limit(1).get()
 
@@ -629,19 +607,11 @@ async def verify_email(token: str):
             success=False,
         ))
 
-    user_doc = query[0]
-    user_data = user_doc.to_dict()
-
-    # Check if already verified
-    if user_data.get("emailVerified", False):
-        return HTMLResponse(content=_html_page(
-            "Already Verified",
-            "Your email has already been verified. You can log in to the app.",
-            success=True,
-        ))
+    pending_doc = query[0]
+    pending_data = pending_doc.to_dict()
 
     # Check token expiry
-    expiry = user_data.get("verificationTokenExpiry")
+    expiry = pending_data.get("verificationTokenExpiry")
     if expiry is None or datetime.now(timezone.utc) > expiry:
         return HTMLResponse(content=_html_page(
             "Link Expired",
@@ -650,13 +620,25 @@ async def verify_email(token: str):
             success=False,
         ))
 
-    # Mark as verified
-    db.collection("users").document(user_doc.id).update({
-        "emailVerified": True,
-        "accountStatus": "active",
-        "verificationToken": None,
-        "verificationTokenExpiry": None,
-    })
+    # Create verified user in users collection
+    user = User(
+        email=pending_data["email"],
+        password=pending_data["hashedPassword"],
+        first_name=pending_data.get("firstName"),
+        last_name=pending_data.get("lastName"),
+        role=pending_data["role"],
+        phone=pending_data.get("phone"),
+    )
+    user_dict = user.to_dict()
+    user_dict["emailVerified"] = True
+    user_dict["accountStatus"] = "active"
+
+    doc_ref = db.collection("users").add(user_dict)
+    user_id = doc_ref[1].id
+    db.collection("users").document(user_id).update({"userId": user_id})
+
+    # Remove from pending
+    db.collection("pending_registrations").document(pending_doc.id).delete()
 
     return HTMLResponse(content=_html_page(
         "Email Verified!",
@@ -669,13 +651,10 @@ async def verify_email(token: str):
 @router.get("/check-verification", status_code=status.HTTP_200_OK)
 async def check_verification(email: str):
     """
-    Poll endpoint: returns whether the given email address has been verified.
+    Poll endpoint: user exists in users collection = verified.
     """
     query = db.collection("users").where("email", "==", email).limit(1).get()
-    if not query:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    user_data = query[0].to_dict()
-    return {"verified": user_data.get("emailVerified", False)}
+    return {"verified": bool(query)}
 
 
 @router.post("/resend-verification", status_code=status.HTTP_200_OK)
@@ -684,15 +663,18 @@ async def resend_verification(
     http_request: Request,
 ):
     """
-    Resend the email verification link for an unverified account.
+    Resend the email verification link for a pending account.
     Always returns 200 to avoid revealing account existence.
     """
-    user_data = get_user_by_email(request.email)
+    pending_query = db.collection("pending_registrations").where(
+        "email", "==", request.email
+    ).limit(1).get()
 
-    if user_data and not user_data.get("emailVerified", True):
+    if pending_query:
+        pending_doc = pending_query[0]
         verification_token = secrets.token_urlsafe(32)
         expiry = datetime.now(timezone.utc) + timedelta(hours=24)
-        db.collection("users").document(user_data["userId"]).update({
+        db.collection("pending_registrations").document(pending_doc.id).update({
             "verificationToken": verification_token,
             "verificationTokenExpiry": expiry,
         })
