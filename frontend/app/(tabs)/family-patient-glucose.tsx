@@ -18,7 +18,7 @@ import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getFamilyPatientA1C, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
+import { getFamilyPatientA1C, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, getUnreadCount, viewWithCode } from "@/services/api";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -71,10 +71,12 @@ export default function FamilyPatientGlucoseScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedLogDate, setSelectedLogDate] = useState<string | null>(null);
   const [showAllReadings, setShowAllReadings] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       load();
+      getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
     }, [patientId])
   );
 
@@ -328,7 +330,7 @@ export default function FamilyPatientGlucoseScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader bottom={tabBar} />
+      <AppHeader bottom={tabBar} unreadCount={unreadCount} />
 
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#1A6FA8" />

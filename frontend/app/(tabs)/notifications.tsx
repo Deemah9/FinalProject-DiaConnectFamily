@@ -245,7 +245,9 @@ export default function NotificationsScreen() {
   const onRefresh = () => { setRefreshing(true); load(); };
 
   const handleMarkAllRead = async () => {
-    await markAllNotificationsRead();
+    try {
+      await markAllNotificationsRead();
+    } catch {}
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
@@ -293,7 +295,7 @@ export default function NotificationsScreen() {
     <View style={styles.container}>
       <AppHeader unreadCount={unread} />
 
-      {/* ── Tabs + Mark all — patients only ── */}
+      {/* ── Tabs — patients only ── */}
       {!isFamily && (
         <View style={styles.tabBar}>
           <View style={styles.tabRow}>
@@ -322,13 +324,15 @@ export default function NotificationsScreen() {
               );
             })}
           </View>
-          {unread > 0 && (
-            <Pressable style={styles.markAllRow} onPress={handleMarkAllRead}>
-              <Ionicons name="checkmark-done" size={14} color="#1A6FA8" />
-              <Text style={styles.markAllText}>{t("notif.markAll", "Mark all as read")}</Text>
-            </Pressable>
-          )}
         </View>
+      )}
+
+      {/* ── Mark all as read — both roles ── */}
+      {unread > 0 && (
+        <Pressable style={styles.markAllRow} onPress={handleMarkAllRead}>
+          <Ionicons name="checkmark-done" size={14} color="#1A6FA8" />
+          <Text style={styles.markAllText}>{t("notif.markAll", "Mark all as read")}</Text>
+        </Pressable>
       )}
 
       {/* ── List ── */}

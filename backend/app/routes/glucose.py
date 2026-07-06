@@ -3,7 +3,7 @@ import io
 from datetime import datetime, timezone, timedelta
 
 from fastapi import (
-    APIRouter, Depends, File, HTTPException, UploadFile, status, Response
+    APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status, Response
 )
 from app.middleware.dependencies import get_current_user, require_role
 from app.models.glucose_reading import (
@@ -21,6 +21,18 @@ router = APIRouter(prefix="/glucose", tags=["Glucose Readings"])
 # POST /glucose
 # ==========================================
 
+def _fire_emergency_notification(user_id: str, value: int) -> None:
+    from app.services.family_service import send_emergency_notification
+    patient_doc = _db.collection("users").document(user_id).get()
+    patient_name = ""
+    if patient_doc.exists:
+        pdata = patient_doc.to_dict()
+        first = pdata.get("firstName", "")
+        last = pdata.get("lastName", "")
+        patient_name = f"{first} {last}".strip()
+    send_emergency_notification(user_id, patient_name, value)
+
+
 @router.post(
     "/",
     response_model=GlucoseResponse,
@@ -28,6 +40,7 @@ router = APIRouter(prefix="/glucose", tags=["Glucose Readings"])
 )
 async def add_glucose_reading(
     data: GlucoseCreate,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(
         require_role("patient")
     )
@@ -40,11 +53,13 @@ async def add_glucose_reading(
     """
     user_id = current_user["sub"]
     reading = glucose_service.create_reading(user_id=user_id, data=data)
-    alert_service.evaluate_and_store(
+    alert = alert_service.evaluate_and_store(
         user_id=user_id,
         reading_id=reading["id"],
         value=reading["value"]
     )
+    if alert:
+        background_tasks.add_task(_fire_emergency_notification, user_id, reading["value"])
 
     return reading
 
