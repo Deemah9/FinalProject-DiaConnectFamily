@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "471021476998",
+    "project_id": "diaconnect-family",
+    "storage_bucket": "diaconnect-family.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471021476998:android:7b2852b27ca242bcfb8507",
+        "android_client_info": {
+          "package_name": "com.anonymous.DiaConnectFamily"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCF5Hu_y7BKmUwuAvKxUyfnq-lUP4HgMhw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

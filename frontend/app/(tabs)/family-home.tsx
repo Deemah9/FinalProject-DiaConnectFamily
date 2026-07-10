@@ -62,8 +62,9 @@ export default function FamilyHomeScreen() {
         projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
       });
       await registerPushToken(tokenData.data);
-    } catch {
-      // silent
+      console.log("[Push] Token registered:", tokenData.data);
+    } catch (e) {
+      console.warn("[Push] Registration failed:", e);
     }
   };
 

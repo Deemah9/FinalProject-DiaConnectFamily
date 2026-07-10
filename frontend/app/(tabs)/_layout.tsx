@@ -169,7 +169,6 @@ export default function TabLayout() {
         <Tabs.Screen name="add-sleep"               options={{ href: null }} />
         <Tabs.Screen name="change-password"         options={{ href: null }} />
         <Tabs.Screen name="daily-log"               options={{ href: null }} />
-        <Tabs.Screen name="edit-profile"            options={{ href: null }} />
         <Tabs.Screen name="family-access"           options={{ href: null }} />
         <Tabs.Screen name="family-home"             options={{ href: null }} />
         <Tabs.Screen name="family-invite"           options={{ href: null }} />

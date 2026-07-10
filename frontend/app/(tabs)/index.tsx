@@ -108,7 +108,9 @@ export default function HomeScreen() {
           projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
         });
         await registerPushToken(tokenData.data);
+        console.log("[Push] Token registered:", tokenData.data);
       } catch (e) {
+        console.warn("[Push] Registration failed:", e);
       }
     };
     registerPush();
@@ -458,7 +460,7 @@ export default function HomeScreen() {
   };
 
   if (authUser?.role === "family_member") {
-    return <Redirect href={"/family-home" as any} />;
+    return <Redirect href={"/(tabs)/family-home" as any} />;
   }
 
   return (
