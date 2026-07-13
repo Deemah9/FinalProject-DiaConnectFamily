@@ -33,6 +33,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   Platform,
 } from "react-native";
@@ -83,6 +84,14 @@ export default function HomeScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
 
 
+  // Load prediction once authUser is ready (fixes race condition on first open)
+  useEffect(() => {
+    if (authUser && isFirstFocus.current) {
+      loadPrediction();
+      isFirstFocus.current = false;
+    }
+  }, [authUser]);
+
   // Register push token for patient notifications
   useEffect(() => {
     const registerPush = async () => {
@@ -99,7 +108,9 @@ export default function HomeScreen() {
           projectId: "7f5f1128-2316-49d4-9446-aa05edb735d8",
         });
         await registerPushToken(tokenData.data);
+        console.log("[Push] Token registered:", tokenData.data);
       } catch (e) {
+        console.warn("[Push] Registration failed:", e);
       }
     };
     registerPush();
@@ -114,6 +125,7 @@ export default function HomeScreen() {
 
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [showStaleBanner, setShowStaleBanner] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -134,7 +146,8 @@ export default function HomeScreen() {
       getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
 
       // Run on first open OR when new data was saved from another screen
-      if (isFirstFocus.current || checkAndClearPredictionStale()) {
+      // Wait for authUser to be ready before fetching prediction
+      if (authUser && (isFirstFocus.current || checkAndClearPredictionStale())) {
         loadPrediction();
         isFirstFocus.current = false;
       }
@@ -150,6 +163,11 @@ export default function HomeScreen() {
       setLoadingPrediction(true);
       const data = await getGlucosePrediction(1, i18n.language);
       setPrediction(data);
+      if (data?.data_stale && data?.prediction_mode === "pattern") {
+        setShowStaleBanner(true);
+      } else {
+        setShowStaleBanner(false);
+      }
     } catch {
       setPrediction(null);
     } finally {
@@ -422,7 +440,7 @@ export default function HomeScreen() {
       } else {
         setImportDialog({
           title: t("importSuccessTitle"),
-          message: `${t("importSuccess", { count: data.imported_count })}\n${t("importSkipped", { count: data.skipped_count })}`,
+          message: "",
           isSuccess: true,
         });
       }
@@ -442,7 +460,7 @@ export default function HomeScreen() {
   };
 
   if (authUser?.role === "family_member") {
-    return <Redirect href={"/family-home" as any} />;
+    return <Redirect href={"/(tabs)/family-home" as any} />;
   }
 
   return (
@@ -494,19 +512,44 @@ export default function HomeScreen() {
           </Text>
         </View>
 
+        {/* Stale Data Banner — shown above cards, dismissible */}
+        {showStaleBanner && prediction?.data_stale && prediction?.message && (
+          <View style={styles.staleBannerTop}>
+            <Ionicons name="time-outline" size={16} color="#D97706" />
+            <Text style={styles.staleBannerTopText}>{prediction.message}</Text>
+            <TouchableOpacity onPress={() => setShowStaleBanner(false)}>
+              <Ionicons name="close" size={18} color="#D97706" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* AI Prediction Card */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("predictionTitle")}</Text>
+          <Text style={styles.sectionLabel}>
+            {prediction?.prediction_mode === "pattern" ? t("predictionTitlePattern") : t("predictionTitle")}
+          </Text>
           <View style={styles.predictionCard}>
-            <View style={styles.predictionHeader}>
-              <Ionicons
-                name="analytics-outline"
-                size={20}
-                color={theme.primary}
-              />
-              <Text style={styles.predictionLabel}>
-                {t("predictionSubtitle")}
-              </Text>
+            {/* Header */}
+            <View style={[styles.predictionHeader, { justifyContent: "space-between" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 }}>
+                <Ionicons name="analytics-outline" size={20} color={theme.primary} />
+                <Text style={[styles.predictionLabel, { flexShrink: 1 }]}>
+                  {t("predictionSubtitle")}
+                </Text>
+              </View>
+              {prediction?.prediction_mode === "pattern" && prediction?.pattern_prediction?.available && (() => {
+                const risk = prediction.pattern_prediction?.risk_level ?? "normal";
+                const riskColor = risk === "high" ? "#D32F2F" : risk === "low" ? "#D97706" : risk === "variable" ? "#7C3AED" : "#059669";
+                const riskBg = risk === "high" ? "#FEE2E2" : risk === "low" ? "#FFFBEB" : risk === "variable" ? "#F5F3FF" : "#D1FAE5";
+                const riskIcon = risk === "variable" ? "stats-chart" : risk === "normal" ? "checkmark-circle" : "alert-circle";
+                const riskLabel = risk === "high" ? t("high") : risk === "low" ? t("low") : risk === "variable" ? t("patternVariabilityUnstable") : t("normal");
+                return (
+                  <View style={[styles.trendBadge, { backgroundColor: riskBg }]}>
+                    <Ionicons name={riskIcon as any} size={14} color={riskColor} />
+                    <Text style={[styles.trendBadgeText, { color: riskColor }]}>{riskLabel}</Text>
+                  </View>
+                );
+              })()}
             </View>
 
             {loadingPrediction ? (
@@ -523,20 +566,12 @@ export default function HomeScreen() {
               </View>
             ) : prediction?.predicted_value != null ? (
               <>
-                {/* Stale data soft warning */}
-                {prediction?.data_stale && (
-                  <View style={styles.staleBanner}>
-                    <Ionicons name="time-outline" size={14} color="#D97706" />
-                    <Text style={styles.staleBannerText}>
-                      {prediction.message}
-                    </Text>
-                  </View>
-                )}
-
                 {/* Value + Trend Badge Row */}
                 <View style={styles.predictionValueRow}>
                   <View>
-                    <Text style={styles.predictionValue}>
+                    <Text style={[styles.predictionValue, {
+                      color: prediction.predicted_value > 180 || prediction.predicted_value < 70 ? "#D32F2F" : theme.text
+                    }]}>
                       {Math.round(prediction.predicted_value)}
                       <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
                     </Text>
@@ -685,230 +720,11 @@ export default function HomeScreen() {
               </>
             ) : (
               <Text style={styles.predictionInsufficient}>
-                {t("predictionUnavailable")}
+                {prediction?.message || t("predictionUnavailable")}
               </Text>
             )}
           </View>
         </View>
-
-        {/* Historical Pattern Card — shown only when prediction_mode = "pattern" */}
-        {prediction?.prediction_mode === "pattern" &&
-          (() => {
-            const pp = prediction.pattern_prediction;
-            const risk = pp?.risk_level ?? "normal";
-
-            const riskColor =
-              risk === "high"
-                ? "#D32F2F"
-                : risk === "low"
-                  ? "#D97706"
-                  : risk === "variable"
-                    ? "#7C3AED"
-                    : "#059669";
-            const riskBg =
-              risk === "high"
-                ? "#FEE2E2"
-                : risk === "low"
-                  ? "#FFFBEB"
-                  : risk === "variable"
-                    ? "#F5F3FF"
-                    : "#D1FAE5";
-            const riskIcon =
-              risk === "variable"
-                ? "stats-chart"
-                : risk === "normal"
-                  ? "checkmark-circle"
-                  : "alert-circle";
-            const riskLabel =
-              risk === "high"
-                ? t("high")
-                : risk === "low"
-                  ? t("low")
-                  : risk === "variable"
-                    ? t("patternVariabilityUnstable")
-                    : t("normal");
-
-            const confLabel =
-              pp?.confidence === "high"
-                ? t("patternConfidenceHigh")
-                : pp?.confidence === "medium"
-                  ? t("patternConfidenceMedium")
-                  : t("patternConfidenceLow");
-
-            const avgVal = pp?.typical_avg ?? 0;
-            const adviceStyle =
-              avgVal > 170
-                ? {
-                    bg: "#FDEDED",
-                    border: "#FECACA",
-                    color: "#991B1B",
-                    icon: "alert-circle",
-                    iconClr: "#D32F2F",
-                  }
-                : avgVal < 70
-                  ? {
-                      bg: "#FFF7ED",
-                      border: "#FED7AA",
-                      color: "#92400E",
-                      icon: "alert-circle",
-                      iconClr: "#E07B00",
-                    }
-                  : {
-                      bg: "#EBF3FA",
-                      border: "#B8D0E8",
-                      color: "#1A4A6B",
-                      icon: "information-circle",
-                      iconClr: "#1A6FA8",
-                    };
-
-            return (
-              <View style={styles.section} key="pattern-card">
-                <Text style={styles.sectionLabel}>{t("patternCardTitle")}</Text>
-                <View style={styles.predictionCard}>
-                  {/* Header — mirrors prediction card */}
-                  <View style={styles.predictionHeader}>
-                    <Ionicons
-                      name="bar-chart-outline"
-                      size={20}
-                      color={theme.primary}
-                    />
-                    <Text style={styles.predictionLabel}>
-                      {t("patternCardSubtitle")}
-                    </Text>
-                  </View>
-
-                  {pp?.available ? (
-                    <>
-                      {/* Value row + risk badge */}
-                      <View style={styles.predictionValueRow}>
-                        <View>
-                          <Text
-                            style={[
-                              styles.predictionValue,
-                              {
-                                color:
-                                  avgVal > 170
-                                    ? "#D32F2F"
-                                    : avgVal < 70
-                                      ? "#D97706"
-                                      : theme.text,
-                              },
-                            ]}
-                          >
-                            {pp.typical_avg}
-                            <Text style={styles.predictionUnit}>
-                              {" "}
-                              {t("mgdL")}
-                            </Text>
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.trendBadge,
-                            { backgroundColor: riskBg },
-                          ]}
-                        >
-                          <Ionicons
-                            name={riskIcon as any}
-                            size={18}
-                            color={riskColor}
-                          />
-                          <Text
-                            style={[
-                              styles.trendBadgeText,
-                              { color: riskColor },
-                            ]}
-                          >
-                            {riskLabel}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Typical range */}
-                      {pp.typical_min != null && pp.typical_max != null && (
-                        <View style={[styles.probRow, { marginBottom: 12 }]}>
-                          <Ionicons
-                            name="stats-chart-outline"
-                            size={14}
-                            color="#4A6480"
-                          />
-                          <Text style={styles.probText}>
-                            {t("patternTypical")}{" "}
-                            <Text style={styles.probValue}>
-                              {pp.typical_min} – {pp.typical_max}
-                            </Text>{" "}
-                            {t("mgdL")}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Advice — identical style to prediction card */}
-                      {(prediction.advice?.patient || pp.message) && (
-                        <View
-                          style={[
-                            styles.predictionAlert,
-                            {
-                              backgroundColor: adviceStyle.bg,
-                              borderColor: adviceStyle.border,
-                            },
-                          ]}
-                        >
-                          <Ionicons
-                            name={adviceStyle.icon as any}
-                            size={18}
-                            color={adviceStyle.iconClr}
-                          />
-                          <Text
-                            style={[
-                              styles.predictionAlertText,
-                              { color: adviceStyle.color },
-                            ]}
-                          >
-                            {prediction.advice?.patient || pp.message}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Footer: samples + confidence */}
-                      <View
-                        style={[
-                          styles.probRow,
-                          { marginTop: 10, marginBottom: 0 },
-                        ]}
-                      >
-                        <Ionicons
-                          name="time-outline"
-                          size={13}
-                          color="#4A6480"
-                        />
-                        <Text style={styles.probText}>
-                          {t("patternSamples", { count: pp.sample_count })}
-                          {"  ·  "}
-                          <Text
-                            style={{
-                              fontWeight: "600",
-                              color:
-                                pp?.confidence === "high"
-                                  ? "#16A34A"
-                                  : pp?.confidence === "medium"
-                                    ? "#D97706"
-                                    : "#6B7280",
-                            }}
-                          >
-                            {confLabel}
-                          </Text>
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <Text style={styles.predictionInsufficient}>
-                      {t("patternNoData")}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            );
-          })()}
 
         {/* Glucose Trend — chart with day navigator */}
         <View style={styles.section}>
@@ -1629,6 +1445,26 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
     },
     staleBannerText: {
       fontSize: 12,
+      color: "#92400E",
+      flex: 1,
+      lineHeight: 18,
+    },
+
+    staleBannerTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#FFFBEB",
+      borderColor: "#FDE68A",
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginHorizontal: 16,
+      marginBottom: 8,
+    },
+    staleBannerTopText: {
+      fontSize: 13,
       color: "#92400E",
       flex: 1,
       lineHeight: 18,

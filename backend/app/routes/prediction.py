@@ -1,3 +1,4 @@
+import math
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.middleware.dependencies import get_current_user, require_role
 from app.models.prediction import PredictionResponse
@@ -99,3 +100,64 @@ def predict_glucose_for_family(
         lang=lang,
     )
     return PredictionResponse(**result)
+
+
+# ==========================================
+# GET /glucose/predict/accuracy  (patient)
+# ==========================================
+
+@router.get("/predict/accuracy")
+def get_prediction_accuracy(
+    current_user: dict = Depends(require_role("patient")),
+):
+    """
+    Calculate prediction accuracy for the current patient.
+    Uses saved predictions where actualValue has been filled.
+    Returns MAE and percentage of predictions within ±20 mg/dL.
+    """
+    user_id = current_user["sub"]
+
+    docs = (
+        db.collection("predictions")
+        .where("userId", "==", user_id)
+        .stream()
+    )
+
+    errors = []
+    sq_errors = []
+    for doc in docs:
+        pred = doc.to_dict()
+        predicted = pred.get("predictedValue")
+        actual = pred.get("actualValue")
+        if predicted is not None and actual is not None:
+            e = abs(predicted - actual)
+            errors.append(e)
+            sq_errors.append((predicted - actual) ** 2)
+
+    if not errors:
+        return {
+            "evaluated_predictions": 0,
+            "mae_mg_dl": None,
+            "rmse_mg_dl": None,
+            "within_15_mg_dl_pct": None,
+            "within_20_mg_dl_pct": None,
+            "within_30_mg_dl_pct": None,
+            "message": "No evaluated predictions yet.",
+        }
+
+    n = len(errors)
+    mae      = round(sum(errors) / n, 1)
+    rmse     = round(math.sqrt(sum(sq_errors) / n), 1)
+    within15 = round(sum(1 for e in errors if e <= 15) / n * 100, 1)
+    within20 = round(sum(1 for e in errors if e <= 20) / n * 100, 1)
+    within30 = round(sum(1 for e in errors if e <= 30) / n * 100, 1)
+
+    return {
+        "evaluated_predictions": n,
+        "mae_mg_dl":            mae,
+        "rmse_mg_dl":           rmse,
+        "within_15_mg_dl_pct":  within15,
+        "within_20_mg_dl_pct":  within20,
+        "within_30_mg_dl_pct":  within30,
+        "message": f"Based on {n} evaluated prediction(s).",
+    }

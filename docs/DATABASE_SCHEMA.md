@@ -1,9 +1,11 @@
 # DiaConnect Family - Database Schema
 
-**Project:** Type 2 Diabetes Monitoring & Prediction Platform  
-**Database:** Firebase Firestore  
-**Region:** me-west1 (Tel Aviv)  
-**Created:** December 19, 2024
+**Project:** Type 2 Diabetes Monitoring & Prediction Platform
+**Database:** Firebase Firestore
+**Region:** me-west1 (Tel Aviv)
+**Status:** Reflects the actual backend implementation (models + services), not a design draft.
+
+> This document replaces the earlier `DATABASE_SCHEMA.md` / `DATABASE_SCHEMA2.md` drafts, which described a Week 2/3 plan that has since diverged from the shipped code (collection names, fields, and even entire subsystems like alerts/family/predictions/notifications changed). Everything below was verified against `backend/app/models/`, `backend/app/services/`, and `backend/app/routes/`.
 
 ---
 
@@ -13,386 +15,275 @@
 Firestore
 ├── users
 ├── glucose_readings
-├── daily_logs
+├── meals
+├── activities
+├── sleep_logs
+├── insulin_logs
 ├── predictions
 ├── alerts
-└── family_connections
+├── notifications
+├── pairing_codes
+├── family_patient_links
+└── password_reset_tokens
 ```
+
+There is **no `family_connections` or `daily_logs` collection** — those were renamed/replaced during implementation (see `family_patient_links` and the three event collections below).
 
 ---
 
 ## 1. users
 
-**Purpose:** Store all system users (patients and family members)
+**Purpose:** All accounts (patients and family members). One document per user, keyed by Firebase Auth UID.
 
-**Fields:**
+**Top-level fields** (`app/models/user.py`, hand-rolled `User` class — not Pydantic):
 
-- `userId`: string (Firebase Auth UID)
 - `email`: string
-- `fullName`: string
-- `phone`: string | null
-- `role`: string ("patient" | "family_member")
-- `diabetesType`: string | null ("type2")
-- `diagnosisDate`: timestamp | null
-- `age`: number | null
-- `gender`: string | null ("male" | "female")
-- `comorbidities`: array of objects
-  - `condition`: string
-  - `diagnosisDate`: timestamp
-  - `severity`: string
-  - `isActive`: boolean
-- `medicalHistory`: object
-  - `allergies`: array of strings
-  - `bloodType`: string | null
-  - `height`: number | null (cm)
-  - `weight`: number | null (kg)
-  - `bmi`: number | null
-- `lifestyleHabits`: object
-  - `sleep`: object (typical bedtime, wakeup, duration, quality)
-  - `diet`: object (dietary pattern, meals per day, preferred foods)
-  - `exercise`: object (frequency, duration, activities)
-  - `smoking`: object (is smoker, frequency)
-  - `alcohol`: object (consumes, frequency)
-- `targetGlucoseRange`: object
-  - `min`: number (mg/dL)
-  - `max`: number (mg/dL)
-- `sensorInfo`: object | null
-  - `brand`: string
-  - `sensorId`: string | null
-  - `lastSync`: timestamp | null
-- `notificationPreferences`: object
-  - `enableAlerts`: boolean
-  - `alertThresholds`: object (high, low)
-- `profilePicture`: string | null
-- `createdAt`: timestamp
-- `updatedAt`: timestamp
-- `isActive`: boolean
+- `password`: string (bcrypt hash)
+- `role`: `"patient" | "family_member"`
+- `firstName`, `lastName`: string | absent (only written if truthy)
+- `phone`: string | absent
+- `isActive`: boolean (default `true`) — soft-delete flag
+- `createdAt`, `updatedAt`: timestamp (UTC)
+- `dateOfBirth`, `gender`, `language`: string | absent — set via `PUT /users/me` (whitelisted raw-dict update, no schema enforced beyond the field whitelist)
+- `pushToken`: string | absent — Expo push token, set via `PUT /users/me/push-token`
 
-**Indexes:**
+**Nested objects (no fixed Pydantic schema unless noted — shape is whatever the client last wrote):**
 
-- `email` (ascending)
-- `role` (ascending)
-- `createdAt` (descending)
+- `medical`: object | absent — overwritten wholesale by `PUT /users/me/medical` (**patients only**). No server-side field validation; shape is client-defined.
+- `lifestyle`: object | absent — overwritten wholesale by `PUT /users/me/lifestyle` (all roles). Read by `prediction_service` for `activity_level` (default `"moderate"`) and `sleep_hours` (default `7.0`).
+- `health`: object | absent — the only nested object with an actual Pydantic schema (`app/models/health.py`), updated via `PUT /health/info` (**patients only**):
+  - `conditions`: array of strings, each must be one of `CONDITION_IDS` (hypertension, kidney_disease, heart_disease, dyslipidemia, obesity, neuropathy, condition_other)
+  - `basal_insulin`: object | null — `{type, dose, time}` (`type` must be a slow-insulin ID, `dose` 1–200 units, `time` "HH:MM")
+  - `insulin_sensitivity`: number (ISF, mg/dL drop per unit of fast insulin), default `30.0` if unset
+- `preferences`: object | absent — whitelisted keys only: `theme`, `fontScale`, `highContrast`, `hapticEnabled` (`GET/PUT /users/me/preferences`)
+- `reminderSettings`: object — `{enabled: boolean, reminders: [{name, time}]}` (`GET/PUT /users/me/reminders`); legacy `times: [...]` shape is auto-converted on read for backward compatibility
+- `emergencyContacts`: object — `{contacts: [{id, name, phone}]}` (`GET/PUT /users/me/emergency-contacts`), full list replaced on every save
+
+**Indexes:** `email` (ascending), `role` (ascending), `createdAt` (descending)
+
+**Access control:** patients have full access to their own document; family members can read their own document only. Medical fields are patient-only (403 for family members).
 
 ---
 
 ## 2. glucose_readings
 
-**Purpose:** Store all glucose readings
+**Purpose:** Immutable-by-design glucose measurements (manual entry, LibreView sync, or CSV import).
 
-**Fields:**
+**Fields written** (`app/models/glucose_reading.py::GlucoseDocument`, `app/services/glucose_service.py`):
 
-- `readingId`: string
-- `userId`: string (ref to users)
-- `glucoseLevel`: number (mg/dL)
-- `unit`: string ("mg/dL" | "mmol/L")
-- `timestamp`: timestamp
-- `source`: string ("manual" | "libreview" | "dexcom")
-- `context`: object
-  - `mealRelation`: string | null
-  - `activity`: string | null
-  - `medication`: boolean
+- `userId`: string (ref → `users`)
+- `value`: integer, mg/dL
+- `measuredAt`: timestamp (UTC)
+- `source`: `"manual" | "libreview" | "libreview_csv" | "csv" | "csv_cgm" | "csv_scan"`
+- `createdAt`: timestamp (UTC)
+
+> **No `unit` field exists on this document.** Some read paths (`family_service`) defensively do `d.get("unit", "mg/dL")`, but nothing ever writes `unit` — all values are implicitly mg/dL.
+
+**Validation:** `value` 40–600 mg/dL; `measuredAt` cannot be more than 2 minutes in the future.
+
+**Mutability:** Only `value` can be patched (`PATCH /glucose/{id}`), and only for `source == "manual"` readings owned by the caller. `DELETE /glucose/{id}` is permanently disabled (always returns 403) — incorrect manual readings must be corrected via edit, not delete.
+
+**Indexes:**
+- `userId` + `measuredAt` (composite, descending) — used by `family_service` for a linked family member's view
+- Most first-party reads (`get_readings`, `calculate_stats`, `get_estimated_a1c`, prediction context) deliberately stream by `userId` only and sort/filter in Python to avoid needing this index — so it is only required for the family-view path.
+
+---
+
+## 3. meals
+
+**Purpose:** Event-based meal log (timestamp-based, not calendar-date-based — a meal at 10 PM can affect glucose into the next day).
+
+**Fields written** (`app/services/daily_log_service.py::add_meal`):
+
+- `userId`: string
+- `carbs`: integer, 0–500 g
+- `foods`: string | null
 - `notes`: string | null
-- `createdAt`: timestamp
+- `timestamp`: timestamp (UTC)
+- `createdAt`: timestamp (UTC)
 
-**Indexes:**
+> **`meal_type` is accepted by the API (`MealCreate.meal_type`, e.g. breakfast/lunch/dinner/snack) but is silently dropped and never persisted.** `MealResponse.meal_type` will always come back `null`. Fix this in the service if the field is actually needed, or drop it from the model/API docs if it's dead.
 
-- `userId` + `timestamp` (composite, descending)
-- `userId` + `source` (composite)
+**Validation:** `timestamp` cannot be more than 10 minutes in the future.
 
-**Validation:**
+**Design decision:** carbs are tracked instead of calories because carbs have a direct, near-term glucose impact.
 
-- `glucoseLevel`: 40-400 mg/dL
-
----
-
-## 3. daily_logs
-
-**Purpose:** Complete daily log including meals, activities, sleep, medications
-
-**Fields:**
-
-- `logId`: string
-- `userId`: string (ref to users)
-- `date`: string (YYYY-MM-DD)
-- `meals`: array of objects
-  - `mealId`: string
-  - `type`: string
-  - `time`: timestamp
-  - `items`: array (name, quantity, carbs, calories)
-  - `totalCarbs`: number
-  - `glucoseBefore`: number | null
-  - `glucoseAfter`: number | null
-- `activities`: array of objects
-  - `activityId`: string
-  - `type`: string
-  - `duration`: number (minutes)
-  - `intensity`: string
-  - `time`: timestamp
-- `sleep`: object
-  - `bedtime`: timestamp | null
-  - `wakeup`: timestamp | null
-  - `duration`: number | null (hours)
-  - `quality`: string | null
-- `medications`: array of objects
-  - `medicationId`: string
-  - `name`: string
-  - `dosage`: string
-  - `time`: timestamp
-  - `taken`: boolean
-- `dailySummary`: object
-  - `avgGlucose`: number
-  - `minGlucose`: number
-  - `maxGlucose`: number
-  - `readingsCount`: number
-  - `timeInRange`: number (percentage)
-- `notes`: string | null
-- `createdAt`: timestamp
-- `updatedAt`: timestamp
-
-**Indexes:**
-
-- `userId` + `date` (composite, descending)
+**Indexes:** `userId` + `timestamp` (composite) — required by `family_service.get_patient_daily_logs`; own-user reads avoid it by filtering in Python.
 
 ---
 
-## 4. predictions
+## 4. activities
 
-**Purpose:** ML model predictions for glucose levels
+**Fields written:** `userId`, `type` (free text, e.g. "walking"), `duration_minutes` (0–1440), `notes` | null, `timestamp`, `createdAt`.
 
-**Fields:**
-
-- `predictionId`: string
-- `userId`: string (ref to users)
-- `predictedGlucose`: number (mg/dL)
-- `predictionTime`: timestamp
-- `confidenceScore`: number (0-1)
-- `riskLevel`: string ("low" | "moderate" | "high")
-- `riskFactors`: array of objects
-  - `factor`: string
-  - `impact`: number (0-1)
-- `modelVersion`: string
-- `actualGlucose`: number | null (filled later)
-- `predictionError`: number | null
-- `createdAt`: timestamp
-- `evaluatedAt`: timestamp | null
-
-**Indexes:**
-
-- `userId` + `predictionTime` (composite, descending)
-- `userId` + `riskLevel` (composite)
+Same timestamp validation and indexing notes as `meals`.
 
 ---
 
-## 5. alerts
+## 5. sleep_logs
 
-**Purpose:** Alerts and notifications
+**Purpose:** Records *exceptions* to the user's baseline sleep pattern (baseline lives in `users.lifestyle`), not nightly tracking.
 
-**Fields:**
+**Fields written:** `userId`, `sleep_hours` (0–24, float), `notes` | null, `timestamp`, `createdAt`.
 
-- `alertId`: string
-- `userId`: string (patient ID)
-- `type`: string ("high_glucose" | "low_glucose" | "prediction_risk")
-- `severity`: string ("info" | "warning" | "critical")
-- `title`: string
-- `message`: string
-- `relatedData`: object
-  - `glucoseLevel`: number | null
-  - `predictionId`: string | null
-  - `readingId`: string | null
-- `recommendations`: array of objects
-  - `action`: string
-  - `priority`: string
-- `isRead`: boolean
-- `isAcknowledged`: boolean
-- `sentToFamily`: boolean
-- `notificationSent`: object
-  - `patient`: boolean
-  - `familyMembers`: array of strings
-  - `sentAt`: timestamp | null
-- `createdAt`: timestamp
-- `resolvedAt`: timestamp | null
-
-**Indexes:**
-
-- `userId` + `createdAt` (composite, descending)
-- `userId` + `isRead` (composite)
+Same timestamp validation and indexing notes as `meals`.
 
 ---
 
-## 6. family_connections
+## 6. insulin_logs
 
-**Purpose:** Connect patients with family members
+**Purpose:** Fast/bolus insulin dose log (basal insulin is a single value stored on `users.health.basal_insulin`, not logged as events).
 
-**Fields:**
+**Fields written** (`app/services/health_service.py`):
 
-- `connectionId`: string
-- `patientId`: string (ref to users)
-- `familyMemberId`: string (ref to users)
-- `relationship`: string ("spouse" | "parent" | "child" | "sibling")
-- `permissions`: object
-  - `viewGlucose`: boolean
-  - `viewPredictions`: boolean
-  - `viewAlerts`: boolean
-  - `viewDailyLogs`: boolean
-  - `receiveAlerts`: boolean
-- `status`: string ("pending" | "active" | "blocked")
-- `invitedBy`: string (userId)
-- `createdAt`: timestamp
-- `acceptedAt`: timestamp | null
-- `updatedAt`: timestamp
+- `userId`: string
+- `insulin_type`: string, default `"fast"`
+- `units`: float, 0.5–100
+- `timestamp`: timestamp (UTC), same 10-minute-future validation as other events
+- `createdAt`: timestamp (UTC)
 
-**Indexes:**
+**Used by:** `prediction_service._compute_insulin_effect` (last 4 hours) to subtract an insulin-decay curve from the glucose prediction.
 
-- `patientId` + `status` (composite)
-- `familyMemberId` + `status` (composite)
+**Indexes:** none required — all reads filter by `userId` only, then by `timestamp` in Python.
 
 ---
 
-## Access Control
+## 7. predictions
 
-**Patients:**
+**Purpose:** Persisted record of real-time/hybrid LSTM predictions, later reconciled against the actual reading for accuracy tracking.
 
-- Full access to their own data
-- Manage family connections and permissions
+**Fields written** (`app/services/prediction_service.py`):
 
-**Family Members:**
+- `userId`, `predictedValue`, `currentValue`, `hours`, `trend`, `alertType`, `predictionMode`
+- `actualValue`: null at write time, filled in later by `glucose_service._fill_prediction_actuals` when a new reading lands within ±30 min of `createdAt + hours`
+- `createdAt`: timestamp (UTC)
 
-- Access based on granted permissions
-- Cannot modify patient data
-- Receive alerts if permission granted
+> **Pattern-mode predictions (data stale > 24h) are never written here** — only `real_time`/hybrid mode predictions are persisted, so `GET /glucose/predict/accuracy` only ever reflects real-time-mode accuracy.
 
----
+**Write is rate-limited:** skipped if a prediction for the same user was already saved in the last 20 minutes.
 
-## Design Rationale & Technical Notes
-
-### Users Collection Design
-
-Medical and lifestyle fields are designed for patient users only. For family members, these fields remain `null` and are ignored by application logic. This approach:
-
-- Maintains schema consistency across user types
-- Simplifies authentication and user management flow
-- Provides role flexibility (e.g., family member may become patient)
-- Avoids need for separate collections per user type
-
-**Future Consideration:** Some medical and lifestyle fields may be refactored into subcollections in future iterations to reduce document size and optimize update frequency for frequently-changed fields.
-
-### Glucose Readings Scalability
-
-Continuous Glucose Monitoring (CGM) devices generate high-frequency data (up to 288 readings per day per patient). To maintain optimal performance:
-
-- Current design prioritizes query efficiency with composite indexes
-- **Archival Strategy:** Readings older than 6 months may be archived or aggregated into monthly summaries to control storage growth
-- Retention policy can be adjusted based on regulatory requirements and user preferences
-
-### Daily Logs Denormalization
-
-The `dailySummary` object contains calculated aggregates (avg, min, max glucose, etc.) that are intentionally denormalized for:
-
-- Fast read performance for dashboard queries
-- Reduced computation on client and backend
-- Historical trend analysis without scanning all readings
-
-This is a standard Firestore optimization pattern and not a design flaw.
-
-### Permissions Granularity
-
-The separation of `role` (user type) and `permissions` (relationship-based access) allows:
-
-- Fine-grained access control per family connection
-- Different permission levels for different family members
-- Easy permission updates without role changes
-- Scalability for future access types (e.g., healthcare providers)
+**Indexes:** `userId` + `createdAt` (composite) — required for both the rate-limit check and the accuracy backfill query.
 
 ---
 
-## Data Retention & Privacy
+## 8. alerts
 
-- All personally identifiable information (PII) follows healthcare data protection standards
-- Users can request data export (GDPR compliance consideration)
-- Soft delete strategy: `isActive: false` instead of document deletion
-- Audit logs for sensitive operations to be implemented in production
+**Purpose:** Simple high/low glucose alert feed (separate from the emergency push-notification system — see note below).
 
----
+**Fields written** (`app/services/alert_service.py`):
 
-## Performance Considerations
+- `userId`, `type` (`"high" | "low"`), `value`, `readingId`, `createdAt`, `read` (boolean, default `false`)
 
-**Expected Load (100 active patients, 6 months):**
+**Thresholds:** high > 180 mg/dL, low < 70 mg/dL.
 
-- `users`: ~200 documents, ~400 KB
-- `glucose_readings`: ~500K documents, ~250 MB
-- `daily_logs`: ~18K documents, ~90 MB
-- `predictions`: ~72K documents, ~36 MB
-- `alerts`: ~10K documents, ~5 MB
-- `family_connections`: ~300 documents, ~150 KB
+> **Two independent threshold systems exist and can disagree.** This `alerts` collection uses 70/180. The emergency *push notification* triggered directly from `glucose_service.create_reading` uses 70/300 (`DANGEROUS_LOW`/`DANGEROUS_HIGH`). A reading of 250 mg/dL creates an `alerts` document but does **not** trigger an emergency push.
 
-**Total:** ~381 MB (well within Firestore free tier limits)
+**Retention:** `get_alerts` auto-deletes any alert older than 7 days as a side effect of listing them.
 
-**Query Optimization:**
-
-- All frequent queries have composite indexes
-- Pagination implemented for large result sets
-- Real-time listeners limited to recent data only
+**Indexes:** none required for the primary (per-user) read path — filtered by `userId` and sorted in Python.
 
 ---
 
-## Future Enhancements
+## 9. notifications
 
-- [ ] Add `reports` collection for automated monthly/weekly summaries
-- [ ] Add `doctor_connections` for healthcare provider access
-- [ ] Implement data export functionality (PDF/CSV)
-- [ ] Add medication reminders as separate collection
-- [ ] Consider subcollections for very active patients (>1 year of data)
+**Purpose:** Generic notification inbox used by emergency alerts, prediction alerts, and glucose reminders — client renders localized text from `notifKey`/`notifParams` rather than trusting server-baked strings.
 
----
+**Fields written** (`app/services/notification_service.py`):
 
-## Validation Rules Summary
+- `userId`, `type` (e.g. `"emergency_alert"`, `"prediction_alert"`, `"glucose_reminder"`)
+- `title`, `body`: string (server-baked fallback text)
+- `glucoseValue`: integer | null
+- `isRead`: boolean (default `false`)
+- `createdAt`: timestamp (UTC)
+- `patientName`, `notifKey`, `notifParams`: present only when provided by the caller
 
-| Field             | Rule                               |
-| ----------------- | ---------------------------------- |
-| `email`           | Valid email format, unique         |
-| `role`            | Enum: ["patient", "family_member"] |
-| `glucoseLevel`    | Range: 40-400 mg/dL                |
-| `age`             | Range: 1-120                       |
-| `targetRange.min` | Range: 40-100 mg/dL                |
-| `targetRange.max` | Range: 100-200 mg/dL               |
-| `timestamp`       | Not in future                      |
+**Indexes:** `userId` + `createdAt` (composite, descending); `userId` + `isRead` (composite) — both required.
 
 ---
 
-## Notes
+## 10. pairing_codes
 
-- All timestamps use Firebase Timestamp type
-- Document IDs are auto-generated using Firestore `doc().id`
-- Fields marked with `| null` are optional
-- Arrays can be empty `[]`
-- All collections are top-level (no subcollections currently)
-- Schema designed for scalability up to 1000 active users
+**Purpose:** Short-lived, single-use codes patients generate to link a family member.
+
+**Fields written** (`app/services/family_service.py`):
+
+- `code`: 6-char uppercase alphanumeric, unique among currently-unused codes
+- `patient_id`: string
+- `created_at`, `expires_at`: timestamp (expires after 30 minutes)
+- `used`: boolean
+
+**Business rule:** generating a new code deletes all previously-unused codes for that patient — only one active code at a time.
 
 ---
 
-**Version:** 1.1  
-**Last Updated:** December 19, 2024  
-**Authors:** Deema Dweyyat + Wajdi Alfarawna  
-**Status:** Ready for Implementation  
-**Review Status:** Peer Reviewed - 9.5/10
+## 11. family_patient_links
 
-## Future Enhancements
+**Purpose:** The actual patient ↔ family-member relationship (this replaces the planned `family_connections` collection — no permission-granularity object exists; access is all-or-nothing per link).
 
-### System Diagnostics (Week 8+)
+**Fields written:**
 
-To enhance debugging capabilities:
+- `family_member_id`, `patient_id`: string (refs → `users`)
+- `patient_name`: string — denormalized snapshot taken at link time
+- `linked_at`: timestamp
 
-- Add system health monitoring
-- Track API call success rates
-- Monitor sensor connectivity status
-- Detailed error logging
+> **`family_member_name` is read defensively (`d.get("family_member_name", "")`) but never written.** `get_family_members` always resolves the name live from the `users` collection instead — the field can be considered dead on this document.
 
-### Data Quality Enhancement (Week 6+)
+**Indexes:** none required — lookups filter by `patient_id` or `family_member_id` only.
 
-- Add quality indicators to glucose readings
-- Implement anomaly detection
-- Track data validation metrics
+---
 
-These enhancements are not critical for MVP but will
-improve system reliability and maintainability.
+## 12. password_reset_tokens
+
+**Fields written** (`app/models/password_reset_token.py`):
+
+- `token`: URL-safe random string (32 bytes)
+- `userId`, `email`: string
+- `expiresAt`: timestamp (60 minutes from creation)
+- `used`: boolean
+
+Queried by `token` + `used == false`; expiry checked manually (not a Firestore TTL policy).
+
+---
+
+## Design Rationale
+
+### Event-based architecture (meals / activities / sleep_logs / insulin_logs)
+Timestamp-based, not calendar-date-based, so a late-night event is correctly associated with the glucose readings it affects rather than the day it was logged. `users.lifestyle` stores the **baseline** pattern; these collections store **exceptions** and discrete events only.
+
+### Immutable glucose readings
+No update-in-place beyond correcting a manual entry's `value`; deletion is disabled outright. This preserves the integrity of the historical series that the prediction model and accuracy tracking depend on.
+
+### Denormalization
+`patient_name` on `family_patient_links` and `patientName` on `notifications` are intentional denormalizations to avoid a join-style lookup on every read — standard Firestore pattern, not an oversight.
+
+### Composite indexes actually required
+Only these query shapes need a composite index (everything else deliberately does a single-field `where` and sorts/filters in Python to avoid the index requirement):
+
+| Collection | Index | Used by |
+|---|---|---|
+| `glucose_readings` | `userId` ↑, `measuredAt` ↓ | Family member viewing a linked patient's readings |
+| `predictions` | `userId` ↑, `createdAt` ↑ | Rate-limit check on write; accuracy backfill in `glucose_service` |
+| `notifications` | `userId` ↑, `createdAt` ↓ | Notification inbox listing |
+| `notifications` | `userId` ↑, `isRead` ↑ | Unread count / mark-all-read |
+| `meals`, `activities`, `sleep_logs` | `userId` ↑, `timestamp` ↑ | Family member viewing a linked patient's daily logs |
+
+Indexes are auto-created on first query — Firestore surfaces a console link in the error when one is missing.
+
+---
+
+## Known Data-Model Discrepancies (verified against code, not yet fixed)
+
+These are worth resolving in code or explicitly deciding to leave as-is — listed here so they aren't lost:
+
+1. `glucose_readings.unit` — read with a fallback, never written.
+2. `meals.meal_type` — accepted by the API, dropped before the Firestore write.
+3. `family_patient_links.family_member_name` — read with a fallback, never written.
+4. Alert thresholds (70/180 in `alerts`) vs. emergency-push thresholds (70/300 in `glucose_service`) are two separate, unsynchronized systems.
+5. Prediction alert rate-limiting (`prediction_service._last_alert_sent`) is in-process memory, not Firestore-backed — resets on every backend restart/deploy.
+6. Same caveat applies to the per-user fine-tuned LSTM cache (`prediction_service._model_cache`, including `training_in_progress` state) — in-process memory only, lost on restart, and not shared across worker processes if the backend is ever deployed with multiple uvicorn workers.
+
+---
+
+**Last verified against code:** 2026-07-03
+**Authors:** Deema Dweyyat + Wajdi Alfarawna
+**Supervisor:** Dr. Roger Cohen

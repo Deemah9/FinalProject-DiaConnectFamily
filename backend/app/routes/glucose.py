@@ -28,9 +28,7 @@ router = APIRouter(prefix="/glucose", tags=["Glucose Readings"])
 )
 async def add_glucose_reading(
     data: GlucoseCreate,
-    current_user: dict = Depends(
-        require_role("patient")
-    )
+    current_user: dict = Depends(require_role("patient"))
 ):
     """
     Add a new glucose reading.
@@ -45,7 +43,6 @@ async def add_glucose_reading(
         reading_id=reading["id"],
         value=reading["value"]
     )
-
     return reading
 
 

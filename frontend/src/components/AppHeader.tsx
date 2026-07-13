@@ -36,8 +36,8 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
   const { isHighContrast, toggleHighContrast } = useHighContrast();
   const { hapticEnabled, setHapticEnabled } = useHaptic();
   const { fontScale, setFontScale } = useFontSize();
-  const { t } = useTranslation();
-  const isRTL = I18nManager.isRTL;
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.dir() === "rtl";
   const { width } = useWindowDimensions();
   const isCompact = width < 420;
   const [accessOpen, setAccessOpen] = useState(false);
@@ -125,11 +125,28 @@ export default function AppHeader({ left, right, bottom, unreadCount = 0 }: AppH
     <View style={[styles.bar, { paddingTop: top + 8 }]}>
       <View style={styles.topRow}>
         {/* Absolutely centered logo — always in the middle */}
-        <Pressable style={styles.logo} onPress={() => router.push("/" as any)}>
-          <Ionicons name="heart-outline" size={26} color="#E8A317" />
-          <View style={{ marginLeft: 10 }}>
-            <Text style={styles.title} numberOfLines={1}>DiaConnect</Text>
-            <Text style={styles.sub} numberOfLines={1}>Family</Text>
+        <Pressable
+          style={styles.logo}
+          onPress={() => router.push("/" as any)}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {isRTL ? (
+              <>
+                <View style={{ marginRight: 6 }}>
+                  <Text style={styles.title} numberOfLines={1}>DiaConnect</Text>
+                  <Text style={styles.sub} numberOfLines={1}>Family</Text>
+                </View>
+                <Ionicons name="heart-outline" size={26} color="#E8A317" />
+              </>
+            ) : (
+              <>
+                <Ionicons name="heart-outline" size={26} color="#E8A317" />
+                <View style={{ marginLeft: 6 }}>
+                  <Text style={styles.title} numberOfLines={1}>DiaConnect</Text>
+                  <Text style={styles.sub} numberOfLines={1}>Family</Text>
+                </View>
+              </>
+            )}
           </View>
         </Pressable>
         <View style={styles.leftSlot}>{leftNode}</View>
@@ -302,10 +319,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    writingDirection: "ltr",
   },
   leftSlot: {
     flexDirection: "row",

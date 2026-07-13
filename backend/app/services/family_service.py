@@ -4,6 +4,7 @@ import string
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from app.services.notification_service import save_notification
+from app.services.glucose_service import glucose_service
 from app.config.firebase import db
 
 
@@ -473,7 +474,23 @@ def send_prediction_alert(
 
     def _patient_text(lang: str) -> tuple[str, str]:
         is_rising = predicted > current
+        is_stable = round(predicted) == round(current)
         if alert_type == "high":
+            if is_stable:
+                if lang == "en":
+                    return (
+                        "⚠️ High Glucose Stable",
+                        f"Your glucose is high and holding at {current:.0f} mg/dL. Please take action.",
+                    )
+                if lang == "he":
+                    return (
+                        "⚠️ סוכר גבוה יציב",
+                        f"רמת הסוכר שלך גבוהה ויציבה: {current:.0f} mg/dL. אנא פעל.",
+                    )
+                return (
+                    "⚠️ السكر مرتفع ومستقر",
+                    f"سكرك مرتفع ومستقر عند {current:.0f} mg/dL. يرجى اتخاذ الإجراء اللازم.",
+                )
             if is_rising:
                 if lang == "en":
                     return (
@@ -507,6 +524,21 @@ def send_prediction_alert(
                     f"سكرك الحالي {current:.0f} mg/dL ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
         if alert_type == "low":
+            if is_stable:
+                if lang == "en":
+                    return (
+                        "⚠️ Low Glucose Stable",
+                        f"Your glucose is low and holding at {current:.0f} mg/dL. Please take action.",
+                    )
+                if lang == "he":
+                    return (
+                        "⚠️ סוכר נמוך יציב",
+                        f"רמת הסוכר שלך נמוכה ויציבה: {current:.0f} mg/dL. אנא פעל.",
+                    )
+                return (
+                    "⚠️ السكر منخفض ومستقر",
+                    f"سكرك منخفض ومستقر عند {current:.0f} mg/dL. يرجى اتخاذ الإجراء اللازم.",
+                )
             if not is_rising:
                 if lang == "en":
                     return (
@@ -548,7 +580,23 @@ def send_prediction_alert(
 
     def _family_text(lang: str) -> tuple[str, str]:
         is_rising = predicted > current
+        is_stable = round(predicted) == round(current)
         if alert_type == "high":
+            if is_stable:
+                if lang == "en":
+                    return (
+                        "⚠️ High Glucose Stable",
+                        f"{patient_name}'s glucose is high and holding at {current:.0f} mg/dL.",
+                    )
+                if lang == "he":
+                    return (
+                        "⚠️ סוכר גבוה יציב",
+                        f"הסוכר של {patient_name} גבוה ויציב: {current:.0f} mg/dL.",
+                    )
+                return (
+                    "⚠️ سكر المريض مرتفع ومستقر",
+                    f"سكر {patient_name} مرتفع ومستقر عند {current:.0f} mg/dL.",
+                )
             if is_rising:
                 if lang == "en":
                     return (
@@ -586,6 +634,21 @@ def send_prediction_alert(
                     f" ومتوقع ينخفض ل {predicted:.0f} mg/dL خلال {hours} ساعة.",
                 )
         if alert_type == "low":
+            if is_stable:
+                if lang == "en":
+                    return (
+                        "⚠️ Low Glucose Stable",
+                        f"{patient_name}'s glucose is low and holding at {current:.0f} mg/dL.",
+                    )
+                if lang == "he":
+                    return (
+                        "⚠️ סוכר נמוך יציב",
+                        f"הסוכר של {patient_name} נמוך ויציב: {current:.0f} mg/dL.",
+                    )
+                return (
+                    "⚠️ سكر المريض منخفض ومستقر",
+                    f"سكر {patient_name} منخفض ومستقر عند {current:.0f} mg/dL.",
+                )
             if not is_rising:
                 if lang == "en":
                     return (
@@ -809,3 +872,20 @@ def get_patient_glucose(family_member_id: str, patient_id: str, limit: int = 50)
         })
 
     return result
+
+
+def get_patient_a1c(family_member_id: str, patient_id: str) -> dict | None:
+    """
+    Return estimated A1C for a patient, only if the family member is linked
+    to them. Reuses the exact same calculation as the patient's own
+    GET /glucose/a1c, so both sides always see the same number.
+    """
+    links = db.collection(FAMILY_LINKS_COLLECTION)\
+        .where("family_member_id", "==", family_member_id)\
+        .where("patient_id", "==", patient_id)\
+        .limit(1).stream()
+
+    if not any(True for _ in links):
+        return None  # Not authorized
+
+    return glucose_service.get_estimated_a1c(user_id=patient_id)

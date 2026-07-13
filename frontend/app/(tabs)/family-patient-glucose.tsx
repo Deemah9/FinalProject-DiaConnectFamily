@@ -11,13 +11,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getPatientDailyLogs, getPatientGlucose, getPatientPrediction, viewWithCode } from "@/services/api";
+import { getFamilyPatientA1C, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, getUnreadCount, viewWithCode } from "@/services/api";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -64,14 +65,18 @@ export default function FamilyPatientGlucoseScreen() {
   const [error, setError] = useState("");
   const [prediction, setPrediction] = useState<any>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+  const [a1cData, setA1cData] = useState<any>(null);
+  const [showStaleBanner, setShowStaleBanner] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedLogDate, setSelectedLogDate] = useState<string | null>(null);
   const [showAllReadings, setShowAllReadings] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       load();
+      getUnreadCount().then((d: any) => setUnreadCount(d?.unread_count ?? 0)).catch(() => {});
     }, [patientId])
   );
 
@@ -108,13 +113,19 @@ export default function FamilyPatientGlucoseScreen() {
         .sort((a, b) => parseDate(b) - parseDate(a));
       setReadings(sorted);
 
-      // Daily logs only available for authenticated (linked) family members
+      // Daily logs + A1C only available for authenticated (linked) family members
       if (!familyCode && patientId) {
         try {
           const logs = await getPatientDailyLogs(patientId);
           setDailyLogs(logs);
         } catch {
           setDailyLogs({ meals: [], activities: [], sleep: [] });
+        }
+        try {
+          const a1c = await getFamilyPatientA1C(patientId);
+          setA1cData(a1c);
+        } catch {
+          setA1cData(null);
         }
         loadPrediction();
       }
@@ -131,6 +142,11 @@ export default function FamilyPatientGlucoseScreen() {
       setLoadingPrediction(true);
       const data = await getPatientPrediction(patientId, 1, i18n.language);
       setPrediction(data);
+      if (data?.data_stale && data?.prediction_mode === "pattern") {
+        setShowStaleBanner(true);
+      } else {
+        setShowStaleBanner(false);
+      }
     } catch {
       setPrediction(null);
     } finally {
@@ -180,8 +196,10 @@ export default function FamilyPatientGlucoseScreen() {
   }, [readings, t]);
 
   useEffect(() => {
-    if (grouped.length > 0 && !selectedDateStr) {
-      setSelectedDateStr(grouped[0].dateStr);
+    if (!selectedDateStr) {
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+      setSelectedDateStr(todayStr);
     }
   }, [grouped]);
 
@@ -287,13 +305,6 @@ export default function FamilyPatientGlucoseScreen() {
   const patternRiskBg    = patternRisk === "high" ? "#FEE2E2" : patternRisk === "low" ? "#FFFBEB" : patternRisk === "variable" ? "#F5F3FF" : "#D1FAE5";
   const patternRiskIcon  = patternRisk === "variable" ? "stats-chart" : patternRisk === "normal" ? "checkmark-circle" : "alert-circle";
   const patternRiskLabel = patternRisk === "high" ? t("high") : patternRisk === "low" ? t("low") : patternRisk === "variable" ? t("patternVariabilityUnstable") : t("normal");
-  const patternConfLabel = patternPP?.confidence === "high" ? t("patternConfidenceHigh") : patternPP?.confidence === "medium" ? t("patternConfidenceMedium") : t("patternConfidenceLow");
-  const patternAvg       = patternPP?.typical_avg ?? 0;
-  const patternAdvStyle  = patternAvg > 170
-    ? { bg: "#FDEDED", border: "#FECACA", color: "#991B1B", icon: "alert-circle",       iconClr: "#D32F2F" }
-    : patternAvg < 70
-    ? { bg: "#FFF7ED", border: "#FED7AA", color: "#92400E", icon: "alert-circle",       iconClr: "#E07B00" }
-    : { bg: theme.primaryBg, border: theme.border, color: "#1A4A6B", icon: "information-circle", iconClr: "#1A6FA8" };
 
   const tabBar = !familyCode ? (
     <View style={styles.headerTabs}>
@@ -319,7 +330,7 @@ export default function FamilyPatientGlucoseScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader bottom={tabBar} />
+      <AppHeader bottom={tabBar} unreadCount={unreadCount} />
 
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#1A6FA8" />
@@ -345,152 +356,122 @@ export default function FamilyPatientGlucoseScreen() {
 
           {/* AI Prediction Card — only on Glucose tab */}
           {!familyCode && activeTab === "glucose" && (
-            <View style={styles.predictionCard}>
-              <View style={styles.predictionHeader}>
-                <Ionicons
-                  name={prediction?.prediction_mode === "pattern" ? "bar-chart-outline" : "analytics-outline"}
-                  size={18} color="#1A6FA8"
-                />
-                <Text style={styles.predictionTitle}>
-                  {prediction?.prediction_mode === "pattern" ? t("patternCardTitle") : t("predictionTitle")}
-                </Text>
-              </View>
+            <>
+              {/* Section label */}
+              <Text style={styles.sectionLabel}>
+                {prediction?.prediction_mode === "pattern" ? t("predictionTitlePatternFamily") : t("predictionTitle")}
+              </Text>
 
-              {loadingPrediction ? (
-                <Text style={styles.predictionMuted}>{t("predictionLoading")}</Text>
+              {/* Stale banner */}
+              {showStaleBanner && prediction?.data_stale && prediction?.message && (
+                <View style={styles.staleBannerTop}>
+                  <Ionicons name="time-outline" size={16} color="#D97706" />
+                  <Text style={styles.staleBannerTopText}>{prediction.family_message || prediction.message}</Text>
+                  <TouchableOpacity onPress={() => setShowStaleBanner(false)}>
+                    <Ionicons name="close" size={18} color="#D97706" />
+                  </TouchableOpacity>
+                </View>
+              )}
 
-              ) : prediction?.prediction_mode === "pattern" ? (
-                <>
-                  {(prediction.family_message || prediction.message) && (
-                    <View style={styles.staleRow}>
-                      <Ionicons name="time-outline" size={15} color="#D97706" />
-                      <Text style={styles.staleText}>{prediction.family_message || prediction.message}</Text>
+              <View style={styles.predictionCard}>
+                {/* Header */}
+                <View style={[styles.predictionHeader, { justifyContent: "space-between" }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 }}>
+                    <Ionicons name="analytics-outline" size={20} color="#1A6FA8" />
+                    <Text style={[styles.predictionTitle, { flexShrink: 1 }]}>{t("predictionSubtitle")}</Text>
+                  </View>
+                  {prediction?.prediction_mode === "pattern" && patternPP?.available && (
+                    <View style={[styles.trendBadge, { backgroundColor: patternRiskBg }]}>
+                      <Ionicons name={patternRiskIcon as any} size={14} color={patternRiskColor} />
+                      <Text style={[styles.trendBadgeText, { color: patternRiskColor }]}>{patternRiskLabel}</Text>
                     </View>
                   )}
-                  {patternPP?.available ? (
-                    <>
-                      <View style={styles.predictionRow}>
-                        <Text style={[styles.predictionValue, {
-                          color: patternAvg > 170 ? "#D32F2F" : patternAvg < 70 ? "#D97706" : theme.text,
-                        }]}>
-                          {patternPP.typical_avg}
-                          <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
-                        </Text>
-                        <View style={[styles.trendBadge, { backgroundColor: patternRiskBg }]}>
-                          <Ionicons name={patternRiskIcon as any} size={15} color={patternRiskColor} />
-                          <Text style={[styles.trendBadgeText, { color: patternRiskColor }]}>{patternRiskLabel}</Text>
-                        </View>
-                      </View>
-                      {patternPP.typical_min != null && patternPP.typical_max != null && (
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                          <Ionicons name="stats-chart-outline" size={14} color={theme.textMuted} />
-                          <Text style={{ fontSize: 13, color: theme.textMuted }}>
-                            {t("patternTypical")}{" "}
-                            <Text style={{ fontWeight: "700", color: theme.text }}>{patternPP.typical_min} – {patternPP.typical_max}</Text>
-                            {" "}{t("mgdL")}
-                          </Text>
-                        </View>
-                      )}
-                      {(prediction.advice?.family || patternPP.message) && (
-                        <View style={[styles.adviceBox, { backgroundColor: patternAdvStyle.bg, borderColor: patternAdvStyle.border }]}>
-                          <Ionicons name={patternAdvStyle.icon as any} size={16} color={patternAdvStyle.iconClr} />
-                          <Text style={[styles.adviceText, { color: patternAdvStyle.color }]}>
-                            {prediction.advice?.family || patternPP.message}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
-                        <Ionicons name="people-outline" size={13} color={theme.textMuted} />
-                        <Text style={{ fontSize: 12, color: theme.textMuted }}>
-                          {t("patternSamples", { count: patternPP.sample_count })}
-                          {"  ·  "}
-                          <Text style={{
-                            fontWeight: "600",
-                            color: patternPP.confidence === "high" ? "#16A34A" : patternPP.confidence === "medium" ? "#D97706" : "#6B7280",
-                          }}>{patternConfLabel}</Text>
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <Text style={styles.predictionMuted}>{t("patternNoData")}</Text>
-                  )}
-                </>
+                </View>
 
-              ) : prediction?.predicted_value != null ? (
-                <>
-                  <View style={styles.predictionRow}>
-                    <Text style={styles.predictionValue}>
-                      {Math.round(prediction.predicted_value)}
-                      <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
-                    </Text>
-                    {prediction.alert_type === "patch_error" ? (
-                      <View style={[styles.trendBadge, { backgroundColor: "#FEF3C7" }]}>
-                        <Ionicons name="warning" size={15} color="#D97706" />
-                        <Text style={[styles.trendBadgeText, { color: "#92400E" }]}>{t("alert_patch_error_short")}</Text>
+                {loadingPrediction ? (
+                  <Text style={styles.predictionMuted}>{t("predictionLoading")}</Text>
+
+                ) : prediction?.predicted_value != null ? (
+                  <>
+                    {/* Value + Trend */}
+                    <View style={styles.predictionRow}>
+                      <Text style={[styles.predictionValue, {
+                        color: prediction.predicted_value > 180 || prediction.predicted_value < 70 ? "#D32F2F" : theme.text
+                      }]}>
+                        {Math.round(prediction.predicted_value)}
+                        <Text style={styles.predictionUnit}> {t("mgdL")}</Text>
+                      </Text>
+                      {prediction.alert_type === "patch_error" ? (
+                        <View style={[styles.trendBadge, { backgroundColor: "#FEF3C7" }]}>
+                          <Ionicons name="warning" size={15} color="#D97706" />
+                          <Text style={[styles.trendBadgeText, { color: "#92400E" }]}>{t("alert_patch_error_short")}</Text>
+                        </View>
+                      ) : prediction.trend ? (
+                        <View style={[
+                          styles.trendBadge,
+                          prediction.trend === "rising"  ? { backgroundColor: "#FEE2E2" } :
+                          prediction.trend === "falling" ? { backgroundColor: "#FEF3C7" } :
+                                                           { backgroundColor: "#D1FAE5" },
+                        ]}>
+                          <Ionicons
+                            name={prediction.trend === "rising" ? "trending-up" : prediction.trend === "falling" ? "trending-down" : "remove"}
+                            size={15}
+                            color={prediction.trend === "rising" ? "#DC2626" : prediction.trend === "falling" ? "#D97706" : "#059669"}
+                          />
+                          <Text style={[
+                            styles.trendBadgeText,
+                            prediction.trend === "rising"  ? { color: "#DC2626" } :
+                            prediction.trend === "falling" ? { color: "#D97706" } :
+                                                             { color: "#059669" },
+                          ]}>
+                            {t(`trend_${prediction.trend}`)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Probability */}
+                    {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, marginBottom: 2 }}>
+                        <Ionicons name="stats-chart-outline" size={14} color={theme.textMuted} />
+                        <Text style={{ fontSize: 13, color: theme.textMuted }}>
+                          <Text style={{ fontWeight: "700", color: "#1A6FA8" }}>{prediction.probability}%</Text>
+                          {"  "}{t(`prob_${prediction.trend}`)}
+                        </Text>
                       </View>
-                    ) : prediction.trend ? (
+                    )}
+
+                    {/* Advice */}
+                    {(prediction.alert_type || prediction.advice?.family) && (
                       <View style={[
-                        styles.trendBadge,
-                        prediction.trend === "rising"  ? { backgroundColor: "#FEE2E2" } :
-                        prediction.trend === "falling" ? { backgroundColor: "#FEF3C7" } :
-                                                         { backgroundColor: "#D1FAE5" },
+                        styles.adviceBox,
+                        prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
+                        prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
+                        prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+                        !prediction.alert_type                  && { backgroundColor: theme.primaryBg, borderColor: theme.border },
                       ]}>
                         <Ionicons
-                          name={prediction.trend === "rising" ? "trending-up" : prediction.trend === "falling" ? "trending-down" : "remove"}
-                          size={15}
-                          color={prediction.trend === "rising" ? "#DC2626" : prediction.trend === "falling" ? "#D97706" : "#059669"}
+                          name={prediction.alert_type === "patch_error" ? "warning" : prediction.alert_type ? "people" : "information-circle"}
+                          size={16}
+                          color={prediction.alert_type === "low" ? "#E07B00" : prediction.alert_type === "high" ? "#D32F2F" : "#1A6FA8"}
                         />
                         <Text style={[
-                          styles.trendBadgeText,
-                          prediction.trend === "rising"  ? { color: "#DC2626" } :
-                          prediction.trend === "falling" ? { color: "#D97706" } :
-                                                           { color: "#059669" },
+                          styles.adviceText,
+                          prediction.alert_type === "low"         && { color: "#92400E" },
+                          prediction.alert_type === "high"        && { color: "#991B1B" },
+                          prediction.alert_type === "patch_error" && { color: "#374151" },
+                          !prediction.alert_type                  && { color: "#1A4A6B" },
                         ]}>
-                          {t(`trend_${prediction.trend}`)}
+                          {prediction.advice?.family || (prediction.alert_type ? t(`alert_${prediction.alert_type}`) : "")}
                         </Text>
                       </View>
-                    ) : null}
-                  </View>
-
-                  {prediction.probability != null && prediction.trend && prediction.alert_type !== "patch_error" && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, marginBottom: 2 }}>
-                      <Ionicons name="stats-chart-outline" size={14} color={theme.textMuted} />
-                      <Text style={{ fontSize: 13, color: theme.textMuted }}>
-                        <Text style={{ fontWeight: "700", color: "#1A6FA8" }}>{prediction.probability}%</Text>
-                        {"  "}{t(`prob_${prediction.trend}`)}
-                      </Text>
-                    </View>
-                  )}
-
-                  {(prediction.alert_type || prediction.advice?.family) && (
-                    <View style={[
-                      styles.adviceBox,
-                      prediction.alert_type === "low"         && { backgroundColor: "#FFF7ED", borderColor: "#FED7AA" },
-                      prediction.alert_type === "high"        && { backgroundColor: "#FDEDED", borderColor: "#FECACA" },
-                      prediction.alert_type === "patch_error" && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
-                      !prediction.alert_type                  && { backgroundColor: theme.primaryBg, borderColor: theme.border },
-                    ]}>
-                      <Ionicons
-                        name={prediction.alert_type === "patch_error" ? "warning" : prediction.alert_type ? "people" : "information-circle"}
-                        size={16}
-                        color={prediction.alert_type === "low" ? "#E07B00" : prediction.alert_type === "high" ? "#D32F2F" : "#1A6FA8"}
-                      />
-                      <Text style={[
-                        styles.adviceText,
-                        prediction.alert_type === "low"         && { color: "#92400E" },
-                        prediction.alert_type === "high"        && { color: "#991B1B" },
-                        prediction.alert_type === "patch_error" && { color: "#374151" },
-                        !prediction.alert_type                  && { color: "#1A4A6B" },
-                      ]}>
-                        {prediction.advice?.family || (prediction.alert_type ? t(`alert_${prediction.alert_type}`) : "")}
-                      </Text>
-                    </View>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.predictionMuted}>{prediction?.message || t("predictionUnavailable")}</Text>
-              )}
-            </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.predictionMuted}>{prediction?.message || t("predictionUnavailable")}</Text>
+                )}
+              </View>
+            </>
           )}
 
 
@@ -787,30 +768,34 @@ export default function FamilyPatientGlucoseScreen() {
           )}
 
           {/* ── A1C TAB ── */}
+          {/* Sourced from GET /family/patient/{id}/a1c — same calculation as the
+              patient's own /glucose/a1c, so both sides always see the same number. */}
           {activeTab === "a1c" && !familyCode && (() => {
-            const vals = readings.map((r) => Number(r?.value || 0)).filter(Boolean);
-            if (vals.length === 0) return (
+            if (a1cData?.estimated_a1c == null) return (
               <View style={styles.card}>
                 <View style={styles.emptyState}>
                   <Ionicons name="analytics-outline" size={30} color={theme.inactive} />
-                  <Text style={styles.emptyTitle}>{t("noReadings")}</Text>
+                  <Text style={styles.emptyTitle}>{t("a1cNoData")}</Text>
                 </View>
               </View>
             );
-            const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
-            const a1c = ((avg + 46.7) / 28.7).toFixed(1);
-            const a1cNum = parseFloat(a1c);
+            const a1cNum = a1cData.estimated_a1c;
             const a1cColor = a1cNum >= 8 ? "#D32F2F" : a1cNum >= 6.5 ? "#E07B00" : "#0D9E6E";
             const a1cBg    = a1cNum >= 8 ? "#FDEDED"  : a1cNum >= 6.5 ? "#FEF3E2"  : "#E6F7F2";
             const a1cLabel = a1cNum >= 8 ? t("diabetes") : a1cNum >= 5.7 ? t("preDiabetes") : t("normal");
-            const inRange = vals.filter((v) => v >= 70 && v <= 180).length;
-            const tir = Math.round((inRange / vals.length) * 100);
+            const tir = a1cData.time_in_range?.in_range ?? 0;
             return (
               <View>
+                {!a1cData.is_reliable && (
+                  <View style={styles.warningBox}>
+                    <Ionicons name="warning-outline" size={16} color="#92400E" />
+                    <Text style={styles.warningText}>{t("a1cUnreliable")}</Text>
+                  </View>
+                )}
                 <View style={[styles.card, { backgroundColor: a1cBg, alignItems: "center", paddingVertical: 28 }]}>
                   <Text style={styles.cardTitle}>{t("yourEstimatedA1C")}</Text>
                   <View style={[styles.a1cCircle, { borderColor: a1cColor }]}>
-                    <Text style={[styles.a1cValue, { color: a1cColor }]}>{a1c}%</Text>
+                    <Text style={[styles.a1cValue, { color: a1cColor }]}>{a1cNum.toFixed(1)}%</Text>
                   </View>
                   <View style={[styles.a1cBadge, { backgroundColor: a1cColor }]}>
                     <Text style={styles.a1cBadgeText}>{a1cLabel}</Text>
@@ -819,16 +804,15 @@ export default function FamilyPatientGlucoseScreen() {
                 <View style={styles.statsGrid}>
                   <View style={[styles.statBox, { backgroundColor: "#DBEAFE", borderWidth: 1, borderColor: "#BFDBFE" }]}>
                     <Text style={styles.statLabel}>{t("average")}</Text>
-                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{Math.round(avg)}</Text>
+                    <Text style={[styles.statValue, { color: "#1A6FA8" }]}>{Math.round(a1cData.average_glucose)}</Text>
                     <Text style={styles.statUnit}>{t("mgdL")}</Text>
                   </View>
                   <View style={[styles.statBox, { backgroundColor: "#E6F7F2", borderWidth: 1, borderColor: "#A7F3D0" }]}>
                     <Text style={styles.statLabel}>{t("timeInRange")}</Text>
                     <Text style={[styles.statValue, { color: "#0D9E6E" }]}>{tir}%</Text>
-                    <Text style={styles.statUnit}>{inRange}/{vals.length}</Text>
                   </View>
                 </View>
-                <Text style={styles.statFooter}>{t("basedOnReadings", { count: vals.length })}</Text>
+                <Text style={styles.statFooter}>{t("basedOnReadings", { count: a1cData.readings_count })}</Text>
               </View>
             );
           })()}
@@ -998,6 +982,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   adviceText: { fontSize: 13, flex: 1, lineHeight: 19 },
   staleRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: "#FFF7ED", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "#FED7AA", marginBottom: 12 },
   staleText: { fontSize: 12, color: "#92400E", flex: 1, lineHeight: 18 },
+  sectionLabel: { fontSize: 13, fontWeight: "600", color: theme.textMuted, textAlign: "right", marginBottom: 6 },
+  staleBannerTop: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFFBEB", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#FDE68A", marginBottom: 8 },
+  staleBannerTopText: { flex: 1, fontSize: 13, color: "#92400E", lineHeight: 18, textAlign: "right" },
 
   alertRow: {
     flexDirection: "row",
@@ -1174,6 +1161,19 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
   statValue: { fontSize: 26, fontWeight: "800", lineHeight: 30 },
   statUnit:  { fontSize: 11, color: theme.textLight, marginTop: 2 },
   statFooter: { fontSize: 12, color: theme.inactive, textAlign: "center", marginTop: 12 },
+
+  warningBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+  },
+  warningText: { color: "#92400E", fontSize: 12, flex: 1 },
 
   a1cCircle: {
     width: 140, height: 140, borderRadius: 70,

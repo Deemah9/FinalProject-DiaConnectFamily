@@ -18,7 +18,7 @@ from app.services.reminder_service import (
     REMINDER_INTERVAL_HOURS,
 )
 
-AUTO_PREDICTION_INTERVAL_MINUTES = 30
+AUTO_PREDICTION_INTERVAL_MINUTES = 60
 
 
 def run_auto_predictions():

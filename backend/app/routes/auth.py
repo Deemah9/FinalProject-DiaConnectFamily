@@ -1,6 +1,8 @@
 import os
 import re
+import secrets
 import socket
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr
@@ -13,7 +15,7 @@ from app.utils.security import (
 )
 from app.models.user import User
 from app.models.password_reset_token import PasswordResetToken
-from app.services.email_service import send_password_reset_email
+from app.services.email_service import send_password_reset_email, send_verification_email
 from app.middleware.dependencies import get_current_user
 
 _PASSWORD_RE = re.compile(
@@ -96,21 +98,16 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    """
-    Response model for authentication endpoints.
-
-    Fields:
-        message: Success message
-        userId: User ID
-        email: User email
-        role: User role
-        accessToken: JWT access token
-    """
     message: str
-    userId: str
+    userId: Optional[str] = None
     email: str
     role: str
-    accessToken: str
+    accessToken: Optional[str] = None
+    emailVerified: bool = True
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
 
 
 # ==========================================
@@ -147,17 +144,18 @@ def get_user_by_email(email: str) -> Optional[dict]:
     "/register", response_model=AuthResponse,
     status_code=status.HTTP_201_CREATED
 )
-async def register(request: RegisterRequest):
+async def register(request: RegisterRequest, http_request: Request):
     """
-    Register a new user.
+    Register a new user and send an email verification link.
 
     Process:
         1. Validate input data
         2. Check if email already exists
         3. Hash password
-        4. Create user in Firestore
-        5. Generate JWT token
-        6. Return user info + token
+        4. Create user in Firestore with emailVerified=False
+        5. Generate JWT token (for onboarding profile setup)
+        6. Generate verification token and send email
+        7. Return user info + token
 
     Raises:
         400: If email already exists
@@ -174,7 +172,7 @@ async def register(request: RegisterRequest):
             detail="Role must be either 'patient' or 'family_member'"
         )
 
-    # Check if user already exists
+    # Reject if already a verified user
     existing_user = get_user_by_email(request.email)
     if existing_user:
         raise HTTPException(
@@ -182,35 +180,47 @@ async def register(request: RegisterRequest):
             detail="Email already registered"
         )
 
-    # Hash password
+    # Remove any stale pending registration for this email
+    stale = db.collection("pending_registrations").where(
+        "email", "==", request.email
+    ).limit(1).get()
+    if stale:
+        db.collection("pending_registrations").document(stale[0].id).delete()
+
+    # Hash password and generate verification token
     hashed_password = hash_password(request.password)
+    verification_token = secrets.token_urlsafe(32)
+    expiry = datetime.now(timezone.utc) + timedelta(hours=24)
 
-    # Create user object
-    user = User(
-        email=request.email,
-        password=hashed_password,
-        first_name=request.first_name,
-        last_name=request.last_name,
-        role=request.role,
-        phone=request.phone
-    )
+    # Save to pending_registrations — NOT to users yet
+    db.collection("pending_registrations").add({
+        "email": request.email,
+        "hashedPassword": hashed_password,
+        "firstName": request.first_name,
+        "lastName": request.last_name,
+        "role": request.role,
+        "phone": request.phone,
+        "verificationToken": verification_token,
+        "verificationTokenExpiry": expiry,
+        "createdAt": datetime.now(timezone.utc),
+    })
 
-    # Save to Firestore
-    users_ref = db.collection('users')
-    doc_ref = users_ref.add(user.to_dict())
-    user_id = doc_ref[1].id
+    # Send verification email (non-blocking failure)
+    base_url = _build_base_url(http_request)
+    try:
+        send_verification_email(
+            to_email=request.email,
+            token=verification_token,
+            base_url=base_url,
+        )
+    except Exception as e:
+        print(f"[email error] Could not send verification email: {e}")
 
-    # Generate JWT token
-    access_token = create_access_token(
-        data={"sub": user_id, "role": user.role})
-
-    # Return response
     return AuthResponse(
-        message="User registered successfully",
-        userId=user_id,
-        email=user.email,
-        role=user.role,
-        accessToken=access_token
+        message="Registration successful. Please check your email to verify your account.",
+        email=request.email,
+        role=request.role,
+        emailVerified=False,
     )
 
 
@@ -246,10 +256,19 @@ async def login(request: LoginRequest):
             detail="Invalid email or password"
         )
 
+    # Block login for unverified accounts
+    # Default True for existing accounts that pre-date email verification
+    if not user_data.get('emailVerified', True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="EMAIL_NOT_VERIFIED",
+        )
+
     # Generate JWT token
     access_token = create_access_token(data={
         "sub": user_data['userId'],
-        "role": user_data['role']
+        "role": user_data['role'],
+        "emailVerified": True,
     })
 
     # Return response
@@ -258,7 +277,8 @@ async def login(request: LoginRequest):
         userId=user_data['userId'],
         email=user_data['email'],
         role=user_data['role'],
-        accessToken=access_token
+        accessToken=access_token,
+        emailVerified=True,
     )
 
 
@@ -507,6 +527,175 @@ async def delete_account(
 
 
 # ==========================================
+# Email Verification
+# ==========================================
+
+@router.get("/verify-email", response_class=HTMLResponse)
+async def verify_email(token: str):
+    """
+    Verify a user's email address using the token sent by email.
+    Returns an HTML page showing success or failure.
+    """
+    def _html_page(title: str, message: str, success: bool) -> str:
+        color = "#166534" if success else "#991B1B"
+        bg = "#DCFCE7" if success else "#FEE2E2"
+        icon = "&#10003;" if success else "&#10007;"
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DiaConnect — Email Verification</title>
+  <style>
+    body {{
+      font-family: Arial, sans-serif;
+      background: #1A6FA8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }}
+    .card {{
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }}
+    .icon {{
+      font-size: 48px;
+      color: {color};
+      margin-bottom: 16px;
+    }}
+    h1 {{ color: #1A6FA8; font-size: 22px; margin-bottom: 8px; }}
+    .badge {{
+      display: inline-block;
+      background: {bg};
+      color: {color};
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0;
+    }}
+    p {{ color: #555; font-size: 14px; line-height: 1.6; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">{icon}</div>
+    <h1>DiaConnect Family</h1>
+    <div class="badge">{title}</div>
+    <p>{message}</p>
+  </div>
+</body>
+</html>"""
+
+    # Find in pending_registrations by token
+    query = db.collection("pending_registrations").where(
+        "verificationToken", "==", token
+    ).limit(1).get()
+
+    if not query:
+        return HTMLResponse(content=_html_page(
+            "Invalid Link",
+            "This verification link is invalid or has already been used. "
+            "Please request a new verification email from the app.",
+            success=False,
+        ))
+
+    pending_doc = query[0]
+    pending_data = pending_doc.to_dict()
+
+    # Check token expiry
+    expiry = pending_data.get("verificationTokenExpiry")
+    if expiry is None or datetime.now(timezone.utc) > expiry:
+        return HTMLResponse(content=_html_page(
+            "Link Expired",
+            "This verification link has expired (links are valid for 24 hours). "
+            "Please request a new verification email from the app.",
+            success=False,
+        ))
+
+    # Create verified user in users collection
+    user = User(
+        email=pending_data["email"],
+        password=pending_data["hashedPassword"],
+        first_name=pending_data.get("firstName"),
+        last_name=pending_data.get("lastName"),
+        role=pending_data["role"],
+        phone=pending_data.get("phone"),
+    )
+    user_dict = user.to_dict()
+    user_dict["emailVerified"] = True
+    user_dict["accountStatus"] = "active"
+
+    doc_ref = db.collection("users").add(user_dict)
+    user_id = doc_ref[1].id
+    db.collection("users").document(user_id).update({"userId": user_id})
+
+    # Remove from pending
+    db.collection("pending_registrations").document(pending_doc.id).delete()
+
+    return HTMLResponse(content=_html_page(
+        "Email Verified!",
+        "Your email has been successfully verified. "
+        "You can now open the DiaConnect Family app and log in.",
+        success=True,
+    ))
+
+
+@router.get("/check-verification", status_code=status.HTTP_200_OK)
+async def check_verification(email: str):
+    """
+    Poll endpoint: user exists in users collection = verified.
+    """
+    query = db.collection("users").where("email", "==", email).limit(1).get()
+    return {"verified": bool(query)}
+
+
+@router.post("/resend-verification", status_code=status.HTTP_200_OK)
+async def resend_verification(
+    request: ResendVerificationRequest,
+    http_request: Request,
+):
+    """
+    Resend the email verification link for a pending account.
+    Always returns 200 to avoid revealing account existence.
+    """
+    pending_query = db.collection("pending_registrations").where(
+        "email", "==", request.email
+    ).limit(1).get()
+
+    if pending_query:
+        pending_doc = pending_query[0]
+        verification_token = secrets.token_urlsafe(32)
+        expiry = datetime.now(timezone.utc) + timedelta(hours=24)
+        db.collection("pending_registrations").document(pending_doc.id).update({
+            "verificationToken": verification_token,
+            "verificationTokenExpiry": expiry,
+        })
+        base_url = _build_base_url(http_request)
+        try:
+            send_verification_email(
+                to_email=request.email,
+                token=verification_token,
+                base_url=base_url,
+            )
+        except Exception as e:
+            print(f"[email error] Resend verification failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send email. Please try again.",
+            )
+
+    return {"message": "If that account exists and is unverified, a new link has been sent."}
+
+
+# ==========================================
 # Reset Redirect — universal HTML bridge
 # ==========================================
 
@@ -525,7 +714,7 @@ async def reset_redirect(token: str):
   <style>
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
       background: #1A6FA8;
       min-height: 100vh;
       display: flex;
@@ -535,20 +724,36 @@ async def reset_redirect(token: str):
     }}
     .card {{
       background: #fff;
-      border-radius: 20px;
-      padding: 36px 28px;
+      border-radius: 24px;
+      padding: 40px 32px;
       max-width: 420px;
       width: 100%;
-      text-align: center;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
     }}
-    h1 {{ color: #1A6FA8; font-size: 22px; margin-bottom: 6px; }}
-    .subtitle {{
-      color: #888; font-size: 13px; margin-bottom: 24px;
+    .brand {{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
     }}
+    .brand-icon {{ font-size: 32px; }}
+    .brand-name {{ line-height: 1.2; }}
+    .brand-name strong {{ display: block; color: #1A6FA8; font-size: 20px; font-weight: 700; }}
+    .brand-name span {{ color: #1A6FA8; font-size: 20px; font-weight: 300; }}
+    .section-title {{
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }}
+    .section-sub {{
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 24px;
+    }}
+    .field {{ margin-bottom: 16px; }}
     label {{
       display: block;
-      text-align: left;
       font-size: 12px;
       font-weight: 600;
       color: #555;
@@ -557,73 +762,145 @@ async def reset_redirect(token: str):
     input {{
       width: 100%;
       padding: 14px 16px;
-      border: 1.5px solid #ddd;
-      border-radius: 12px;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 14px;
       font-size: 15px;
-      margin-bottom: 16px;
       outline: none;
       transition: border 0.2s;
+      background: #F9FAFB;
+      color: #1a1a1a;
     }}
-    input:focus {{ border-color: #1A6FA8; }}
+    input:focus {{ border-color: #1A6FA8; background: #fff; }}
     input.err {{ border-color: #DC2626; }}
+    .rules {{
+      background: #F0F6FF;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }}
+    .rule {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #888;
+      padding: 3px 0;
+      transition: color 0.2s;
+    }}
+    .rule.ok {{ color: #166534; }}
+    .rule .dot {{
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #D1D5DB;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }}
+    .rule.ok .dot {{ background: #22C55E; }}
     .btn {{
       width: 100%;
       padding: 16px;
       background: #1A6FA8;
       color: #fff;
       border: none;
-      border-radius: 12px;
+      border-radius: 14px;
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
       margin-top: 4px;
+      transition: opacity 0.2s;
     }}
-    .btn:disabled {{ opacity: 0.6; cursor: not-allowed; }}
-    .error {{
+    .btn:disabled {{ opacity: 0.55; cursor: not-allowed; }}
+    .error-box {{
       background: #FEE2E2;
       color: #DC2626;
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 12px;
+      padding: 12px 14px;
       font-size: 13px;
       margin-bottom: 16px;
       display: none;
     }}
-    .success {{
-      background: #DCFCE7;
-      color: #166534;
-      border-radius: 10px;
-      padding: 16px;
-      font-size: 14px;
-      font-weight: 600;
+    .success-box {{
+      text-align: center;
+      padding: 16px 0;
       display: none;
+    }}
+    .success-icon {{
+      font-size: 56px;
+      color: #22C55E;
+      margin-bottom: 12px;
+    }}
+    .success-title {{
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }}
+    .success-msg {{
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
     }}
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>&#10084; DiaConnect Family</h1>
-    <p class="subtitle">Enter your new password below</p>
+    <div class="brand">
+      <span class="brand-icon">&#10084;&#65039;</span>
+      <div class="brand-name">
+        <strong>DiaConnect</strong>
+        <span>Family</span>
+      </div>
+    </div>
 
-    <div id="error-box" class="error"></div>
-    <div id="success-box" class="success">
-      &#10003; Password updated! You can now log in to the app.
+    <div id="success-box" class="success-box">
+      <div class="success-icon">&#10003;</div>
+      <div class="success-title">Password Updated!</div>
+      <p class="success-msg">Your password has been changed successfully.<br/>You can now log in to the app.</p>
     </div>
 
     <div id="form-area">
-      <label>New Password</label>
-      <input type="password" id="pw1" placeholder="Min 6 characters"/>
+      <p class="section-title">Reset Password</p>
+      <p class="section-sub">Enter your new password below</p>
 
-      <label>Confirm Password</label>
-      <input type="password" id="pw2" placeholder="Repeat password"/>
+      <div id="error-box" class="error-box"></div>
+
+      <div class="field">
+        <label>New Password</label>
+        <input type="password" id="pw1" placeholder="••••••••" oninput="checkRules()"/>
+      </div>
+
+      <div class="rules">
+        <div class="rule" id="r-len"><span class="dot"></span>At least 8 characters</div>
+        <div class="rule" id="r-upper"><span class="dot"></span>One uppercase letter (A–Z)</div>
+        <div class="rule" id="r-lower"><span class="dot"></span>One lowercase letter (a–z)</div>
+        <div class="rule" id="r-num"><span class="dot"></span>One number (0–9)</div>
+        <div class="rule" id="r-special"><span class="dot"></span>One special character (!@#$%^&amp;*)</div>
+      </div>
+
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="pw2" placeholder="••••••••"/>
+      </div>
 
       <button class="btn" id="submit-btn" onclick="submitReset()">
         Reset Password
       </button>
     </div>
-
   </div>
 
   <script>
+    function checkRules() {{
+      const v = document.getElementById('pw1').value;
+      toggle('r-len',     v.length >= 8);
+      toggle('r-upper',   /[A-Z]/.test(v));
+      toggle('r-lower',   /[a-z]/.test(v));
+      toggle('r-num',     /[0-9]/.test(v));
+      toggle('r-special', /[!@#$%^&*]/.test(v));
+    }}
+    function toggle(id, ok) {{
+      document.getElementById(id).classList.toggle('ok', ok);
+    }}
+
     async function submitReset() {{
       const pw1 = document.getElementById('pw1').value;
       const pw2 = document.getElementById('pw2').value;
@@ -634,8 +911,9 @@ async def reset_redirect(token: str):
       document.getElementById('pw1').classList.remove('err');
       document.getElementById('pw2').classList.remove('err');
 
-      if (pw1.length < 6) {{
-        errBox.textContent = 'Password must be at least 6 characters.';
+      const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{{8,}}$/.test(pw1);
+      if (!strong) {{
+        errBox.textContent = 'Password does not meet the requirements above.';
         errBox.style.display = 'block';
         document.getElementById('pw1').classList.add('err');
         return;
@@ -654,14 +932,9 @@ async def reset_redirect(token: str):
         const res = await fetch('/auth/reset-password', {{
           method: 'POST',
           headers: {{'Content-Type': 'application/json'}},
-          body: JSON.stringify({{
-            token: '{token}',
-            new_password: pw1
-          }})
+          body: JSON.stringify({{ token: '{token}', new_password: pw1 }})
         }});
-
         const data = await res.json();
-
         if (res.ok) {{
           document.getElementById('form-area').style.display = 'none';
           document.getElementById('success-box').style.display = 'block';

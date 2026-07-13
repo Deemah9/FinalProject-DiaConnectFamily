@@ -1,22 +1,30 @@
 """
-Glucose Prediction Service — v3 (dual prediction: LSTM + historical pattern)
+Glucose Prediction Service — v4
 
 Prediction modes
 ----------------
-real_time  : fresh data (<6 h)  → LSTM only
-hybrid     : data 6–24 h old    → LSTM + staleness warning
-pattern    : data >24 h old     → historical pattern only (LSTM disabled)
-none       : <MIN_READINGS      → no prediction possible
+real_time  : data < 24 h old    → LSTM prediction
+pattern    : data > 24 h old    → Historical Pattern Analysis + LSTM prediction
+none       : < MIN_READINGS     → no prediction possible
 
-Pattern analysis
-----------------
+Historical Pattern Analysis
+---------------------------
 Groups the last 30 days of readings into a ±1.5-hour circular window
 around the current time, applies recency weighting (1/(days_ago+1)),
-and computes a weighted average + IQR (p25/p75) on raw values.
+and computes a weighted average (typical_avg) + IQR (p25/p75) on raw values.
+
+Historical Pattern Analysis + LSTM (pattern mode)
+--------------------------------------------------
+Stage 1 — Historical Pattern Analysis:
+    typical_avg becomes the best estimate of current glucose.
+Stage 2 — LSTM:
+    typical_avg is injected as a synthetic seed row, and the LSTM
+    predicts future glucose forward from that estimated value.
 """
 
 import os
 import json
+import threading
 import urllib.request
 import urllib.error
 import numpy as np
@@ -24,7 +32,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from firebase_admin import firestore
-from app.services.family_service import send_prediction_alert, send_stale_pattern_alert
+from app.services.family_service import send_prediction_alert
 from app.services.health_service import health_service
 
 load_dotenv()
@@ -37,17 +45,21 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # Constants
 # ==========================================
 
-MIN_READINGS = 10
+MIN_READINGS = 15  # must stay > SEQUENCE_LENGTH so the LSTM training window is never empty
 SEQUENCE_LENGTH = 12
 N_FEATURES = 6
 GLUCOSE_MIN = 40.0
 GLUCOSE_MAX = 600.0
 PATCH_ERROR_THRESHOLD = 40
-CGM_MAX_CHANGE = 50
+CGM_RAPID_CHANGE = 50    # plausible fast physiological swing (post-meal, post-hypo rebound) — not an error
+CGM_OUTLIER_CHANGE = 80  # actual implausible jump for CGM — treated as a sensor/patch error
 MANUAL_MAX_CHANGE = 80
 AUGMENT_COPIES = 3
 FINETUNE_EPOCHS = 15
 FINETUNE_LR = 5e-4
+RETRAIN_AFTER_NEW_READINGS = 10  # new readings since last training before a background retrain fires
+TRAINING_WINDOW_READINGS = 300   # cap training data to the most recent N readings, so training time
+                                 # has a fixed ceiling instead of growing forever with lifetime history
 MAX_STALE_HOURS = 24
 PATTERN_DAYS = 30
 PATTERN_HOUR_WINDOW = 1.5   # ±1.5 h circular window
@@ -65,6 +77,7 @@ ALERT_RATE_LIMIT: dict[str, int] = {
 ACTIVITY_LEVEL_MAP = {"low": 0.2, "moderate": 0.5, "high": 0.8}
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_TIMEOUT = 5  # seconds — advice is a nice-to-have, must not stall the prediction
 BASE_MODEL_PATH = Path(__file__).parent.parent.parent / \
     "models" / "base_model.keras"
 
@@ -75,12 +88,13 @@ BASE_MODEL_PATH = Path(__file__).parent.parent.parent / \
 
 class PredictionService:
 
-    _model_cache:     dict = {}   # user_id → {model, n_readings, sigma}
+    _model_cache:     dict = {}   # user_id → {model, sigma, trained_n_readings, training_in_progress}
     _base_weights = None
     _last_alert_sent: dict = {}   # "{user_id}:{alert_type}" → datetime
 
     def __init__(self):
         self.db = firestore.client()
+        self._cache_lock = threading.Lock()
 
     # ==========================================
     # Rate Limiting
@@ -212,16 +226,25 @@ class PredictionService:
     # ==========================================
 
     def _remove_outliers(self, readings: list[dict]) -> list[dict]:
+        """
+        Patch implausible single-reading jumps. Compares each reading against
+        both the previous CLEANED value and the previous RAW value — using
+        only the cleaned value would let one patched reading "freeze" the
+        baseline, making every subsequent *real* reading look like a false
+        cascade of outliers even when they form a perfectly plausible trend
+        (e.g. post-meal or post-hypo rebound).
+        """
         if not readings:
             return readings
         cleaned = [readings[0]]
         for i in range(1, len(readings)):
             current = readings[i]
-            prev = cleaned[-1]
+            prev_cleaned = cleaned[-1]
+            prev_raw = readings[i - 1]
             is_cgm = current.get("source") in ("libreview", "csv_cgm")
-            base_max = CGM_MAX_CHANGE if is_cgm else MANUAL_MAX_CHANGE
+            base_max = CGM_OUTLIER_CHANGE if is_cgm else MANUAL_MAX_CHANGE
 
-            prev_ts = prev.get("measuredAt")
+            prev_ts = prev_cleaned.get("measuredAt")
             curr_ts = current.get("measuredAt")
             if prev_ts and curr_ts:
                 if hasattr(prev_ts, "tzinfo") and prev_ts.tzinfo is None:
@@ -233,12 +256,15 @@ class PredictionService:
             else:
                 max_change = base_max
 
-            if abs(current["value"] - prev["value"]) > max_change:
-                fixed = dict(current)
-                fixed["value"] = prev["value"]
-                cleaned.append(fixed)
-            else:
+            delta_from_cleaned = abs(current["value"] - prev_cleaned["value"])
+            delta_from_raw = abs(current["value"] - prev_raw["value"])
+
+            if delta_from_cleaned <= max_change or delta_from_raw <= max_change:
                 cleaned.append(current)
+            else:
+                fixed = dict(current)
+                fixed["value"] = prev_cleaned["value"]
+                cleaned.append(fixed)
         return cleaned
 
     # ==========================================
@@ -312,16 +338,15 @@ class PredictionService:
         return model
 
     # ==========================================
-    # LSTM Prediction
+    # Model Training (fresh fine-tune from base weights)
     # ==========================================
 
-    def _predict_lstm(
-        self,
-        feature_matrix: np.ndarray,
-        user_id: str,
-        hours: int = 1,
-        seed_override: np.ndarray | None = None,
-    ) -> tuple[float, float]:
+    def _train_model(self, feature_matrix: np.ndarray):
+        """Fine-tune a fresh model from the base weights and compute validation sigma.
+
+        Never touches `_model_cache` — callers (sync first-time training or
+        `_background_retrain`) own writing the result into the cache.
+        """
         import tensorflow as tf
         tf.random.set_seed(42)
         np.random.seed(42)
@@ -349,42 +374,103 @@ class PredictionService:
         X_train = np.concatenate(X_aug)
         y_train = np.concatenate(y_aug)
 
-        cache = PredictionService._model_cache.get(user_id)
-        if cache and cache["n_readings"] == n:
-            model = cache["model"]
-            sigma = cache["sigma"]
+        model = self._get_base_model()
+        model.layers[0].trainable = False
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
+            loss="mse",
+        )
+        raw_w = np.exp(np.linspace(0, 3, len(X_raw_train))
+                       ).astype(np.float32)
+        aug_w = np.concatenate([raw_w] * AUGMENT_COPIES)
+        aug_w = aug_w / aug_w.mean()
+
+        model.fit(X_train, y_train, sample_weight=aug_w,
+                  epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
+
+        if len(X_val) > 0:
+            y_pred_val = model.predict(X_val, verbose=0).flatten()
+            y_true_mg = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            y_pred_mg = np.clip(y_pred_val, 0.0, 1.0) * \
+                (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
         else:
-            model = self._get_base_model()
-            model.layers[0].trainable = False
-            model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=FINETUNE_LR),
-                loss="mse",
-            )
-            raw_w = np.exp(np.linspace(0, 3, len(X_raw_train))
-                           ).astype(np.float32)
-            aug_w = np.concatenate([raw_w] * AUGMENT_COPIES)
-            aug_w = aug_w / aug_w.mean()
+            y_pred_tr = model.predict(X_raw_train, verbose=0).flatten()
+            y_true_mg = y_raw_train * \
+                (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            y_pred_mg = np.clip(y_pred_tr, 0.0, 1.0) * \
+                (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
+            sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
+        sigma = max(1.0, sigma)
+        print(f"[Prediction] σ (val RMSE) = {sigma:.1f} mg/dL")
+        return model, sigma
 
-            model.fit(X_train, y_train, sample_weight=aug_w,
-                      epochs=FINETUNE_EPOCHS, batch_size=8, verbose=0)
+    # ==========================================
+    # Background Retrain
+    # ==========================================
 
-            if len(X_val) > 0:
-                y_pred_val = model.predict(X_val, verbose=0).flatten()
-                y_true_mg = y_val * (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                y_pred_mg = np.clip(y_pred_val, 0.0, 1.0) * \
-                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
-            else:
-                y_pred_tr = model.predict(X_raw_train, verbose=0).flatten()
-                y_true_mg = y_raw_train * \
-                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                y_pred_mg = np.clip(y_pred_tr, 0.0, 1.0) * \
-                    (GLUCOSE_MAX - GLUCOSE_MIN) + GLUCOSE_MIN
-                sigma = float(np.sqrt(np.mean((y_pred_mg - y_true_mg) ** 2)))
-            sigma = max(1.0, sigma)
-            print(f"[Prediction] σ (val RMSE) = {sigma:.1f} mg/dL")
-            PredictionService._model_cache[user_id] = {
-                "model": model, "n_readings": n, "sigma": sigma}
+    def _background_retrain(self, user_id: str, feature_matrix: np.ndarray, n: int) -> None:
+        try:
+            model, sigma = self._train_model(feature_matrix)
+            with self._cache_lock:
+                PredictionService._model_cache[user_id] = {
+                    "model": model, "sigma": sigma,
+                    "trained_n_readings": n, "training_in_progress": False,
+                }
+            print(f"[Prediction] Background retrain complete for {user_id} ({n} readings)")
+        except Exception as exc:
+            print(f"[Prediction] Background retrain failed for {user_id}: {exc}")
+            with self._cache_lock:
+                stale = PredictionService._model_cache.get(user_id)
+                if stale is not None:
+                    stale["training_in_progress"] = False
+
+    # ==========================================
+    # LSTM Prediction
+    # ==========================================
+
+    def _predict_lstm(
+        self,
+        feature_matrix: np.ndarray,
+        user_id: str,
+        hours: int = 1,
+        seed_override: np.ndarray | None = None,
+    ) -> tuple[float, float]:
+        n = feature_matrix.shape[0]
+        scaled = self._normalise(feature_matrix)
+        # Cap what actually gets trained on to the most recent window, so
+        # training cost stays bounded instead of growing forever with a
+        # user's lifetime reading count. `n`/`feature_matrix` (full history)
+        # still drive the retrain-threshold bookkeeping and the forecast
+        # seed below — only the training input itself is windowed.
+        training_matrix = feature_matrix[-TRAINING_WINDOW_READINGS:]
+
+        cache = PredictionService._model_cache.get(user_id)
+
+        if cache is None:
+            # First-ever prediction for this user — nothing to fall back to,
+            # train synchronously.
+            model, sigma = self._train_model(training_matrix)
+            with self._cache_lock:
+                PredictionService._model_cache[user_id] = {
+                    "model": model, "sigma": sigma,
+                    "trained_n_readings": n, "training_in_progress": False,
+                }
+        else:
+            model, sigma = cache["model"], cache["sigma"]
+            new_readings = n - cache["trained_n_readings"]
+            if new_readings >= RETRAIN_AFTER_NEW_READINGS:
+                with self._cache_lock:
+                    entry = PredictionService._model_cache.get(user_id)
+                    if entry is not None and not entry.get("training_in_progress"):
+                        entry["training_in_progress"] = True
+                        threading.Thread(
+                            target=self._background_retrain,
+                            args=(user_id, training_matrix, n),
+                            daemon=True,
+                        ).start()
+                        print(f"[Prediction] Started background retrain for {user_id} "
+                              f"({new_readings} new readings)")
 
         if seed_override is not None:
             seed_scaled = self._normalise(seed_override)
@@ -759,7 +845,7 @@ class PredictionService:
                     "User-Agent":    "DiaConnectFamily/1.0",
                 },
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=GROQ_TIMEOUT) as resp:
                 text = json.loads(resp.read().decode())[
                     "choices"][0]["message"]["content"].strip()
                 if text.startswith("```"):
@@ -817,7 +903,6 @@ Lifestyle context (last 2 hours / baseline):
             pattern_ctx = f"""
 Prediction context:
 - Prediction mode: {prediction_mode}
-- Data stale: {prediction_mode in ('hybrid',)}
 - Historical pattern risk at this hour: {pattern_risk_level or 'unknown'}
 - Today's prediction vs historical pattern: {comparison_to_pattern or 'unknown'}"""
 
@@ -891,6 +976,7 @@ Reply in JSON format only:
     # ==========================================
     # AI Advice for Pattern Mode
     # ==========================================
+    # Kept for reference — pattern mode now uses _get_ai_advice with seed-based LSTM
 
     def _get_pattern_advice(
         self,
@@ -949,6 +1035,63 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         return parsed
 
     # ==========================================
+    # Local Fallback Advice (Groq unavailable/slow)
+    # ==========================================
+
+    @staticmethod
+    def _fallback_advice(alert_type: str | None, lang: str = "ar") -> dict:
+        """
+        Non-AI advice used whenever Groq fails or times out, so the prediction
+        card always has patient/family guidance instead of going blank.
+        """
+        messages = {
+            "high": {
+                "ar": {
+                    "patient": "مستوى السكر متوقع أن يبقى مرتفعًا. يُنصح بشرب الماء، تجنّب الكربوهيدرات والسكريات، والالتزام بخطة العلاج.",
+                    "family": "ساعدوا المريض على الالتزام بخطة العلاج وتجنّب الأطعمة السكرية حتى يعود السكر لمعدله الطبيعي.",
+                },
+                "en": {
+                    "patient": "Glucose is expected to remain high. Drink water, avoid carbs and sugary food, and follow your care plan.",
+                    "family": "Help the patient stick to their care plan and avoid sugary foods until glucose returns to a safe range.",
+                },
+                "he": {
+                    "patient": "רמת הסוכר צפויה להישאר גבוהה. יש לשתות מים, להימנע מפחמימות וממתקים, ולפעול לפי תוכנית הטיפול.",
+                    "family": "עזרו למטופל להיצמד לתוכנית הטיפול ולהימנע ממאכלים מתוקים עד שהסוכר יחזור לטווח בטוח.",
+                },
+            },
+            "low": {
+                "ar": {
+                    "patient": "قد ينخفض مستوى السكر. يُنصح بإعادة القياس والانتباه لأعراض الهبوط، وتناول كربوهيدرات سريعة عند الحاجة.",
+                    "family": "راقبوا المريض لأعراض انخفاض السكر وجهّزوا مصدر كربوهيدرات سريع (عصير أو حلوى) إذا لزم الأمر.",
+                },
+                "en": {
+                    "patient": "Glucose may drop. Recheck your level, watch for hypoglycemia symptoms, and have fast-acting carbs ready if needed.",
+                    "family": "Watch for signs of hypoglycemia and keep fast-acting carbs (juice or glucose tablets) on hand just in case.",
+                },
+                "he": {
+                    "patient": "רמת הסוכר עשויה לרדת. יש למדוד שוב, לשים לב לתסמיני היפוגליקמיה, ולהכין פחמימות מהירות במידת הצורך.",
+                    "family": "שימו לב לתסמיני היפוגליקמיה והכינו פחמימות מהירות (מיץ או סוכריות) למקרה הצורך.",
+                },
+            },
+            "default": {
+                "ar": {
+                    "patient": "مستوى السكر يبدو ضمن النطاق المتوقع. استمر بالمتابعة والمحافظة على روتينك اليومي.",
+                    "family": "استمروا بدعم المريض في متابعة قراءاته والالتزام بروتينه اليومي.",
+                },
+                "en": {
+                    "patient": "Glucose appears within the expected range. Keep monitoring and maintaining your routine.",
+                    "family": "Keep supporting the patient in tracking their readings and sticking to their daily routine.",
+                },
+                "he": {
+                    "patient": "רמת הסוכר נראית בטווח הצפוי. יש להמשיך לעקוב ולשמור על השגרה היומית.",
+                    "family": "המשיכו לתמוך במטופל במעקב אחר הרמות ובשמירה על השגרה היומית.",
+                },
+            },
+        }
+        bucket = messages.get(alert_type or "default", messages["default"])
+        return bucket.get(lang, bucket["en"])
+
+    # ==========================================
     # Main Predict Method
     # ==========================================
 
@@ -958,10 +1101,9 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
         Decision logic
         ──────────────
-        1. <MIN_READINGS readings          → mode = none
-        2. hours_elapsed > MAX_STALE_HOURS → mode = pattern (LSTM skipped)
-        3. hours_elapsed >= 6              → mode = hybrid  (LSTM + stale warning)
-        4. hours_elapsed < 6               → mode = real_time
+        1. < MIN_READINGS readings         → mode = none
+        2. hours_elapsed > MAX_STALE_HOURS → mode = pattern (LSTM seeded with pattern estimate)
+        3. otherwise                       → mode = real_time
         """
         raw_readings = self._fetch_readings(user_id)
         cleaned_readings = self._remove_outliers(raw_readings)
@@ -980,10 +1122,11 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                 "comparison_to_pattern":    None,
                 "data_stale":               False,
                 "hours_since_last_reading": None,
-                "message": (
-                    f"بيانات غير كافية — يلزم {MIN_READINGS} قراءة على الأقل، "
-                    f"لديك {len(cleaned_readings)} فقط."
-                ),
+                "message": {
+                    "ar": f"لا توجد بيانات كافية للتنبؤ. يلزم إدخال {MIN_READINGS} قراءة على الأقل.",
+                    "en": f"Not enough data for prediction. At least {MIN_READINGS} readings are required.",
+                    "he": f"אין מספיק נתונים לחיזוי. נדרשות לפחות {MIN_READINGS} קריאות.",
+                }.get(lang, f"Not enough data for prediction. At least {MIN_READINGS} readings are required."),
             }
 
         # ── Calculate hours elapsed since last reading ────────────────────
@@ -1000,8 +1143,6 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         # ── Determine prediction mode ─────────────────────────────────────
         if hours_elapsed > MAX_STALE_HOURS:
             prediction_mode = "pattern"
-        elif hours_elapsed >= 6.0:
-            prediction_mode = "hybrid"
         else:
             prediction_mode = "real_time"
 
@@ -1009,7 +1150,15 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             f"[Prediction] mode={prediction_mode}, elapsed={hours_elapsed:.1f}h")
 
         # ══════════════════════════════════════════════════════════════════
-        # MODE: PATTERN — data too old, show historical analysis only
+        # MODE: PATTERN — Historical Pattern Analysis + LSTM
+        #
+        # Two-stage pipeline when data is stale (> MAX_STALE_HOURS):
+        #   Stage 1 — Historical Pattern Analysis:
+        #             scan last 30 days ±1.5 h window, compute typical_avg
+        #             as the best estimate of current glucose.
+        #   Stage 2 — LSTM:
+        #             inject typical_avg as a synthetic "now" seed row,
+        #             then predict forward from that estimated value.
         # ══════════════════════════════════════════════════════════════════
         if prediction_mode == "pattern":
             pattern = self.calculate_pattern_prediction(
@@ -1018,79 +1167,151 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
             stale_msg = {
                 "ar": (
-                    f"آخر قراءة منذ {e}. لا يتوفر تنبؤ لحظي — "
-                    "يعرض التطبيق تحليلاً بناءً على نمطك التاريخي."
+                    f"لم تُسجَّل قراءات منذ {e}. "
+                    "التنبؤ مبني على نمطك المعتاد."
                 ),
                 "en": (
-                    f"Last reading was {e} ago. No real-time prediction available — "
-                    "showing analysis based on your historical pattern."
+                    f"No readings recorded for {e}. "
+                    "Prediction is based on your usual pattern."
                 ),
                 "he": (
-                    f"הקריאה האחרונה לפני {e}. אין תחזית בזמן אמת — "
-                    "מוצג ניתוח על סמך הדפוס ההיסטורי שלך."
+                    f"לא נרשמו קריאות במשך {e}. "
+                    "התחזית מבוססת על הדפוס הרגיל שלך."
                 ),
             }
-            family_stale_msg = {
+            stale_msg_family = {
                 "ar": (
-                    f"لم تُسجَّل أي قراءة لـ {patient_name} منذ {e}. "
-                    "لا يتوفر تنبؤ لحظي — يعرض التطبيق تحليلاً بناءً على نمطه التاريخي."
+                    f"لم يُسجَّل قراءات منذ {e}. "
+                    "التنبؤ مبني على نمطه المعتاد."
                 ),
                 "en": (
-                    f"No reading from {patient_name} in {e}. No real-time prediction available — "
-                    "showing analysis based on their historical pattern."
+                    f"No readings recorded for {e}. "
+                    "Prediction is based on their usual pattern."
                 ),
                 "he": (
-                    f"לא נרשמה קריאה מ-{patient_name} מזה {e}. אין תחזית בזמן אמת — "
-                    "מוצג ניתוח על סמך הדפוס ההיסטורי שלו."
+                    f"לא נרשמו קריאות במשך {e}. "
+                    "התחזית מבוססת על הדפוס הרגיל שלו."
                 ),
             }
 
-            # Groq personalised advice for pattern mode
-            pattern_advice = None
-            if pattern.get("available"):
-                _now = datetime.now(timezone.utc)
-                h_now = _now.hour
-                h_end = (h_now + 1) % 24
-                hl = {"ar": f"{h_now}:00 - {h_end}:00", "en": f"{h_now}:00–{h_end}:00",
-                      "he": f"{h_now}:00–{h_end}:00"}.get(lang, f"{h_now}:00–{h_end}:00")
-                pattern_advice = self._get_pattern_advice(
-                    patient_name=patient_name,
-                    typical_avg=pattern.get("typical_avg", 0),
-                    typical_min=pattern.get("typical_min", 0),
-                    typical_max=pattern.get("typical_max", 0),
-                    risk_level=pattern.get("risk_level", "normal"),
-                    hour_label=hl,
-                    sample_count=pattern.get("sample_count", 0),
-                    confidence=pattern.get("confidence", "low"),
-                    lang=lang,
-                )
+            # ── No history available → cannot estimate or predict ─────────
+            if not pattern.get("available"):
+                return {
+                    "predicted_value":          None,
+                    "hours":                    hours,
+                    "trend":                    None,
+                    "alert_type":               None,
+                    "probability":              None,
+                    "prob_up":                  None,
+                    "prob_down":                None,
+                    "advice":                   None,
+                    "readings_used":            len(cleaned_readings),
+                    "prediction_mode":          "pattern",
+                    "pattern_prediction":       pattern,
+                    "comparison_to_pattern":    None,
+                    "data_stale":               True,
+                    "hours_since_last_reading": round(hours_elapsed, 1),
+                    "message":                  stale_msg.get(lang, stale_msg["en"]),
+                    "family_message":           stale_msg_family.get(lang, stale_msg_family["en"]),
+                }
 
-            # Send family alert if pattern shows risk (rate-limited)
-            if pattern.get("available") and pattern.get("risk_level") in ("high", "low", "variable"):
-                risk = pattern["risk_level"]
-                ak = f"pattern_{risk}"
-                if self._can_send_alert(user_id, ak):
-                    try:
-                        send_stale_pattern_alert(
-                            patient_id=user_id,
-                            patient_name=patient_name,
-                            risk_level=risk,
-                            hours_elapsed=hours_elapsed,
-                            typical_avg=pattern.get("typical_avg"),
-                        )
-                        self._mark_alert_sent(user_id, ak)
-                    except Exception as exc:
-                        print(f"Pattern alert failed: {exc}")
+            # ── Step 1: Estimate current glucose from historical pattern ───
+            estimated_current = float(pattern["typical_avg"])
+            print(f"[Pattern+LSTM] estimated_current={estimated_current} mg/dL "
+                  f"from {pattern['sample_count']} historical samples")
+
+            # ── Step 2: Build feature matrix from all historical readings ──
+            profile  = self._fetch_lifestyle_profile(user_id)
+            log_ctx  = self._fetch_daily_log_context(user_id)
+            sleep_bl = profile["sleep_hours_baseline"]
+
+            rows = []
+            for r in cleaned_readings:
+                hour, c30, c2h, activity, sleep = self._context_for_reading(
+                    r, log_ctx, sleep_bl)
+                rows.append([r["value"], hour, c30, c2h, activity, sleep])
+            feature_matrix = np.array(rows, dtype=np.float32)
+
+            # ── Step 3: Inject synthetic "now" row using pattern estimate ──
+            # No recent carbs/activity since data is stale — use zeros
+            now_dt   = datetime.now(timezone.utc)
+            now_hour = float(now_dt.hour) + float(now_dt.minute) / 60.0
+            virtual_row = np.array(
+                [[estimated_current, now_hour, 0.0, 0.0, 0.0, sleep_bl]],
+                dtype=np.float32,
+            )
+            seed_matrix = np.vstack([feature_matrix, virtual_row])
+
+            # ── Step 4: Run LSTM seeded with pattern estimate ─────────────
+            try:
+                predicted, sigma = self._predict_lstm(
+                    feature_matrix, user_id=user_id,
+                    hours=hours, seed_override=seed_matrix,
+                )
+            except Exception as exc:
+                print(f"[Pattern+LSTM] LSTM failed: {exc} — using pattern avg")
+                predicted = estimated_current
+                sigma = 20.0
+
+            predicted = float(np.clip(predicted, GLUCOSE_MIN, GLUCOSE_MAX))
+
+            # ── Step 5: Risk, trend, probability ─────────────────────────
+            trend = self._calculate_trend(estimated_current, predicted)
+            prob_up, prob_down = self._calculate_probability(
+                estimated_current, predicted, sigma)
+            probability = (
+                prob_up   if trend == "rising"  else
+                prob_down if trend == "falling" else
+                max(prob_up, prob_down)
+            )
+            alert_type = self._get_alert_type(estimated_current, predicted, False)
+
+            # ── Step 6: AI advice (with comorbidity-aware rules) ──────────
+            health_info = health_service.get_health_info(user_id)
+            health_ctx = {
+                "conditions":    health_info.conditions,
+                "basal_insulin": health_info.basal_insulin.model_dump()
+                                 if health_info.basal_insulin else None,
+                "insulin_effect": 0,
+            }
+            advice = self._get_ai_advice(
+                patient_name=patient_name,
+                current=estimated_current,
+                predicted=predicted,
+                trend=trend,
+                alert_type=alert_type,
+                hours=hours,
+                lang=lang,
+                prediction_mode="pattern",
+                pattern_risk_level=pattern.get("risk_level"),
+                health_ctx=health_ctx,
+            ) or self._fallback_advice(alert_type, lang)
+
+            # ── Step 7: Family alert if risk detected (rate-limited) ──────
+            if alert_type and self._can_send_alert(user_id, alert_type):
+                try:
+                    send_prediction_alert(
+                        patient_id=user_id,
+                        patient_name=patient_name,
+                        alert_type=alert_type,
+                        current=estimated_current,
+                        predicted=predicted,
+                        hours=hours,
+                        family_advice=advice.get("family") if advice else None,
+                    )
+                    self._mark_alert_sent(user_id, alert_type)
+                except Exception as exc:
+                    print(f"[Pattern+LSTM] Alert failed: {exc}")
 
             return {
-                "predicted_value":          None,
+                "predicted_value":          round(predicted, 1),
                 "hours":                    hours,
-                "trend":                    None,
-                "alert_type":               None,
-                "probability":              None,
-                "prob_up":                  None,
-                "prob_down":                None,
-                "advice":                   pattern_advice,
+                "trend":                    trend,
+                "alert_type":               alert_type,
+                "probability":              probability,
+                "prob_up":                  prob_up,
+                "prob_down":                prob_down,
+                "advice":                   advice,
                 "readings_used":            len(cleaned_readings),
                 "prediction_mode":          "pattern",
                 "pattern_prediction":       pattern,
@@ -1098,7 +1319,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
                 "data_stale":               True,
                 "hours_since_last_reading": round(hours_elapsed, 1),
                 "message":                  stale_msg.get(lang, stale_msg["en"]),
-                "family_message":           family_stale_msg.get(lang, family_stale_msg["en"]),
+                "family_message":           stale_msg_family.get(lang, stale_msg_family["en"]),
             }
 
         # ══════════════════════════════════════════════════════════════════
@@ -1119,15 +1340,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         last_was_outlier = raw_last is not None and raw_last != cleaned_readings[-1]["value"]
         current = raw_last if raw_last is not None else feature_matrix[-1, 0]
 
-        # Stale note for hybrid mode
         stale_note = None
-        if prediction_mode == "hybrid":
-            e = self._elapsed_str(hours_elapsed, lang)
-            stale_note = {
-                "ar": f"آخر قراءة منذ {e} — أضف قراءة جديدة للحصول على تنبؤ محدّث.",
-                "en": f"Last reading was {e} ago — add a new reading for a fresher prediction.",
-                "he": f"הקריאה האחרונה לפני {e} — הוסף קריאה חדשה לתחזית מעודכנת.",
-            }
 
         # Virtual "now" seed row when lifestyle context changed
         now = datetime.now(timezone.utc)
@@ -1237,7 +1450,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             pattern_risk_level=pattern_risk_level,
             meal_ctx=meal_ctx,
             health_ctx=health_ctx,
-        )
+        ) or self._fallback_advice(alert_type, lang)
 
         # Family notification (rate-limited)
         if alert_type and self._can_send_alert(user_id, alert_type):
@@ -1255,6 +1468,33 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             except Exception as exc:
                 print(f"Prediction alert notification failed: {exc}")
 
+        # Save prediction for accuracy tracking (rate-limited: once per 20 min per user)
+        try:
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=20)
+            recent = (
+                self.db.collection("predictions")
+                .where("userId", "==", user_id)
+                .where("createdAt", ">=", cutoff)
+                .limit(1)
+                .stream()
+            )
+            if not any(True for _ in recent):
+                self.db.collection("predictions").add({
+                    "userId":         user_id,
+                    "predictedValue": round(float(predicted), 1),
+                    "currentValue":   round(float(current), 1),
+                    "hours":          hours,
+                    "trend":          trend,
+                    "alertType":      alert_type,
+                    "predictionMode": prediction_mode,
+                    "actualValue":    None,
+                    "createdAt":      datetime.now(timezone.utc),
+                })
+            else:
+                print(f"[Prediction] Skipped save — prediction already exists within 20 min for {user_id}")
+        except Exception as exc:
+            print(f"[Prediction] Save to Firestore failed: {exc}")
+
         return {
             "predicted_value":          predicted,
             "hours":                    hours,
@@ -1268,7 +1508,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             "prediction_mode":          prediction_mode,
             "pattern_prediction":       None,   # card only shown in pattern mode
             "comparison_to_pattern":    comparison,
-            "data_stale":               prediction_mode == "hybrid",
+            "data_stale":               False,
             "hours_since_last_reading": round(hours_elapsed, 1),
             "message":                  stale_note.get(lang, stale_note["en"]) if stale_note else None,
         }

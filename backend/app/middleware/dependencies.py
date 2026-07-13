@@ -12,7 +12,7 @@ def get_current_user(
     """
     Extracts and validates the JWT token from the request header.
     Raises 401 if token is invalid or expired.
-    No Firestore read — all needed claims are embedded in the JWT.
+    Raises 403 if the account email has not been verified.
     """
     token = credentials.credentials
     payload = verify_token(token)
@@ -22,6 +22,12 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not payload.get("emailVerified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="EMAIL_NOT_VERIFIED",
         )
 
     return payload

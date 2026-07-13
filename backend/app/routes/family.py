@@ -127,3 +127,21 @@ def get_patient_glucose(
             detail="You are not linked to this patient"
         )
     return readings
+
+
+@router.get("/patient/{patient_id}/a1c")
+def get_family_patient_a1c(
+    patient_id: str,
+    current_user: dict = Depends(require_role("family_member"))
+):
+    """Get estimated A1C for a linked patient — same calculation as /glucose/a1c."""
+    result = family_service.get_patient_a1c(
+        family_member_id=current_user["sub"],
+        patient_id=patient_id,
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not linked to this patient"
+        )
+    return result

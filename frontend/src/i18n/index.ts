@@ -354,12 +354,16 @@ const resources = {
 
       // Prediction
       predictionTitle: "AI Prediction",
+      predictionTitlePattern: "AI Prediction based on your historical pattern",
+      predictionTitlePatternFamily: "AI Prediction based on their historical pattern",
       predictionSubtitle: "Expected glucose in 1 hour",
       predictionLoading: "Analyzing your readings...",
       predictionUnavailable: "Prediction unavailable",
       predictionStale: "Data is over 24 hours old — add a new reading for an accurate prediction.",
       patternCardTitle: "Historical Pattern",
       patternCardSubtitle: "Based on your history at this hour",
+      patternBasedOn: "based on your historical pattern",
+      patternStatusLabel: "status",
       patternCardNote: "No real-time prediction — showing historical pattern due to data gap",
       patternTypical: "Typical range",
       patternAvg: "Usual average",
@@ -633,6 +637,18 @@ const resources = {
       reminderNotifBody: "Time to measure your blood glucose 🩸",
       selectTime: "Select Time",
       reminderPermission: "Allow notifications to use custom reminders",
+
+      // Email Verification
+      verifyEmail: {
+        title: "Verify Your Email",
+        subtitle: "We sent a verification link to:",
+        instructions: "Click the link in the email to activate your account. Check your spam folder if you don't see it.",
+        resend: "Resend Verification Email",
+        resending: "Sending...",
+        resent: "Email sent! Check your inbox.",
+        backToLogin: "Back to Login",
+        waiting: "Waiting for verification...",
+      },
 
       // Errors
       errors: {
@@ -1005,12 +1021,16 @@ const resources = {
 
       // Prediction
       predictionTitle: "تنبؤ الذكاء الاصطناعي",
+      predictionTitlePattern: "تنبؤ الذكاء الاصطناعي بناءً على نمطك التاريخي",
+      predictionTitlePatternFamily: "تنبؤ الذكاء الاصطناعي بناءً على نمطه التاريخي",
       predictionSubtitle: "مستوى السكر المتوقع خلال ساعة",
       predictionLoading: "جارٍ تحليل قراءاتك...",
       predictionUnavailable: "التنبؤ غير متاح",
       predictionStale: "البيانات أقدم من 24 ساعة — أضف قراءة جديدة للحصول على تنبؤ دقيق.",
       patternCardTitle: "النمط التاريخي",
       patternCardSubtitle: "بناءً على تاريخك في هذه الساعة",
+      patternBasedOn: "بناءً على نمطك التاريخي",
+      patternStatusLabel: "وضعه",
       patternCardNote: "لا يتوفر تنبؤ لحظي — يعرض التطبيق تحليلاً تاريخياً بسبب فجوة في البيانات",
       patternTypical: "النطاق المعتاد",
       patternAvg: "المتوسط المعتاد",
@@ -1284,6 +1304,18 @@ const resources = {
       reminderNotifBody: "حان وقت قياس مستوى السكر في الدم 🩸",
       selectTime: "اختر الوقت",
       reminderPermission: "السماح بالإشعارات لاستخدام التذكيرات المخصصة",
+
+      // Email Verification
+      verifyEmail: {
+        title: "تحقق من بريدك الإلكتروني",
+        subtitle: "أرسلنا رابط التحقق إلى:",
+        instructions: "انقر على الرابط في البريد الإلكتروني لتفعيل حسابك. تحقق من مجلد الرسائل غير المرغوب فيها إذا لم تجده.",
+        resend: "إعادة إرسال بريد التحقق",
+        resending: "جاري الإرسال...",
+        resent: "تم الإرسال! تحقق من صندوق الوارد.",
+        backToLogin: "العودة لتسجيل الدخول",
+        waiting: "بانتظار التحقق...",
+      },
 
       // Errors
       errors: {
@@ -1656,12 +1688,16 @@ const resources = {
 
       // Prediction
       predictionTitle: "תחזית AI",
+      predictionTitlePattern: "תחזית AI על פי הדפוס ההיסטורי שלך",
+      predictionTitlePatternFamily: "תחזית AI על פי הדפוס ההיסטורי שלו",
       predictionSubtitle: "גלוקוז צפוי בעוד שעה",
       predictionLoading: "מנתח את הקריאות שלך...",
       predictionUnavailable: "תחזית אינה זמינה",
       predictionStale: "הנתונים ישנים מ-24 שעות — הוסף קריאה חדשה לתחזית מדויקת.",
       patternCardTitle: "דפוס היסטורי",
       patternCardSubtitle: "על סמך ההיסטוריה שלך בשעה זו",
+      patternBasedOn: "בהתבסס על הדפוס ההיסטורי שלך",
+      patternStatusLabel: "מצב",
       patternCardNote: "אין תחזית בזמן אמת — מוצג ניתוח היסטורי בגלל פער בנתונים",
       patternTypical: "טווח רגיל",
       patternAvg: "ממוצע רגיל",
@@ -1935,6 +1971,18 @@ const resources = {
       reminderNotifBody: "הגיע הזמן למדוד את רמת הסוכר בדם 🩸",
       selectTime: "בחר זמן",
       reminderPermission: "אפשר התראות לשימוש בתזכורות מותאמות",
+
+      // Email Verification
+      verifyEmail: {
+        title: "אמת את האימייל שלך",
+        subtitle: "שלחנו קישור אימות אל:",
+        instructions: "לחץ על הקישור באימייל כדי להפעיל את חשבונך. בדוק את תיקיית הספאם אם אינך רואה אותו.",
+        resend: "שלח מחדש אימייל אימות",
+        resending: "שולח...",
+        resent: "האימייל נשלח! בדוק את תיבת הדואר שלך.",
+        backToLogin: "חזרה להתחברות",
+        waiting: "ממתין לאימות...",
+      },
 
       // Errors
       errors: {

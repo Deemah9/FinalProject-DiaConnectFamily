@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from firebase_admin import firestore
 from app.models.glucose_reading import GlucoseCreate, GlucoseDocument
 
@@ -47,6 +47,15 @@ class GlucoseService:
         doc_ref.set(document.dict())
         result = document.dict()
         result["id"] = doc_ref.id
+
+        # Fill actualValue for any prediction that targeted this reading's time
+        try:
+            measured = data.measuredAt
+            if hasattr(measured, "tzinfo") and measured.tzinfo is None:
+                measured = measured.replace(tzinfo=timezone.utc)
+            self._fill_prediction_actuals(user_id, float(data.value), measured)
+        except Exception as e:
+            print(f"⚠️ Prediction fill error: {e}")
 
         # Send emergency notifications for dangerous glucose values
         if data.value < self.DANGEROUS_LOW or data.value > self.DANGEROUS_HIGH:
@@ -200,6 +209,42 @@ class GlucoseService:
         return imported, skipped
 
     # ==========================================
+    # Fill Prediction Actuals
+    # ==========================================
+
+    def _fill_prediction_actuals(
+        self, user_id: str, reading_value: float, reading_time: datetime
+    ) -> None:
+        """
+        After a new reading arrives, find predictions whose target time
+        (createdAt + hours) falls within ±30 min of this reading
+        and fill their actualValue for accuracy tracking.
+        """
+        tolerance = timedelta(minutes=30)
+        since = reading_time - timedelta(hours=25)
+
+        docs = (
+            self.db.collection("predictions")
+            .where("userId", "==", user_id)
+            .where("createdAt", ">=", since)
+            .stream()
+        )
+
+        for doc in docs:
+            pred = doc.to_dict()
+            if pred.get("actualValue") is not None:
+                continue
+            created_at = pred.get("createdAt")
+            if created_at is None:
+                continue
+            if hasattr(created_at, "tzinfo") and created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            target_time = created_at + timedelta(hours=pred.get("hours", 1))
+            if abs(reading_time - target_time) <= tolerance:
+                doc.reference.update({"actualValue": reading_value})
+                print(f"[Prediction] actualValue={reading_value} filled for {doc.id}")
+
+    # ==========================================
     # Get All Readings
     # ==========================================
 
@@ -331,6 +376,13 @@ class GlucoseService:
         Formula: eA1C = (avg_mg_dL + 46.7) / 28.7  (Nathan et al., 2008)
         Requires >= 14 days of data to be considered reliable.
         Also returns Time in Range breakdown per ADA targets.
+
+        The average feeding the formula is a daily average first, then an
+        average of those daily averages — not a flat average over every
+        reading. A flat average over-weights days with dense CGM sampling
+        (e.g. 96 readings/day) against days with only one manual reading,
+        so importing a CGM CSV could swing the estimate hard purely from
+        sampling density, not an actual change in control.
         """
         since = datetime.now(timezone.utc) - timedelta(days=90)
 
@@ -362,7 +414,13 @@ class GlucoseService:
 
         values = [v for _, v in entries]
         timestamps = [ts for ts, _ in entries]
-        avg = sum(values) / len(values)
+
+        daily_values: dict[date, list[int]] = {}
+        for ts, v in entries:
+            daily_values.setdefault(ts.date(), []).append(v)
+        daily_averages = [sum(vals) / len(vals) for vals in daily_values.values()]
+        avg = sum(daily_averages) / len(daily_averages)
+
         e_a1c = round((avg + 46.7) / 28.7, 1)
 
         days_covered = max(1, (max(timestamps) - min(timestamps)).days + 1)
