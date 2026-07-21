@@ -24,24 +24,6 @@ class PatientSummary(BaseModel):
     linked_at: Optional[str] = None
 
 
-class ViewRequest(BaseModel):
-    code: str
-
-
-class GlucoseItem(BaseModel):
-    id: str
-    value: float
-    unit: str
-    measuredAt: Optional[str] = None
-    source: str
-
-
-class ViewResponse(BaseModel):
-    patient_id: str
-    patient_name: str
-    readings: list[GlucoseItem]
-
-
 class DailyLogsResponse(BaseModel):
     meals: list[dict[str, Any]]
     activities: list[dict[str, Any]]

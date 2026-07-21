@@ -262,9 +262,6 @@ export const markMyAlertRead = (alertId) =>
 // Family Connection APIs
 // ==========================================
 
-export const viewWithCode = (code) =>
-  request("POST", "/family/view", { code });
-
 export const generateFamilyCode = () =>
   request("POST", "/family/generate-code");
 

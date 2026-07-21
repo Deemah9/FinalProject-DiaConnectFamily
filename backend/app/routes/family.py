@@ -1,22 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.middleware.dependencies import require_role
-from app.models.family_link import DailyLogsResponse, FamilyMemberSummary, GenerateCodeResponse, JoinRequest, JoinResponse, PatientSummary, ViewRequest, ViewResponse
+from app.models.family_link import DailyLogsResponse, FamilyMemberSummary, GenerateCodeResponse, JoinRequest, JoinResponse, PatientSummary
 import app.services.family_service as family_service
 
 router = APIRouter(prefix="/family", tags=["Family Connection"])
-
-
-@router.post("/view", response_model=ViewResponse)
-def view_patient_data(body: ViewRequest):
-    """
-    No authentication required.
-    Family member enters pairing code → receives patient name + glucose readings.
-    Code is reusable within its validity period.
-    """
-    result = family_service.view_with_code(code=body.code)
-    if "error" in result:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"])
-    return result
 
 
 @router.post("/generate-code", response_model=GenerateCodeResponse)

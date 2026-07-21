@@ -1,5 +1,6 @@
+import hashlib
 import json as json_lib
-import random
+import secrets
 import string
 import urllib.request
 from datetime import datetime, timezone, timedelta
@@ -14,6 +15,11 @@ USERS_COLLECTION = "users"
 GLUCOSE_COLLECTION = "glucose_readings"
 
 CODE_EXPIRY_MINUTES = 30
+
+
+def _hash_code(code: str) -> str:
+    """Codes are bearer secrets — store/query by hash, never plaintext."""
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
 def _send_expo_push(messages: list[dict], label: str = "") -> None:
@@ -40,9 +46,9 @@ def _generate_unique_code() -> str:
     """Generate a random 6-character uppercase alphanumeric code unique in Firestore."""
     chars = string.ascii_uppercase + string.digits
     while True:
-        code = "".join(random.choices(chars, k=6))
+        code = "".join(secrets.choice(chars) for _ in range(6))
         existing = db.collection(PAIRING_CODES_COLLECTION)\
-            .where("code", "==", code)\
+            .where("code_hash", "==", _hash_code(code))\
             .where("used", "==", False)\
             .limit(1).stream()
         if not any(True for _ in existing):
@@ -68,7 +74,7 @@ def generate_code(patient_id: str) -> dict:
     expires_at = now + timedelta(minutes=CODE_EXPIRY_MINUTES)
 
     db.collection(PAIRING_CODES_COLLECTION).add({
-        "code": code,
+        "code_hash": _hash_code(code),
         "patient_id": patient_id,
         "created_at": now,
         "expires_at": expires_at,
@@ -88,7 +94,7 @@ def join_with_code(family_member_id: str, code: str) -> dict:
     now = datetime.now(timezone.utc)
 
     results = db.collection(PAIRING_CODES_COLLECTION)\
-        .where("code", "==", code)\
+        .where("code_hash", "==", _hash_code(code))\
         .where("used", "==", False)\
         .limit(1).stream()
 
@@ -232,67 +238,6 @@ def remove_patient_link(family_member_id: str, link_id: str) -> bool:
 
     doc_ref.delete()
     return True
-
-
-def view_with_code(code: str, limit: int = 50) -> dict:
-    """
-    Unauthenticated access: validate code and return patient data.
-    Code is reusable within its validity period (not marked as used).
-    """
-    code = code.strip().upper()
-    now = datetime.now(timezone.utc)
-
-    results = db.collection(PAIRING_CODES_COLLECTION)\
-        .where("code", "==", code)\
-        .where("used", "==", False)\
-        .limit(1).stream()
-
-    doc = next((d for d in results), None)
-    if not doc:
-        return {"error": "Invalid code"}
-
-    data = doc.to_dict()
-    expires_at = data.get("expires_at")
-    if expires_at:
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if now > expires_at:
-            return {"error": "Code has expired"}
-
-    patient_id = data.get("patient_id")
-
-    # Fetch patient info
-    patient_doc = db.collection(USERS_COLLECTION).document(patient_id).get()
-    patient_name = "Unknown"
-    if patient_doc.exists:
-        pdata = patient_doc.to_dict()
-        first = pdata.get("firstName", "")
-        last = pdata.get("lastName", "")
-        patient_name = f"{first} {last}".strip() or pdata.get("email", "Unknown")
-
-    # Fetch glucose readings
-    readings_docs = db.collection(GLUCOSE_COLLECTION)\
-        .where("userId", "==", patient_id)\
-        .order_by("measuredAt", direction="DESCENDING")\
-        .limit(limit).stream()
-
-    readings = []
-    for r in readings_docs:
-        d = r.to_dict()
-        measured_at = d.get("measuredAt")
-        readings.append({
-            "id": r.id,
-            "value": d.get("value"),
-            "unit": d.get("unit", "mg/dL"),
-            "measuredAt": measured_at.isoformat() if measured_at else None,
-            "source": d.get("source", "manual"),
-        })
-
-    return {
-        "patient_id": patient_id,
-        "patient_name": patient_name,
-        "readings": readings,
-    }
 
 
 def get_patient_daily_logs(family_member_id: str, patient_id: str, days: int = 7) -> dict | None:
