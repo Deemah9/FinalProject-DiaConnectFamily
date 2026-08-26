@@ -964,7 +964,7 @@ Reply in JSON format only:
 {{"patient": "...", "family": "..."}}"""
 
         parsed = self._call_groq({
-            "model":       "llama-3.3-70b-versatile",
+            "model":       "qwen/qwen3.6-27b",
             "messages":    [{"role": "user", "content": prompt}],
             "temperature": 0.7,
             "max_tokens":  300,
@@ -1025,7 +1025,7 @@ Focus on diet, meal timing, light activity. Do NOT mention insulin.
 Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
         parsed = self._call_groq({
-            "model":       "llama-3.3-70b-versatile",
+            "model":       "qwen/qwen3.6-27b",
             "messages":    [{"role": "user", "content": prompt}],
             "temperature": 0.65,
             "max_tokens":  220,
