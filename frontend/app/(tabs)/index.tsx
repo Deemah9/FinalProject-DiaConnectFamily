@@ -224,7 +224,7 @@ export default function HomeScreen() {
         }
       }
 
-      // Check if last reading was 6+ hours ago
+      // Check if last reading was 24+ hours ago
       if (readings.length > 0) {
         const latest = readings
           .map((r: any) =>
@@ -235,7 +235,7 @@ export default function HomeScreen() {
           .filter((t: number) => t > 0)
           .sort((a: number, b: number) => b - a)[0];
         const hoursElapsed = (Date.now() - latest) / (1000 * 60 * 60);
-        if (hoursElapsed >= 6) {
+        if (hoursElapsed >= 24) {
           const dismissedAt = await AsyncStorage.getItem(DISMISS_KEY);
           const show = !dismissedAt || await shouldShowReminderPopup(parseInt(dismissedAt, 10));
           if (show) setShowReminder(true);

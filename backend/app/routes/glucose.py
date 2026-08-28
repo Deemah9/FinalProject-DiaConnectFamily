@@ -11,7 +11,6 @@ from app.models.glucose_reading import (
 )
 from app.services.glucose_service import glucose_service
 from app.services.alert_service import alert_service
-from app.config.firebase import db as _db
 
 
 router = APIRouter(prefix="/glucose", tags=["Glucose Readings"])

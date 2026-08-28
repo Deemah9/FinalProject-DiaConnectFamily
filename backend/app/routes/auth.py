@@ -17,6 +17,10 @@ from app.models.user import User
 from app.models.password_reset_token import PasswordResetToken
 from app.services.email_service import send_password_reset_email, send_verification_email
 from app.middleware.dependencies import get_current_user
+from app.middleware.login_attempts import (
+    check_login_allowed, record_failed_attempt, record_successful_login,
+    FREE_ATTEMPTS_PER_IP, FREE_ATTEMPTS_PER_IP_EMAIL,
+)
 
 _PASSWORD_RE = re.compile(
     r'^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{8,}$'
@@ -225,7 +229,7 @@ async def register(request: RegisterRequest, http_request: Request):
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, http_request: Request):
     """
     Authenticate user and return JWT token.
 
@@ -238,23 +242,35 @@ async def login(request: LoginRequest):
     Raises:
         401: If email not found
         401: If password is incorrect
+        429: If too many failed attempts for this IP or email recently
     """
+    ip = http_request.client.host if http_request.client else "unknown"
+    ip_key = f"ip:{ip}"
+    ip_email_key = f"ip_email:{ip}:{request.email.lower()}"
+
+    check_login_allowed(
+        (ip_key, FREE_ATTEMPTS_PER_IP),
+        (ip_email_key, FREE_ATTEMPTS_PER_IP_EMAIL),
+    )
 
     # Find user by email
     user_data = get_user_by_email(request.email)
 
-    if not user_data:
+    # Verify email + password together — same generic error either way,
+    # so a failed attempt never reveals whether the email is registered.
+    if not user_data or not verify_password(request.password, user_data['password']):
+        record_failed_attempt(ip_key, ip_email_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
 
-    # Verify password
-    if not verify_password(request.password, user_data['password']):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
+    # Credentials are correct — clear the failure counter for this specific
+    # account. Deliberately NOT clearing the IP-level counter: this login
+    # succeeding doesn't mean the IP isn't also spraying failed attempts
+    # against other accounts, and a single success shouldn't wipe that
+    # history (it decays on its own after RESET_AFTER_SECONDS of inactivity).
+    record_successful_login(ip_email_key)
 
     # Block login for unverified accounts
     # Default True for existing accounts that pre-date email verification

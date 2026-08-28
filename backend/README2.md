@@ -19,7 +19,7 @@
 - **JWT (python-jose)** — token-based authentication
 - **bcrypt (passlib)** — password hashing
 - **TensorFlow (CPU) + scikit-learn** — per-user LSTM glucose prediction, fine-tuned from a cached base model
-- **Groq API (`llama-3.3-70b-versatile`)** — natural-language prediction advice
+- **Groq API (`qwen/qwen3.6-27b`)** — natural-language prediction advice
 - **APScheduler** — in-process background jobs (glucose reminders, hourly auto-predictions)
 
 ---

@@ -18,7 +18,7 @@ import { Calendar } from "react-native-calendars";
 import { useTranslation } from "react-i18next";
 import AppHeader from "@/src/components/AppHeader";
 import GlucoseTrendChart from "@/src/components/GlucoseTrendChart";
-import { getFamilyPatientA1C, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, getUnreadCount, viewWithCode } from "@/services/api";
+import { getFamilyPatientA1C, getPatientDailyLogs, getPatientGlucose, getPatientPrediction, getUnreadCount } from "@/services/api";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -52,10 +52,9 @@ export default function FamilyPatientGlucoseScreen() {
   const theme = useAppTheme();
   const styles = createStyles(theme);
 
-  const { patientId, patientName, familyCode } = useLocalSearchParams<{
+  const { patientId, patientName } = useLocalSearchParams<{
     patientId: string;
     patientName: string;
-    familyCode?: string;
   }>();
 
   const [activeTab, setActiveTab] = useState<"glucose" | "history" | "logs" | "a1c">("glucose");
@@ -92,10 +91,7 @@ export default function FamilyPatientGlucoseScreen() {
       setLoading(true);
       setError("");
 
-      // Always fetch glucose (works for both code-based and authenticated)
-      const data = familyCode
-        ? await viewWithCode(familyCode).then((res) => res.readings ?? [])
-        : await getPatientGlucose(patientId, 500);
+      const data = await getPatientGlucose(patientId, 500);
 
       let result: any[] = [];
       if (Array.isArray(data)) result = data;
@@ -113,8 +109,7 @@ export default function FamilyPatientGlucoseScreen() {
         .sort((a, b) => parseDate(b) - parseDate(a));
       setReadings(sorted);
 
-      // Daily logs + A1C only available for authenticated (linked) family members
-      if (!familyCode && patientId) {
+      if (patientId) {
         try {
           const logs = await getPatientDailyLogs(patientId);
           setDailyLogs(logs);
@@ -306,7 +301,7 @@ export default function FamilyPatientGlucoseScreen() {
   const patternRiskIcon  = patternRisk === "variable" ? "stats-chart" : patternRisk === "normal" ? "checkmark-circle" : "alert-circle";
   const patternRiskLabel = patternRisk === "high" ? t("high") : patternRisk === "low" ? t("low") : patternRisk === "variable" ? t("patternVariabilityUnstable") : t("normal");
 
-  const tabBar = !familyCode ? (
+  const tabBar = (
     <View style={styles.headerTabs}>
       {([
         { key: "glucose",  icon: "pulse-outline",         label: "glucoseTab" },
@@ -326,7 +321,7 @@ export default function FamilyPatientGlucoseScreen() {
         </Pressable>
       ))}
     </View>
-  ) : undefined;
+  );
 
   return (
     <View style={styles.container}>
@@ -355,7 +350,7 @@ export default function FamilyPatientGlucoseScreen() {
           </View>
 
           {/* AI Prediction Card — only on Glucose tab */}
-          {!familyCode && activeTab === "glucose" && (
+          {activeTab === "glucose" && (
             <>
               {/* Section label */}
               <Text style={styles.sectionLabel}>
@@ -476,7 +471,7 @@ export default function FamilyPatientGlucoseScreen() {
 
 
           {/* ── GLUCOSE TAB ── */}
-          {(activeTab === "glucose" || !!familyCode) && (
+          {activeTab === "glucose" && (
             <>
               {/* Trend Chart */}
               {readings.length >= 2 && (
@@ -559,7 +554,7 @@ export default function FamilyPatientGlucoseScreen() {
           )}
 
           {/* ── HISTORY TAB ── */}
-          {activeTab === "history" && !familyCode && (
+          {activeTab === "history" && (
             <View style={styles.card}>
               {/* Day navigator */}
               <View style={styles.logDayNav}>
@@ -645,7 +640,7 @@ export default function FamilyPatientGlucoseScreen() {
           )}
 
           {/* ── DAILY LOGS TAB ── */}
-          {activeTab === "logs" && !familyCode && (
+          {activeTab === "logs" && (
             <>
               {!hasLogs ? (
                 <View style={styles.card}>
@@ -770,7 +765,7 @@ export default function FamilyPatientGlucoseScreen() {
           {/* ── A1C TAB ── */}
           {/* Sourced from GET /family/patient/{id}/a1c — same calculation as the
               patient's own /glucose/a1c, so both sides always see the same number. */}
-          {activeTab === "a1c" && !familyCode && (() => {
+          {activeTab === "a1c" && (() => {
             if (a1cData?.estimated_a1c == null) return (
               <View style={styles.card}>
                 <View style={styles.emptyState}>

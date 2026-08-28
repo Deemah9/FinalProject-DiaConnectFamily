@@ -100,8 +100,8 @@ class PredictionService:
     # Rate Limiting
     # ==========================================
 
-    def _can_send_alert(self, user_id: str, alert_type: str) -> bool:
-        window = ALERT_RATE_LIMIT.get(alert_type, 60)
+    def _can_send_alert(self, user_id: str, alert_type: str, window_minutes: int | None = None) -> bool:
+        window = window_minutes if window_minutes is not None else ALERT_RATE_LIMIT.get(alert_type, 60)
         key = f"{user_id}:{alert_type}"
         last = PredictionService._last_alert_sent.get(key)
         if last is None:
@@ -964,7 +964,7 @@ Reply in JSON format only:
 {{"patient": "...", "family": "..."}}"""
 
         parsed = self._call_groq({
-            "model":       "llama-3.3-70b-versatile",
+            "model":       "qwen/qwen3.6-27b",
             "messages":    [{"role": "user", "content": prompt}],
             "temperature": 0.7,
             "max_tokens":  300,
@@ -1025,7 +1025,7 @@ Focus on diet, meal timing, light activity. Do NOT mention insulin.
 Reply in JSON only: {{"patient": "...", "family": "..."}}"""
 
         parsed = self._call_groq({
-            "model":       "llama-3.3-70b-versatile",
+            "model":       "qwen/qwen3.6-27b",
             "messages":    [{"role": "user", "content": prompt}],
             "temperature": 0.65,
             "max_tokens":  220,
@@ -1107,6 +1107,12 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         """
         raw_readings = self._fetch_readings(user_id)
         cleaned_readings = self._remove_outliers(raw_readings)
+
+        # Shortened alert cooldown when the most recent reading came from a
+        # CSV import — lets a freshly-imported file surface its alert right
+        # away instead of waiting on the normal 60+ minute rate limit.
+        last_source = str(cleaned_readings[-1].get("source", "")) if cleaned_readings else ""
+        alert_window_override = 1 if last_source.startswith("csv") else None
 
         # ── Insufficient data ─────────────────────────────────────────────
         if len(cleaned_readings) < MIN_READINGS:
@@ -1288,7 +1294,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
             ) or self._fallback_advice(alert_type, lang)
 
             # ── Step 7: Family alert if risk detected (rate-limited) ──────
-            if alert_type and self._can_send_alert(user_id, alert_type):
+            if alert_type and self._can_send_alert(user_id, alert_type, window_minutes=alert_window_override):
                 try:
                     send_prediction_alert(
                         patient_id=user_id,
@@ -1453,7 +1459,7 @@ Reply in JSON only: {{"patient": "...", "family": "..."}}"""
         ) or self._fallback_advice(alert_type, lang)
 
         # Family notification (rate-limited)
-        if alert_type and self._can_send_alert(user_id, alert_type):
+        if alert_type and self._can_send_alert(user_id, alert_type, window_minutes=alert_window_override):
             try:
                 send_prediction_alert(
                     patient_id=user_id,

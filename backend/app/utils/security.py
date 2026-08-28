@@ -11,10 +11,12 @@ load_dotenv()
 # Configuration
 # ==========================================
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "f926236257f57ceab0e9449fc3e58ef84fd4e5659878c8083383adc18368cf4e"
-)
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is not set. "
+        "Set it in backend/.env — do not hardcode a fallback."
+    )
 
 # JWT algorithm
 ALGORITHM = "HS256"
